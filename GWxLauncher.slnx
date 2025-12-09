@@ -1,3 +1,7 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="LauncherConfig.cs" />
+    <File Path="TextFile1.txt" />
+  </Folder>
   <Project Path="GWxLauncher.csproj" />
 </Solution>

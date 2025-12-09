@@ -1,17 +1,18 @@
+using System;
+using System.Windows.Forms;
+
 namespace GWxLauncher
 {
     internal static class Program
     {
-        /// <summary>
-        ///  The main entry point for the application.
-        /// </summary>
         [STAThread]
         static void Main()
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
+            // Standard WinForms startup plumbing
             ApplicationConfiguration.Initialize();
-            Application.Run(new Form1());
+
+            // This tells the app which window to open first
+            Application.Run(new MainForm());
         }
     }
 }
