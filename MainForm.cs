@@ -9,11 +9,30 @@ namespace GWxLauncher
     {
 
         private LauncherConfig _config;
+        private readonly ProfileManager _profileManager = new();
+
+        private void RefreshProfileList()
+        {
+            lstProfiles.Items.Clear();
+
+            foreach (var profile in _profileManager.Profiles)
+            {
+                string display = profile.GameType switch
+                {
+                    GameType.GuildWars1 => $"[GW1] {profile.Name}",
+                    GameType.GuildWars2 => $"[GW2] {profile.Name}",
+                    _ => profile.Name
+                };
+
+                lstProfiles.Items.Add(display);
+            }
+        }
 
         public MainForm()
         {
             InitializeComponent();
             _config = LauncherConfig.Load();
+            RefreshProfileList();   // profiles start empty for now
         }
 
         private void btnLaunchGw1_Click(object sender, EventArgs e)
@@ -34,7 +53,7 @@ namespace GWxLauncher
                 {
                     MessageBox.Show(
                         $"{gameName} path is not set.\n\n" +
-                        "Please edit launcherConfig.json and set the correct EXE path.",
+                        "Please set the correct EXE path.",
                         "Path Not Set",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
@@ -131,6 +150,20 @@ namespace GWxLauncher
                     _config.Gw2Path = dialog.FileName;
                     _config.Save();
                     lblStatus.Text = "GW2 path updated.";
+                }
+            }
+        }
+
+        private void btnAddAcount_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new AddAccountDialog())
+            {
+                var result = dialog.ShowDialog(this);
+                if (result == DialogResult.OK && dialog.CreatedProfile != null)
+                {
+                    _profileManager.AddProfile(dialog.CreatedProfile);
+                    RefreshProfileList();
+                    lblStatus.Text = $"Added account: {dialog.CreatedProfile.Name}";
                 }
             }
         }
