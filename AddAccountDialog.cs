@@ -7,12 +7,29 @@ namespace GWxLauncher
     {
         public GameProfile? CreatedProfile { get; private set; }
 
+        private readonly GameProfile? _editingProfile;
+
         public AddAccountDialog()
         {
             InitializeComponent();
 
-            // If you used a ComboBox:
-            cboGameType.SelectedIndex = 0;
+            // Make sure the combo is a fixed list
+            cboGameType.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            if (cboGameType.Items.Count > 0)
+            {
+                cboGameType.SelectedIndex = 0;
+            }
+        }
+
+        public AddAccountDialog(GameProfile existingProfile) : this()
+        {
+            _editingProfile = existingProfile;
+
+            txtName.Text = existingProfile.Name;
+            cboGameType.SelectedIndex = existingProfile.GameType == GameType.GuildWars1 ? 0 : 1;
+
+            Text = "Edit Account";
         }
 
         private void btnOk_Click(object sender, EventArgs e)
@@ -30,23 +47,29 @@ namespace GWxLauncher
 
             GameType gameType;
 
-            // If you used a ComboBox:
             if (cboGameType.SelectedIndex == 0)
                 gameType = GameType.GuildWars1;
             else
                 gameType = GameType.GuildWars2;
 
-            // If you used radio buttons:
-            // if (rbGw1.Checked)
-            //     gameType = GameType.GuildWars1;
-            // else
-            //     gameType = GameType.GuildWars2;
-
-            CreatedProfile = new GameProfile
+            if (_editingProfile != null)
             {
-                Name = name,
-                GameType = gameType
-            };
+                // Edit existing profile in place
+                _editingProfile.Name = name;
+                _editingProfile.GameType = gameType;
+                // keep ExecutablePath as-is
+
+                CreatedProfile = _editingProfile;
+            }
+            else
+            {
+                // Create a new profile
+                CreatedProfile = new GameProfile
+                {
+                    Name = name,
+                    GameType = gameType
+                };
+            }
 
             DialogResult = DialogResult.OK;
             Close();

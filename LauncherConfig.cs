@@ -1,5 +1,5 @@
-﻿using System.Text.Json;
-using System.IO;   // <- optional if you don't already have implicit usings
+﻿using System.IO;
+using System.Text.Json;
 
 namespace GWxLauncher
 {
@@ -8,6 +8,13 @@ namespace GWxLauncher
         public string Gw1Path { get; set; } = "";
         public string Gw2Path { get; set; } = "";
 
+        // 🔹 New: window placement
+        public int WindowX { get; set; } = -1;
+        public int WindowY { get; set; } = -1;
+        public int WindowWidth { get; set; } = -1;
+        public int WindowHeight { get; set; } = -1;
+        public bool WindowMaximized { get; set; } = false;
+
         private const string ConfigFileName = "launcherConfig.json";
 
         public static LauncherConfig Load()
@@ -15,22 +22,19 @@ namespace GWxLauncher
             try
             {
                 if (!File.Exists(ConfigFileName))
-                {
                     return new LauncherConfig();
-                }
 
                 string json = File.ReadAllText(ConfigFileName);
-                return JsonSerializer.Deserialize<LauncherConfig>(json)
-                       ?? new LauncherConfig();
+                var config = JsonSerializer.Deserialize<LauncherConfig>(json);
+                return config ?? new LauncherConfig();
             }
             catch
             {
-                // If JSON is broken, return a blank config
+                // If anything goes wrong, just use defaults
                 return new LauncherConfig();
             }
         }
 
-        // 🔹 NEW: Save current settings back to launcherConfig.json
         public void Save()
         {
             var options = new JsonSerializerOptions

@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
+using System.Drawing;
+
 
 namespace GWxLauncher
 {
@@ -17,14 +19,8 @@ namespace GWxLauncher
 
             foreach (var profile in _profileManager.Profiles)
             {
-                string display = profile.GameType switch
-                {
-                    GameType.GuildWars1 => $"[GW1] {profile.Name}",
-                    GameType.GuildWars2 => $"[GW2] {profile.Name}",
-                    _ => profile.Name
-                };
-
-                lstProfiles.Items.Add(display);
+                // ToString() on GameProfile handles "[GW1] Name" etc.
+                lstProfiles.Items.Add(profile);
             }
         }
 
@@ -32,7 +28,50 @@ namespace GWxLauncher
         {
             InitializeComponent();
             _config = LauncherConfig.Load();
-            RefreshProfileList();   // profiles start empty for now
+
+            // 🔹 Restore window placement if we have saved values
+            if (_config.WindowX >= 0 && _config.WindowY >= 0)
+            {
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(_config.WindowX, _config.WindowY);
+            }
+
+            if (_config.WindowWidth > 0 && _config.WindowHeight > 0)
+            {
+                Size = new Size(_config.WindowWidth, _config.WindowHeight);
+            }
+
+            if (_config.WindowMaximized)
+            {
+                WindowState = FormWindowState.Maximized;
+            }
+
+            _profileManager.Load();
+            RefreshProfileList();
+        }
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (WindowState == FormWindowState.Normal)
+            {
+                _config.WindowX = Left;
+                _config.WindowY = Top;
+                _config.WindowWidth = Width;
+                _config.WindowHeight = Height;
+                _config.WindowMaximized = false;
+            }
+            else if (WindowState == FormWindowState.Maximized)
+            {
+                _config.WindowMaximized = true;
+
+                // Remember where the window would be in normal state
+                var bounds = RestoreBounds;
+                _config.WindowX = bounds.Left;
+                _config.WindowY = bounds.Top;
+                _config.WindowWidth = bounds.Width;
+                _config.WindowHeight = bounds.Height;
+            }
+
+            _config.Save();
         }
 
         private void btnLaunchGw1_Click(object sender, EventArgs e)
@@ -42,6 +81,170 @@ namespace GWxLauncher
         private void btnLaunchGw2_Click(object sender, EventArgs e)
         {
             LaunchGame(_config.Gw2Path, "Guild Wars 2");
+        }
+        private GameProfile? GetSelectedProfile()
+        {
+            return lstProfiles.SelectedItem as GameProfile;
+        }
+        // Lets the user pick an executable for a profile, then saves & refreshes the list.
+        // Returns true if a path was chosen, false if the user cancelled.
+        private bool TrySelectProfileExecutable(GameProfile profile)
+        {
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Title = $"Select executable for {profile.Name}";
+                dialog.Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*";
+
+                // Start from the profile's own path if we have one…
+                string initialPath = profile.ExecutablePath;
+
+                // …otherwise fall back to the legacy global config just for convenience
+                if (string.IsNullOrWhiteSpace(initialPath))
+                {
+                    initialPath = profile.GameType == GameType.GuildWars1
+                        ? _config.Gw1Path
+                        : _config.Gw2Path;
+                }
+
+                if (!string.IsNullOrWhiteSpace(initialPath))
+                {
+                    try
+                    {
+                        dialog.InitialDirectory = Path.GetDirectoryName(initialPath);
+                    }
+                    catch
+                    {
+                        // ignore bad paths
+                    }
+                }
+
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    profile.ExecutablePath = dialog.FileName;
+                    _profileManager.Save();
+                    RefreshProfileList();
+                    lblStatus.Text = $"Updated path for {profile.Name}.";
+
+                    return true;
+                }
+
+                lblStatus.Text = $"No path selected for {profile.Name}.";
+                return false;
+            }
+        }
+
+        private void LaunchProfile(GameProfile profile)
+        {
+            string exePath = profile.ExecutablePath;
+
+            // If the profile doesn't have a path yet, prompt the user to set one
+            if (string.IsNullOrWhiteSpace(exePath))
+            {
+                var result = MessageBox.Show(
+                    $"No executable path is set for \"{profile.Name}\".\n\n" +
+                    "Would you like to select it now?",
+                    "Executable not set",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    // Open the file picker; if they cancel, we don't launch
+                    if (!TrySelectProfileExecutable(profile))
+                    {
+                        return;
+                    }
+
+                    exePath = profile.ExecutablePath;
+                }
+                else
+                {
+                    lblStatus.Text = $"Launch canceled for {profile.Name}.";
+                    return;
+                }
+            }
+
+            string gameName = profile.GameType == GameType.GuildWars1
+                ? "Guild Wars 1"
+                : "Guild Wars 2";
+
+            LaunchGame(exePath, gameName);
+        }
+
+        private void lstProfiles_DoubleClick(object sender, EventArgs e)
+        {
+            var profile = GetSelectedProfile();
+            if (profile != null)
+            {
+                LaunchProfile(profile);
+            }
+        }
+        private void lstProfiles_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                int index = lstProfiles.IndexFromPoint(e.Location);
+                if (index >= 0)
+                {
+                    lstProfiles.SelectedIndex = index;
+                }
+            }
+        }
+        private void menuLaunchProfile_Click(object sender, EventArgs e)
+        {
+            var profile = GetSelectedProfile();
+            if (profile != null)
+            {
+                LaunchProfile(profile);
+            }
+        }
+
+        private void menuSetProfilePath_Click(object sender, EventArgs e)
+        {
+            var profile = GetSelectedProfile();
+            if (profile == null)
+                return;
+
+            TrySelectProfileExecutable(profile);
+        }
+
+
+        private void menuEditProfile_Click(object sender, EventArgs e)
+        {
+            var profile = GetSelectedProfile();
+            if (profile == null)
+                return;
+
+            using (var dialog = new AddAccountDialog(profile))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK && dialog.CreatedProfile != null)
+                {
+                    _profileManager.Save();
+                    RefreshProfileList();
+                    lblStatus.Text = $"Updated account: {dialog.CreatedProfile.Name}.";
+                }
+            }
+        }
+
+        private void menuDeleteProfile_Click(object sender, EventArgs e)
+        {
+            var profile = GetSelectedProfile();
+            if (profile == null)
+                return;
+
+            var result = MessageBox.Show(
+                $"Delete account \"{profile.Name}\"?",
+                "Confirm Delete",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                _profileManager.RemoveProfile(profile);
+                _profileManager.Save();
+                RefreshProfileList();
+                lblStatus.Text = $"Deleted account: {profile.Name}.";
+            }
         }
 
         private void LaunchGame(string exePath, string gameName)
@@ -162,6 +365,8 @@ namespace GWxLauncher
                 if (result == DialogResult.OK && dialog.CreatedProfile != null)
                 {
                     _profileManager.AddProfile(dialog.CreatedProfile);
+                    _profileManager.Save();     // 🔹 persist to profiles.json
+
                     RefreshProfileList();
                     lblStatus.Text = $"Added account: {dialog.CreatedProfile.Name}";
                 }

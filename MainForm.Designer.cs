@@ -28,34 +28,17 @@
         /// </summary>
         private void InitializeComponent()
         {
-            btnLaunchGw1 = new Button();
-            btnLaunchGw2 = new Button();
+            components = new System.ComponentModel.Container();
             lblStatus = new Label();
-            btnSetGw1Path = new Button();
-            btnSetGw2Path = new Button();
             lstProfiles = new ListBox();
+            ctxProfiles = new ContextMenuStrip(components);
+            menuLaunchProfile = new ToolStripMenuItem();
+            menuSetProfilePath = new ToolStripMenuItem();
+            menuEditProfile = new ToolStripMenuItem();
+            deleteToolStripMenuItem = new ToolStripMenuItem();
             btnAddAccount = new Button();
+            ctxProfiles.SuspendLayout();
             SuspendLayout();
-            // 
-            // btnLaunchGw1
-            // 
-            btnLaunchGw1.Location = new Point(5, 188);
-            btnLaunchGw1.Name = "btnLaunchGw1";
-            btnLaunchGw1.Size = new Size(223, 23);
-            btnLaunchGw1.TabIndex = 0;
-            btnLaunchGw1.Text = "Launch Guild Wars 1";
-            btnLaunchGw1.UseVisualStyleBackColor = true;
-            btnLaunchGw1.Click += btnLaunchGw1_Click;
-            // 
-            // btnLaunchGw2
-            // 
-            btnLaunchGw2.Location = new Point(5, 246);
-            btnLaunchGw2.Name = "btnLaunchGw2";
-            btnLaunchGw2.Size = new Size(224, 23);
-            btnLaunchGw2.TabIndex = 1;
-            btnLaunchGw2.Text = "Launch Guild Wars 2";
-            btnLaunchGw2.UseVisualStyleBackColor = true;
-            btnLaunchGw2.Click += btnLaunchGw2_Click;
             // 
             // lblStatus
             // 
@@ -66,34 +49,51 @@
             lblStatus.TabIndex = 2;
             lblStatus.Text = "Ready";
             // 
-            // btnSetGw1Path
-            // 
-            btnSetGw1Path.Location = new Point(5, 217);
-            btnSetGw1Path.Name = "btnSetGw1Path";
-            btnSetGw1Path.Size = new Size(101, 23);
-            btnSetGw1Path.TabIndex = 3;
-            btnSetGw1Path.Text = "Set GW1 Path";
-            btnSetGw1Path.UseVisualStyleBackColor = true;
-            btnSetGw1Path.Click += btnSetGw1Path_Click;
-            // 
-            // btnSetGw2Path
-            // 
-            btnSetGw2Path.Location = new Point(6, 275);
-            btnSetGw2Path.Name = "btnSetGw2Path";
-            btnSetGw2Path.Size = new Size(101, 23);
-            btnSetGw2Path.TabIndex = 4;
-            btnSetGw2Path.Text = "Set GW2 Path";
-            btnSetGw2Path.UseVisualStyleBackColor = true;
-            btnSetGw2Path.Click += btnSetGw2Path_Click;
-            // 
             // lstProfiles
             // 
+            lstProfiles.ContextMenuStrip = ctxProfiles;
             lstProfiles.FormattingEnabled = true;
             lstProfiles.ItemHeight = 15;
             lstProfiles.Location = new Point(5, 12);
             lstProfiles.Name = "lstProfiles";
             lstProfiles.Size = new Size(223, 94);
             lstProfiles.TabIndex = 5;
+            lstProfiles.DoubleClick += lstProfiles_DoubleClick;
+            lstProfiles.MouseDown += lstProfiles_MouseDown;
+            // 
+            // ctxProfiles
+            // 
+            ctxProfiles.Items.AddRange(new ToolStripItem[] { menuLaunchProfile, menuSetProfilePath, menuEditProfile, deleteToolStripMenuItem });
+            ctxProfiles.Name = "ctxProfiles";
+            ctxProfiles.Size = new Size(127, 92);
+            // 
+            // menuLaunchProfile
+            // 
+            menuLaunchProfile.Name = "menuLaunchProfile";
+            menuLaunchProfile.Size = new Size(126, 22);
+            menuLaunchProfile.Text = "Launch";
+            menuLaunchProfile.Click += menuLaunchProfile_Click;
+            // 
+            // menuSetProfilePath
+            // 
+            menuSetProfilePath.Name = "menuSetProfilePath";
+            menuSetProfilePath.Size = new Size(126, 22);
+            menuSetProfilePath.Text = "Set Path...";
+            menuSetProfilePath.Click += menuSetProfilePath_Click;
+            // 
+            // menuEditProfile
+            // 
+            menuEditProfile.Name = "menuEditProfile";
+            menuEditProfile.Size = new Size(126, 22);
+            menuEditProfile.Text = "Edit...";
+            menuEditProfile.Click += menuEditProfile_Click;
+            // 
+            // deleteToolStripMenuItem
+            // 
+            deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
+            deleteToolStripMenuItem.Size = new Size(126, 22);
+            deleteToolStripMenuItem.Text = "Delete";
+            deleteToolStripMenuItem.Click += menuDeleteProfile_Click;
             // 
             // btnAddAccount
             // 
@@ -112,27 +112,25 @@
             ClientSize = new Size(244, 321);
             Controls.Add(btnAddAccount);
             Controls.Add(lstProfiles);
-            Controls.Add(btnSetGw2Path);
-            Controls.Add(btnSetGw1Path);
             Controls.Add(lblStatus);
-            Controls.Add(btnLaunchGw2);
-            Controls.Add(btnLaunchGw1);
             MaximizeBox = false;
             MinimizeBox = false;
             Name = "MainForm";
             Text = "GWxLauncher";
+            FormClosing += MainForm_FormClosing;
+            ctxProfiles.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
 
         #endregion
-
-        private Button btnLaunchGw1;
-        private Button btnLaunchGw2;
         private Label lblStatus;
-        private Button btnSetGw1Path;
-        private Button btnSetGw2Path;
         private ListBox lstProfiles;
         private Button btnAddAccount;
+        private ContextMenuStrip ctxProfiles;
+        private ToolStripMenuItem menuLaunchProfile;
+        private ToolStripMenuItem deleteToolStripMenuItem;
+        private ToolStripMenuItem menuSetProfilePath;
+        private ToolStripMenuItem menuEditProfile;
     }
 }
