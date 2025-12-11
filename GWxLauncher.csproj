@@ -6,12 +6,12 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>GWx.ico</ApplicationIcon>
+    <ApplicationIcon>Resources\GWx.ico</ApplicationIcon>
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="GWx.ico" />
+    <Content Include="Resources\GWx.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="launcherConfig.json">
+    <None Update="Config\launcherConfig.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

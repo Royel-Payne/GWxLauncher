@@ -1,10 +1,13 @@
-﻿using System;
+﻿using GWxLauncher.Domain;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Linq;
 
-namespace GWxLauncher
+
+namespace GWxLauncher.Services
 {
     /// <summary>
     /// Handles launching Guild Wars 1 with optional GWToolbox (or other DLL) injection.
@@ -91,6 +94,98 @@ namespace GWxLauncher
         #endregion
 
         /// <summary>
+        /// Generic entry point: launch GW1 and inject one or more DLLs.
+        /// </summary>
+        public bool TryLaunchWithDlls(
+            GameProfile profile,
+            string gwExePath,
+            IEnumerable<string> dllPaths,
+            out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (profile.GameType != GameType.GuildWars1)
+            {
+                errorMessage = "DLL injection is only supported for Guild Wars 1 profiles.";
+                return false;
+            }
+
+            if (!File.Exists(gwExePath))
+            {
+                errorMessage = $"Guild Wars 1 executable not found:\n{gwExePath}";
+                return false;
+            }
+
+            var dllList = dllPaths?
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? new();
+
+            if (dllList.Count == 0)
+            {
+                errorMessage = "No DLLs were specified for injection.";
+                return false;
+            }
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = gwExePath,
+                    UseShellExecute = false
+                };
+
+                var process = Process.Start(startInfo);
+
+                if (process == null)
+                {
+                    errorMessage = "Failed to start Guild Wars 1 process.";
+                    return false;
+                }
+
+                try
+                {
+                    process.WaitForInputIdle(5000);
+                }
+                catch
+                {
+                    // Some processes may not support WaitForInputIdle; ignore
+                }
+
+                if (process.HasExited)
+                {
+                    errorMessage = "Guild Wars 1 exited before injection could be performed.";
+                    return false;
+                }
+
+                // Inject each DLL in order
+                foreach (var dllPath in dllList)
+                {
+                    if (!File.Exists(dllPath))
+                    {
+                        errorMessage = $"DLL not found for injection:\n{dllPath}";
+                        return false;
+                    }
+
+                    if (!InjectDllIntoProcess(process, dllPath, out var injectError))
+                    {
+                        errorMessage =
+                            $"Failed to inject DLL:\n{dllPath}\n\n" +
+                            injectError;
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to launch Guild Wars 1 with DLL injection:\n\n{ex.Message}";
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Entry point used by MainForm.LaunchProfile.
         /// Returns true if we launched GW1 and successfully queued DLL injection.
         /// </summary>
@@ -127,50 +222,24 @@ namespace GWxLauncher
                 return false;
             }
 
-            try
+            // Optional: if the new list is empty, seed it with Toolbox
+            if (profile.Gw1InjectedDlls != null &&
+                profile.Gw1InjectedDlls.Count == 0)
             {
-                var startInfo = new ProcessStartInfo
+                profile.Gw1InjectedDlls.Add(new Gw1InjectedDll
                 {
-                    FileName = gwExePath,
-                    UseShellExecute = false
-                };
-
-                var process = Process.Start(startInfo);
-
-                if (process == null)
-                {
-                    errorMessage = "Failed to start Guild Wars 1 process.";
-                    return false;
-                }
-
-                // Give GW1 a moment to initialize and ensure kernel32 is loaded
-                try
-                {
-                    process.WaitForInputIdle(5000);
-                }
-                catch
-                {
-                    // Some processes may not support WaitForInputIdle; ignore
-                }
-
-                if (process.HasExited)
-                {
-                    errorMessage = "Guild Wars 1 exited before injection could be performed.";
-                    return false;
-                }
-
-                if (!InjectDllIntoProcess(process, profile.Gw1ToolboxDllPath, out errorMessage))
-                {
-                    return false;
-                }
-
-                return true;
+                    Name = "Toolbox",
+                    Path = profile.Gw1ToolboxDllPath,
+                    Enabled = true
+                });
             }
-            catch (Exception ex)
-            {
-                errorMessage = $"Failed to launch Guild Wars 1 with Toolbox:\n\n{ex.Message}";
-                return false;
-            }
+
+            // Delegate to the generic multi-DLL launcher
+            return TryLaunchWithDlls(
+                profile,
+                gwExePath,
+                new[] { profile.Gw1ToolboxDllPath },
+                out errorMessage);
         }
 
         /// <summary>

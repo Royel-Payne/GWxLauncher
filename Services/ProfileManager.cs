@@ -2,8 +2,9 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GWxLauncher.Domain;
 
-namespace GWxLauncher
+namespace GWxLauncher.Services
 {
     public class ProfileManager
     {

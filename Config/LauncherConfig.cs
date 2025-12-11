@@ -1,7 +1,7 @@
 ﻿using System.IO;
 using System.Text.Json;
 
-namespace GWxLauncher
+namespace GWxLauncher.Config
 {
     internal class LauncherConfig
     {

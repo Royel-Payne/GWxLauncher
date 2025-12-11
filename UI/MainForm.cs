@@ -7,9 +7,9 @@ using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using System.Linq;
 using System.ComponentModel;
-
-
-
+using GWxLauncher.Config;
+using GWxLauncher.Domain;
+using GWxLauncher.Services;
 
 namespace GWxLauncher
 {
