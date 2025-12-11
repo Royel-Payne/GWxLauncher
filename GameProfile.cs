@@ -1,23 +1,26 @@
-﻿namespace GWxLauncher
+﻿using GWxLauncher;
+
+public class GameProfile
 {
-    public class GameProfile
+    public string Name { get; set; } = "";
+    public GameType GameType { get; set; }
+
+    // Each profile's own executable path (may be blank, we fall back to config)
+    public string ExecutablePath { get; set; } = "";
+
+    // GW1-only: optional Toolbox injection
+    public bool Gw1ToolboxEnabled { get; set; } = false;
+    public string Gw1ToolboxDllPath { get; set; } = "";
+
+    public override string ToString()
     {
-        public string Name { get; set; } = "";
-        public GameType GameType { get; set; }
-
-        // Each profile's own executable path (may be blank, we fall back to config)
-        public string ExecutablePath { get; set; } = "";
-
-        public override string ToString()
+        var prefix = GameType switch
         {
-            var prefix = GameType switch
-            {
-                GameType.GuildWars1 => "[GW1]",
-                GameType.GuildWars2 => "[GW2]",
-                _ => "[?]"
-            };
+            GameType.GuildWars1 => "[GW1]",
+            GameType.GuildWars2 => "[GW2]",
+            _ => "[?]"
+        };
 
-            return $"{prefix} {Name}";
-        }
+        return $"{prefix} {Name}";
     }
 }
