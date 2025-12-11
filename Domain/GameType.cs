@@ -1,4 +1,4 @@
-﻿namespace GWxLauncher
+﻿namespace GWxLauncher.Domain
 {
     public enum GameType
     {
