@@ -78,59 +78,51 @@
             lstProfiles.MouseDown += lstProfiles_MouseDown;
             // 
             // ctxProfiles
-            //
-            ctxProfiles.Items.AddRange(new ToolStripItem[]
-            {
-                menuLaunchProfile,
-                menuGw1ToolboxToggle,
-                menuGw1ToolboxPath,
-                menuSetProfilePath,
-                menuEditProfile,
-                deleteToolStripMenuItem
-            });
+            // 
+            ctxProfiles.Items.AddRange(new ToolStripItem[] { menuLaunchProfile, menuGw1ToolboxToggle, menuGw1ToolboxPath, menuSetProfilePath, menuEditProfile, deleteToolStripMenuItem });
             ctxProfiles.Name = "ctxProfiles";
-            ctxProfiles.Size = new Size(180, 114);
+            ctxProfiles.Size = new Size(196, 158);
             // 
             // menuLaunchProfile
             // 
             menuLaunchProfile.Name = "menuLaunchProfile";
-            menuLaunchProfile.Size = new Size(126, 22);
+            menuLaunchProfile.Size = new Size(195, 22);
             menuLaunchProfile.Text = "Launch";
             menuLaunchProfile.Click += menuLaunchProfile_Click;
-            //
+            // 
             // menuGw1ToolboxToggle
-            //
-            menuGw1ToolboxToggle.Name = "menuGw1ToolboxToggle";
-            menuGw1ToolboxToggle.Size = new Size(179, 22);
-            menuGw1ToolboxToggle.Text = "GW1 Toolbox (inject)";
+            // 
             menuGw1ToolboxToggle.CheckOnClick = true;
+            menuGw1ToolboxToggle.Name = "menuGw1ToolboxToggle";
+            menuGw1ToolboxToggle.Size = new Size(195, 22);
+            menuGw1ToolboxToggle.Text = "GW1 Toolbox (inject)";
             menuGw1ToolboxToggle.Click += menuGw1ToolboxToggle_Click;
-            //
+            // 
             // menuGw1ToolboxPath
-            //
+            // 
             menuGw1ToolboxPath.Name = "menuGw1ToolboxPath";
-            menuGw1ToolboxPath.Size = new Size(179, 22);
+            menuGw1ToolboxPath.Size = new Size(195, 22);
             menuGw1ToolboxPath.Text = "Set GW1 Toolbox DLL…";
             menuGw1ToolboxPath.Click += menuGw1ToolboxPath_Click;
             // 
             // menuSetProfilePath
             // 
             menuSetProfilePath.Name = "menuSetProfilePath";
-            menuSetProfilePath.Size = new Size(126, 22);
+            menuSetProfilePath.Size = new Size(195, 22);
             menuSetProfilePath.Text = "Set Path...";
             menuSetProfilePath.Click += menuSetProfilePath_Click;
             // 
             // menuEditProfile
             // 
             menuEditProfile.Name = "menuEditProfile";
-            menuEditProfile.Size = new Size(126, 22);
-            menuEditProfile.Text = "Edit...";
+            menuEditProfile.Size = new Size(195, 22);
+            menuEditProfile.Text = "Edit Profile...";
             menuEditProfile.Click += menuEditProfile_Click;
             // 
             // deleteToolStripMenuItem
             // 
             deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
-            deleteToolStripMenuItem.Size = new Size(126, 22);
+            deleteToolStripMenuItem.Size = new Size(195, 22);
             deleteToolStripMenuItem.Text = "Delete";
             deleteToolStripMenuItem.Click += menuDeleteProfile_Click;
             // 

@@ -1,15 +1,16 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Windows.Forms;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Runtime.InteropServices;
-using System.Linq;
-using System.ComponentModel;
-using GWxLauncher.Config;
+﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
+using GWxLauncher.UI;
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
 
 namespace GWxLauncher
 {
@@ -372,74 +373,61 @@ namespace GWxLauncher
 
         private void LaunchProfile(GameProfile profile)
         {
+            if (profile == null)
+                return;
+
+            // Resolve executable path: per-profile override first, then global config
             string exePath = profile.ExecutablePath;
 
-            // If the profile doesn't have a path yet, prompt the user to set one
             if (string.IsNullOrWhiteSpace(exePath))
             {
-                var result = MessageBox.Show(
-                    $"No executable path is set for \"{profile.Name}\".\n\n" +
-                    "Would you like to select it now?",
-                    "Executable not set",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-
-                if (result == DialogResult.Yes)
-                {
-                    // Open the file picker; if they cancel, we don't launch
-                    if (!TrySelectProfileExecutable(profile))
-                    {
-                        return;
-                    }
-
-                    exePath = profile.ExecutablePath;
-                }
-                else
-                {
-                    lblStatus.Text = $"Launch canceled for {profile.Name}.";
-                    return;
-                }
+                exePath = profile.GameType == GameType.GuildWars1
+                    ? _config.Gw1Path
+                    : _config.Gw2Path;
             }
 
-            string gameName = profile.GameType == GameType.GuildWars1
+            if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+            {
+                MessageBox.Show(
+                    "No valid executable path is configured for this profile.\n\n" +
+                    "Edit the profile or configure the game path in settings.",
+                    "Missing executable",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+            var gameName = profile.GameType == GameType.GuildWars1
                 ? "Guild Wars 1"
                 : "Guild Wars 2";
 
-            // 🔹 GW1 with Toolbox enabled → use injection service
-            if (profile.GameType == GameType.GuildWars1 && profile.Gw1ToolboxEnabled)
+            // If this is a GW1 profile, delegate launch + injection to Gw1InjectionService
+            if (profile.GameType == GameType.GuildWars1)
             {
-                var injector = new Gw1InjectionService();
-                if (injector.TryLaunchWithToolbox(profile, exePath, out var errorMessage))
+                var gw1Service = new Gw1InjectionService();
+
+                if (gw1Service.TryLaunchGw1(profile, exePath, this, out var gw1Error))
                 {
-                    lblStatus.Text = $"{gameName} launched (Toolbox enabled).";
+                    lblStatus.Text = $"{gameName} launched.";
                 }
                 else
                 {
-                    // Let the user decide if they still want to launch without Toolbox
-                    var result = MessageBox.Show(
-                        errorMessage + "\n\nLaunch without Toolbox?",
-                        "GW1 Toolbox Injection",
-                        MessageBoxButtons.YesNo,
+                    MessageBox.Show(
+                        this,
+                        gw1Error,
+                        "Guild Wars 1 launch",
+                        MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
 
-                    if (result == DialogResult.Yes)
-                    {
-                        LaunchGame(exePath, gameName);
-                    }
-                    else
-                    {
-                        lblStatus.Text = "Launch cancelled due to Toolbox configuration issue.";
-                    }
+                    lblStatus.Text = "Failed to launch Guild Wars 1.";
                 }
+
+                return;
             }
-            else
-            {
-                // Normal launch path (GW2, or GW1 without Toolbox)
-                LaunchGame(exePath, gameName);
-            }
+
+
+            // Default: no injection (GW2, or GW1 with no DLLs enabled)
+            LaunchGame(exePath, gameName);
         }
-
-
         private void lstProfiles_DoubleClick(object sender, EventArgs e)
         {
             var profile = GetSelectedProfile();
@@ -480,20 +468,18 @@ namespace GWxLauncher
 
         private void menuEditProfile_Click(object sender, EventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = lstProfiles.SelectedItem as GameProfile;
             if (profile == null)
                 return;
 
-            using (var dialog = new AddAccountDialog(profile))
+            using var dlg = new ProfileSettingsForm(profile);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
             {
-                if (dialog.ShowDialog(this) == DialogResult.OK && dialog.CreatedProfile != null)
-                {
-                    _profileManager.Save();
-                    RefreshProfileList();
-                    lblStatus.Text = $"Updated account: {dialog.CreatedProfile.Name}.";
-                }
+                _profileManager.Save();
+                RefreshProfileList();
             }
         }
+
 
         private void menuDeleteProfile_Click(object sender, EventArgs e)
         {

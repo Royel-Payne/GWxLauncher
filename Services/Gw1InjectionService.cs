@@ -5,7 +5,9 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Linq;
-
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace GWxLauncher.Services
 {
@@ -240,6 +242,177 @@ namespace GWxLauncher.Services
                 gwExePath,
                 new[] { profile.Gw1ToolboxDllPath },
                 out errorMessage);
+        }
+        /// <summary>
+        /// Main entry point for launching a GW1 profile.
+        /// Handles:
+        ///  - starting Gw.exe
+        ///  - immediate Toolbox injection (if enabled)
+        ///  - background Py4GW injection (if enabled)
+        /// </summary>
+        public bool TryLaunchGw1(
+            GameProfile profile,
+            string exePath,
+            IWin32Window owner,
+            out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (profile.GameType != GameType.GuildWars1)
+            {
+                errorMessage = "This profile is not a Guild Wars 1 profile.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+            {
+                errorMessage = $"Guild Wars 1 executable not found:\n{exePath}";
+                return false;
+            }
+
+
+            Process? process;
+
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    WorkingDirectory = Path.GetDirectoryName(exePath) ?? string.Empty,
+                    UseShellExecute = false
+                };
+
+                process = Process.Start(startInfo);
+
+                if (process == null)
+                {
+                    errorMessage = "Failed to start Guild Wars 1 process.";
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to start Guild Wars 1:\n\n{ex.Message}";
+                return false;
+            }
+
+            // --- TOOLBOX: immediate injection, same as before but scoped here ---
+
+            if (profile.Gw1ToolboxEnabled)
+            {
+                var toolboxPath = profile.Gw1ToolboxDllPath;
+
+                if (string.IsNullOrWhiteSpace(toolboxPath) || !File.Exists(toolboxPath))
+                {
+                    // We *launched* the game, but Toolbox is misconfigured.
+                    // You can decide later if this should be fatal. For now, warn and keep going.
+                    MessageBox.Show(
+                        owner,
+                        "GW1 Toolbox is enabled for this profile, but the DLL path is not configured " +
+                        "or the file does not exist.\n\nThe game will launch without Toolbox.",
+                        "GW1 Toolbox injection",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                }
+                else
+                {
+                    if (!InjectDllIntoProcess(process, toolboxPath, out var injectError))
+                    {
+                        // Again: game already launched; we just report the Toolbox failure.
+                        MessageBox.Show(
+                            owner,
+                            $"Failed to inject GW1 Toolbox DLL:\n\n{injectError}\n\n" +
+                            "The game will continue without Toolbox.",
+                            "GW1 Toolbox injection",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                }
+            }
+
+            // --- PY4GW: background injection after window is ready ---
+
+            if (profile.Gw1Py4GwEnabled &&
+                !string.IsNullOrWhiteSpace(profile.Gw1Py4GwDllPath) &&
+                File.Exists(profile.Gw1Py4GwDllPath))
+            {
+                // Launch a background task that waits for the window, then injects.
+                _ = Task.Run(() => InjectPy4GwAfterWindowReady(process, profile, owner));
+            }
+
+            // NOTE: Later we’ll add gMod here too.
+
+            return true;
+        }
+        /// <summary>
+        /// Waits until the Guild Wars process has a main window handle,
+        /// or times out. Returns false if the process exits first.
+        /// </summary>
+        private bool WaitForGuildWarsWindow(Process process, TimeSpan timeout)
+        {
+            var sw = Stopwatch.StartNew();
+
+            while (sw.Elapsed < timeout)
+            {
+                if (process.HasExited)
+                    return false;
+
+                // Refresh to get updated MainWindowHandle
+                process.Refresh();
+
+                if (process.MainWindowHandle != IntPtr.Zero)
+                    return true;
+
+                Thread.Sleep(250);
+            }
+
+            return false;
+        }
+        /// <summary>
+        /// Waits for the GW1 window, then injects Py4GW if everything is still running.
+        /// Runs on a background thread.
+        /// </summary>
+        private void InjectPy4GwAfterWindowReady(Process process, GameProfile profile, IWin32Window? owner)
+        {
+            try
+            {
+                // Basic sanity checks
+                if (!profile.Gw1Py4GwEnabled)
+                    return;
+
+                var dllPath = profile.Gw1Py4GwDllPath;
+                if (string.IsNullOrWhiteSpace(dllPath))
+                    return;
+
+                // 1) Wait up to 30s for the GW window
+                if (!WaitForGuildWarsWindow(process, TimeSpan.FromSeconds(30)))
+                {
+                    // Optional: log or status message later
+                    return;
+                }
+
+                // 2) Give GW a bit of breathing room after the window appears
+                Thread.Sleep(TimeSpan.FromSeconds(5));
+
+                if (process.HasExited)
+                    return;
+
+                // 3) Reuse the same injection helper we already use for Toolbox
+                //    Adjust this call to match your existing method signature.
+                var ok = InjectDllIntoProcess(process, dllPath, out var error);
+
+                if (!ok)
+                {
+                    // Optional: for now we stay quiet; later we can log or surface this.
+                    // If you want immediate feedback, you could do:
+                    // MessageBox.Show(owner, $"Failed to inject Py4GW:\n\n{error}", "Py4GW injection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch
+            {
+                // Swallow for now; later we can wire a logger.
+            }
         }
 
         /// <summary>

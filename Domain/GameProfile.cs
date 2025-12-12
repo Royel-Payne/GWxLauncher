@@ -18,14 +18,22 @@ namespace GWxLauncher.Domain
         public string Name { get; set; } = "";
         public GameType GameType { get; set; }
 
-        // Each profile's own executable path (may be blank, we fall back to config)
+        // Per-profile executable path (optional override)
         public string ExecutablePath { get; set; } = "";
 
-        // GW1-only: optional Toolbox injection
+        // GW1 mods – Toolbox (already implemented)
         public bool Gw1ToolboxEnabled { get; set; } = false;
         public string Gw1ToolboxDllPath { get; set; } = "";
 
-        // 🔹 New: general-purpose list of DLLs this profile can inject
+        // GW1 mods – Py4GW (Phase 3.6 will make this do something)
+        public bool Gw1Py4GwEnabled { get; set; } = false;
+        public string Gw1Py4GwDllPath { get; set; } = "";
+
+        // GW1 mods – gMod (Phase 3.7 will implement early injection)
+        public bool Gw1GModEnabled { get; set; } = false;
+        public string Gw1GModDllPath { get; set; } = "";
+
+        // General-purpose list, still available for experiments / future
         public List<Gw1InjectedDll> Gw1InjectedDlls { get; set; } = new();
 
         public override string ToString()
