@@ -11,6 +11,9 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
+using System.Collections.Generic;
+using System.Text.Json;
 
 namespace GWxLauncher
 {
@@ -27,6 +30,17 @@ namespace GWxLauncher
         private const int DWMWCP_DONOTROUND = 1;
         private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
 
+        private LaunchReport? _lastLaunchReport;
+
+        private readonly ViewStateStore _views = new();
+        private bool _showCheckedOnly = false;
+        private string _viewNameBeforeEdit = "";
+        private bool _viewNameDirty = false;
+        private bool _suppressViewTextEvents = false;
+        private bool _suppressArmBulkEvents = false;
+
+
+
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(
             IntPtr hwnd,
@@ -38,21 +52,60 @@ namespace GWxLauncher
         {
             lstProfiles.Items.Clear();
 
-            var sortedProfiles = _profileManager.Profiles
+            var profiles = _profileManager.Profiles
                 .OrderBy(p => p.GameType) // GW1 before GW2
-                .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase);
+                .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+                .AsEnumerable();
 
-            foreach (var profile in sortedProfiles)
+            // Visibility is controlled ONLY by Show Checked Accounts Only (view-scoped)
+            if (_showCheckedOnly)
             {
-                lstProfiles.Items.Add(profile);
+                profiles = profiles.Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
             }
+
+            foreach (var profile in profiles)
+                lstProfiles.Items.Add(profile);
+
+            UpdateBulkArmingUi();
+        }
+
+
+        private void UpdateBulkArmingUi()
+        {
+            // Always allow toggling this checkbox. It is a visibility control (UI-only).
+            chkArmBulk.Enabled = true;
+
+            bool anyEligible = _views.AnyEligibleInActiveView(_profileManager.Profiles);
+
+            // Bulk armed (future) is a derived state: (any eligible) + (show checked only)
+            bool armed = anyEligible && _showCheckedOnly;
+
+            if (armed)
+                lblStatus.Text = $"Bulk launch armed · View: {_views.ActiveViewName}";
+            else if (_showCheckedOnly && !anyEligible)
+                lblStatus.Text = $"No checked profiles in view · View: {_views.ActiveViewName}";
+        }
+        private void chkArmBulk_CheckedChanged(object sender, EventArgs e)
+        {
+            if (_suppressArmBulkEvents)
+                return;
+
+            _showCheckedOnly = chkArmBulk.Checked;
+
+            _views.SetShowCheckedOnly(_views.ActiveViewName, _showCheckedOnly);
+            _views.Save();
+
+            RefreshProfileList();
         }
 
 
         public MainForm()
         {
             InitializeComponent();
+            chkArmBulk.BringToFront(); // ensure it's not obscured
+
             ctxProfiles.Opening += ctxProfiles_Opening;
+
             _config = LauncherConfig.Load();
 
             // Try to enable dark title bar (immersive dark mode)
@@ -131,7 +184,17 @@ namespace GWxLauncher
             }
 
             _profileManager.Load();
+            _views.Load();
+
+            _suppressViewTextEvents = true;
+            txtView.Text = _views.ActiveViewName;
+            ApplyViewScopedUiState();
+            _suppressViewTextEvents = false;
+
+
+
             RefreshProfileList();
+
         }
 
         private void lstProfiles_DrawItem(object sender, DrawItemEventArgs e)
@@ -174,9 +237,14 @@ namespace GWxLauncher
                 g.FillRectangle(bgBrush, card);
                 g.DrawRectangle(borderPen, card);
             }
+            // Eligibility checkbox area (bulk launch eligibility; not selection)
+            Rectangle cb = new Rectangle(card.Left + 8, card.Top + 22, 16, 16);
+            bool eligible = _views.IsEligible(_views.ActiveViewName, profile.Id);
+            CheckBoxState cbState = eligible ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal;
+            CheckBoxRenderer.DrawCheckBox(g, cb.Location, cbState);
 
             // Icon area
-            Rectangle iconRect = new Rectangle(card.Left + 8, card.Top + 8, 32, 32);
+            Rectangle iconRect = new Rectangle(card.Left + 30, card.Top + 8, 32, 32);
             Image? icon = profile.GameType == GameType.GuildWars1 ? _gw1Image : _gw2Image;
             if (icon != null)
             {
@@ -269,6 +337,9 @@ namespace GWxLauncher
             // Enable/disable GW1-specific items
             menuGw1ToolboxToggle.Enabled = isGw1;
             menuGw1ToolboxPath.Enabled = isGw1;
+
+            // NEW: only enabled if we have a report this session
+            menuShowLastLaunchDetails.Enabled = _lastLaunchReport != null;
 
             // Reflect current state in the checkbox
             if (isGw1 && profile != null)
@@ -405,12 +476,15 @@ namespace GWxLauncher
             {
                 var gw1Service = new Gw1InjectionService();
 
-                if (gw1Service.TryLaunchGw1(profile, exePath, this, out var gw1Error))
+                if (gw1Service.TryLaunchGw1(profile, exePath, this, out var gw1Error, out var report))
                 {
-                    lblStatus.Text = $"{gameName} launched.";
+                    _lastLaunchReport = report;
+                    lblStatus.Text = report.BuildSummary();
                 }
                 else
                 {
+                    _lastLaunchReport = report;
+
                     MessageBox.Show(
                         this,
                         gw1Error,
@@ -418,7 +492,7 @@ namespace GWxLauncher
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
 
-                    lblStatus.Text = "Failed to launch Guild Wars 1.";
+                    lblStatus.Text = report.BuildSummary();
                 }
 
                 return;
@@ -438,15 +512,147 @@ namespace GWxLauncher
         }
         private void lstProfiles_MouseDown(object sender, MouseEventArgs e)
         {
+            int index = lstProfiles.IndexFromPoint(e.Location);
+            if (index < 0) return;
+
+            // Map click to item bounds
+            Rectangle itemRect = lstProfiles.GetItemRectangle(index);
+            var profile = lstProfiles.Items[index] as GameProfile;
+            if (profile == null) return;
+
+            // Checkbox rectangle must match drawing logic
+            Rectangle card = itemRect;
+            card.Inflate(-4, -4);
+            Rectangle cb = new Rectangle(card.Left + 8, card.Top + 22, 16, 16);
+
+            if (e.Button == MouseButtons.Left && cb.Contains(e.Location))
+            {
+                _views.ToggleEligible(_views.ActiveViewName, profile.Id);
+                _views.Save();
+                RefreshProfileList();
+            }
+
+            // Existing right-click selection behavior
             if (e.Button == MouseButtons.Right)
             {
-                int index = lstProfiles.IndexFromPoint(e.Location);
-                if (index >= 0)
-                {
-                    lstProfiles.SelectedIndex = index;
-                }
+                lstProfiles.SelectedIndex = index;
             }
         }
+        private void StepView(int delta)
+        {
+            // Step through saved View names (Team1/Team2/Team3), not profiles
+            var newName = _views.StepActiveView(delta);
+
+            _suppressViewTextEvents = true;
+            txtView.Text = newName;
+            ApplyViewScopedUiState();
+            _suppressViewTextEvents = false;
+            
+            // Switching view changes which profiles are checked (per-view),
+            // but does not hide profiles by name.
+            RefreshProfileList();
+        }
+
+        private void btnViewPrev_Click(object sender, EventArgs e)
+        {
+            StepView(-1);
+        }
+
+        private void btnViewNext_Click(object sender, EventArgs e)
+        {
+            StepView(+1);
+        }
+        private void ApplyViewScopedUiState()
+        {
+            _showCheckedOnly = _views.GetShowCheckedOnly(_views.ActiveViewName);
+
+            _suppressArmBulkEvents = true;
+            chkArmBulk.Checked = _showCheckedOnly;
+            _suppressArmBulkEvents = false;
+        }
+
+
+        private void txtView_TextChanged(object sender, EventArgs e)
+        {
+            if (_suppressViewTextEvents)
+                return;
+
+            // Don’t mutate view store during typing.
+            _viewNameDirty = true;
+        }
+        private void CommitViewRenameIfDirty()
+        {
+            if (!_viewNameDirty)
+                return;
+
+            _viewNameDirty = false;
+
+            string newName = (txtView.Text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                // Revert to old name if user blanked it
+                _suppressViewTextEvents = true;
+                txtView.Text = _views.ActiveViewName;
+                _suppressViewTextEvents = false;
+                return;
+            }
+
+            // Try rename. If it fails (duplicate name), revert & show a status hint.
+            if (!_views.RenameActiveView(newName))
+            {
+                _suppressViewTextEvents = true;
+                txtView.Text = _views.ActiveViewName;
+                _suppressViewTextEvents = false;
+
+                lblStatus.Text = "View rename failed (name already exists).";
+                return;
+            }
+
+            _views.Save();
+            RefreshProfileList();
+        }
+        private void txtView_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                CommitViewRenameIfDirty();
+            }
+        }
+
+        private void txtView_Leave(object sender, EventArgs e)
+        {
+            CommitViewRenameIfDirty();
+        }
+
+        private void txtView_Enter(object sender, EventArgs e)
+        {
+            _viewNameBeforeEdit = _views.ActiveViewName;
+            _viewNameDirty = false;
+        }
+        private void btnNewView_Click(object sender, EventArgs e)
+        {
+            var newName = _views.CreateNewView("New View");
+            _views.Save();
+
+            _suppressViewTextEvents = true;
+            txtView.Text = newName;
+            ApplyViewScopedUiState();
+            _suppressViewTextEvents = false;
+
+            RefreshProfileList();
+        }
+
+        private void menuShowLastLaunchDetails_Click(object sender, EventArgs e)
+        {
+            if (_lastLaunchReport == null)
+                return;
+
+            using var dlg = new LastLaunchDetailsForm(_lastLaunchReport);
+            dlg.ShowDialog(this);
+        }
+
         private void menuLaunchProfile_Click(object sender, EventArgs e)
         {
             var profile = GetSelectedProfile();
@@ -649,9 +855,15 @@ namespace GWxLauncher
                     _profileManager.Save();     // 🔹 persist to profiles.json
 
                     RefreshProfileList();
+                    UpdateBulkArmingUi();
                     lblStatus.Text = $"Added account: {dialog.CreatedProfile.Name}";
                 }
             }
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

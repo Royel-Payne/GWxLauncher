@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System;
 
 namespace GWxLauncher.Domain
 {
@@ -20,6 +21,10 @@ namespace GWxLauncher.Domain
 
         // Per-profile executable path (optional override)
         public string ExecutablePath { get; set; } = "";
+
+        // Bulk launch eligibility (explicit, per-profile)
+        public bool BulkLaunchEnabled { get; set; } = false;
+        public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
         // GW1 mods – Toolbox (already implemented)
         public bool Gw1ToolboxEnabled { get; set; } = false;

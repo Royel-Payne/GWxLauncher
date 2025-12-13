@@ -2,9 +2,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -12,20 +12,13 @@ using System.Windows.Forms;
 namespace GWxLauncher.Services
 {
     /// <summary>
-    /// Handles launching Guild Wars 1 with optional GWToolbox (or other DLL) injection.
+    /// Handles launching Guild Wars 1 with optional DLL injection:
+    ///  - Toolbox: normal Process.Start + immediate injection
+    ///  - Py4GW : wait for window, then inject on a background thread
+    ///  - gMod  : early injection via CreateProcessW in suspended mode
     ///
-    /// High-level flow:
-    ///  - Validate GW1 EXE path and DLL path
-    ///  - Start GW1 normally via Process.Start
-    ///  - Once the process is running, inject the DLL by:
-    ///      * OpenProcess
-    ///      * VirtualAllocEx
-    ///      * WriteProcessMemory (DLL path as a Unicode string)
-    ///      * CreateRemoteThread calling LoadLibraryW in kernel32.dll
-    ///
-    /// This keeps things clear and "textbook" so it's easy to port later.
-    /// NOTE: For a 32-bit game like GW1, your launcher should be built as x86
-    /// to avoid cross-architecture injection issues.
+    /// NOTE: For GW1 (32-bit), the launcher should be built as x86 to
+    /// avoid cross-architecture injection issues.
     /// </summary>
     internal class Gw1InjectionService
     {
@@ -93,15 +86,68 @@ namespace GWxLauncher.Services
         private const uint WAIT_OBJECT_0 = 0x00000000;
         private const uint INFINITE = 0xFFFFFFFF;
 
+        // --- For early (suspended) process creation, used by gMod ---
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct STARTUPINFO
+        {
+            public uint cb;
+            public string lpReserved;
+            public string lpDesktop;
+            public string lpTitle;
+            public uint dwX;
+            public uint dwY;
+            public uint dwXSize;
+            public uint dwYSize;
+            public uint dwXCountChars;
+            public uint dwYCountChars;
+            public uint dwFillAttribute;
+            public uint dwFlags;
+            public short wShowWindow;
+            public short cbReserved2;
+            public IntPtr lpReserved2;
+            public IntPtr hStdInput;
+            public IntPtr hStdOutput;
+            public IntPtr hStdError;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PROCESS_INFORMATION
+        {
+            public IntPtr hProcess;
+            public IntPtr hThread;
+            public int dwProcessId;
+            public int dwThreadId;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool CreateProcessW(
+            string lpApplicationName,
+            string lpCommandLine,
+            IntPtr lpProcessAttributes,
+            IntPtr lpThreadAttributes,
+            bool bInheritHandles,
+            uint dwCreationFlags,
+            IntPtr lpEnvironment,
+            string lpCurrentDirectory,
+            ref STARTUPINFO lpStartupInfo,
+            out PROCESS_INFORMATION lpProcessInformation);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint ResumeThread(IntPtr hThread);
+
+        private const uint CREATE_SUSPENDED = 0x00000004;
+
         #endregion
 
         /// <summary>
         /// Generic entry point: launch GW1 and inject one or more DLLs.
+        /// (Used by earlier phases; still handy as a utility.)
         /// </summary>
         public bool TryLaunchWithDlls(
             GameProfile profile,
             string gwExePath,
-            IEnumerable<string> dllPaths,
+            System.Collections.Generic.IEnumerable<string> dllPaths,
             out string errorMessage)
         {
             errorMessage = string.Empty;
@@ -188,8 +234,8 @@ namespace GWxLauncher.Services
         }
 
         /// <summary>
-        /// Entry point used by MainForm.LaunchProfile.
-        /// Returns true if we launched GW1 and successfully queued DLL injection.
+        /// Legacy-style convenience wrapper used earlier for Toolbox-only.
+        /// Still here in case we want a simple "Toolbox only" path.
         /// </summary>
         public bool TryLaunchWithToolbox(GameProfile profile, string gwExePath, out string errorMessage)
         {
@@ -218,13 +264,11 @@ namespace GWxLauncher.Services
             {
                 errorMessage =
                     "GW1 Toolbox DLL path is not configured, or the file does not exist.\n\n" +
-                    "Use the context menu:\n" +
-                    "  ▸ GW1 Toolbox (inject)\n" +
-                    "  ▸ Set GW1 Toolbox DLL…";
+                    "Configure this in Profile Settings.";
                 return false;
             }
 
-            // Optional: if the new list is empty, seed it with Toolbox
+            // Optional: seed the list
             if (profile.Gw1InjectedDlls != null &&
                 profile.Gw1InjectedDlls.Count == 0)
             {
@@ -236,17 +280,17 @@ namespace GWxLauncher.Services
                 });
             }
 
-            // Delegate to the generic multi-DLL launcher
             return TryLaunchWithDlls(
                 profile,
                 gwExePath,
                 new[] { profile.Gw1ToolboxDllPath },
                 out errorMessage);
         }
+
         /// <summary>
         /// Main entry point for launching a GW1 profile.
         /// Handles:
-        ///  - starting Gw.exe
+        ///  - early gMod injection (if enabled)
         ///  - immediate Toolbox injection (if enabled)
         ///  - background Py4GW injection (if enabled)
         /// </summary>
@@ -254,49 +298,148 @@ namespace GWxLauncher.Services
             GameProfile profile,
             string exePath,
             IWin32Window owner,
-            out string errorMessage)
+            out string errorMessage,
+            out LaunchReport report)
         {
             errorMessage = string.Empty;
+
+            report = new LaunchReport
+            {
+                GameName = "Guild Wars 1",
+                ExecutablePath = exePath
+            };
+
+            // Track steps in real-world order (gMod -> Toolbox -> Py4GW)
+            var stepGmod = new LaunchStep { Label = "gMod" };
+            var stepToolbox = new LaunchStep { Label = "Toolbox" };
+            var stepPy4Gw = new LaunchStep { Label = "Py4GW" };
+
+            report.Steps.Add(stepGmod);
+            report.Steps.Add(stepToolbox);
+            report.Steps.Add(stepPy4Gw);
 
             if (profile.GameType != GameType.GuildWars1)
             {
                 errorMessage = "This profile is not a Guild Wars 1 profile.";
+                report.Succeeded = false;
+                report.FailureMessage = errorMessage;
+
+                stepGmod.Outcome = StepOutcome.Skipped;
+                stepToolbox.Outcome = StepOutcome.Skipped;
+                stepPy4Gw.Outcome = StepOutcome.Skipped;
+
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
             {
                 errorMessage = $"Guild Wars 1 executable not found:\n{exePath}";
+                report.Succeeded = false;
+                report.FailureMessage = errorMessage;
+
+                stepGmod.Outcome = StepOutcome.Skipped;
+                stepToolbox.Outcome = StepOutcome.Skipped;
+                stepPy4Gw.Outcome = StepOutcome.Skipped;
+
                 return false;
             }
 
+            Process? process = null;
 
-            Process? process;
+            // --- 1) If gMod is enabled and configured, try early (suspended) launch + injection ---
 
-            try
+            bool triedGmodEarly = profile.Gw1GModEnabled &&
+                                  !string.IsNullOrWhiteSpace(profile.Gw1GModDllPath) &&
+                                  File.Exists(profile.Gw1GModDllPath);
+
+            if (triedGmodEarly)
             {
-                var startInfo = new ProcessStartInfo
+                if (!TryLaunchGw1WithGMod(
+                        exePath,
+                        profile.Gw1GModDllPath!,
+                        out process,
+                        out var gmodError))
                 {
-                    FileName = exePath,
-                    WorkingDirectory = Path.GetDirectoryName(exePath) ?? string.Empty,
-                    UseShellExecute = false
-                };
+                    // If gMod early injection fails, we stop here and show an error.
+                    errorMessage = gmodError;
 
-                process = Process.Start(startInfo);
+                    stepGmod.Outcome = StepOutcome.Failed;
+                    stepGmod.Detail = gmodError;
 
-                if (process == null)
+                    stepToolbox.Outcome = StepOutcome.Skipped;
+                    stepPy4Gw.Outcome = StepOutcome.Skipped;
+
+                    report.UsedSuspendedLaunch = true; // attempted this mode
+                    report.Succeeded = false;
+                    report.FailureMessage = errorMessage;
+
+                    return false;
+                }
+
+                report.UsedSuspendedLaunch = true;
+                stepGmod.Outcome = StepOutcome.Success;
+            }
+            else
+            {
+                // gMod not attempted
+                stepGmod.Outcome = StepOutcome.Skipped;
+                stepGmod.Detail = profile.Gw1GModEnabled
+                    ? "Enabled, but DLL path missing or file not found"
+                    : "Disabled";
+
+                // --- 2) Normal Process.Start launch (no gMod early injection) ---
+                try
                 {
-                    errorMessage = "Failed to start Guild Wars 1 process.";
+                    var startInfo = new ProcessStartInfo
+                    {
+                        FileName = exePath,
+                        WorkingDirectory = Path.GetDirectoryName(exePath) ?? string.Empty,
+                        UseShellExecute = false
+                    };
+
+                    process = Process.Start(startInfo);
+
+                    if (process == null)
+                    {
+                        errorMessage = "Failed to start Guild Wars 1 process.";
+
+                        report.Succeeded = false;
+                        report.FailureMessage = errorMessage;
+
+                        stepToolbox.Outcome = StepOutcome.Skipped;
+                        stepPy4Gw.Outcome = StepOutcome.Skipped;
+
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorMessage = $"Failed to start Guild Wars 1:\n\n{ex.Message}";
+
+                    report.Succeeded = false;
+                    report.FailureMessage = errorMessage;
+
+                    stepToolbox.Outcome = StepOutcome.Skipped;
+                    stepPy4Gw.Outcome = StepOutcome.Skipped;
+
                     return false;
                 }
             }
-            catch (Exception ex)
+
+            if (process == null || process.HasExited)
             {
-                errorMessage = $"Failed to start Guild Wars 1:\n\n{ex.Message}";
+                errorMessage = "Guild Wars 1 process exited unexpectedly.";
+
+                report.Succeeded = false;
+                report.FailureMessage = errorMessage;
+
+                stepToolbox.Outcome = StepOutcome.Skipped;
+                stepPy4Gw.Outcome = StepOutcome.Skipped;
+
                 return false;
             }
 
-            // --- TOOLBOX: immediate injection, same as before but scoped here ---
+            // --- 3) Toolbox: immediate injection (after gMod, if present) ---
 
             if (profile.Gw1ToolboxEnabled)
             {
@@ -304,8 +447,9 @@ namespace GWxLauncher.Services
 
                 if (string.IsNullOrWhiteSpace(toolboxPath) || !File.Exists(toolboxPath))
                 {
-                    // We *launched* the game, but Toolbox is misconfigured.
-                    // You can decide later if this should be fatal. For now, warn and keep going.
+                    stepToolbox.Outcome = StepOutcome.Failed;
+                    stepToolbox.Detail = "Enabled, but DLL path missing or file not found";
+
                     MessageBox.Show(
                         owner,
                         "GW1 Toolbox is enabled for this profile, but the DLL path is not configured " +
@@ -313,13 +457,14 @@ namespace GWxLauncher.Services
                         "GW1 Toolbox injection",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
-
                 }
                 else
                 {
                     if (!InjectDllIntoProcess(process, toolboxPath, out var injectError))
                     {
-                        // Again: game already launched; we just report the Toolbox failure.
+                        stepToolbox.Outcome = StepOutcome.Failed;
+                        stepToolbox.Detail = injectError;
+
                         MessageBox.Show(
                             owner,
                             $"Failed to inject GW1 Toolbox DLL:\n\n{injectError}\n\n" +
@@ -328,23 +473,51 @@ namespace GWxLauncher.Services
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Warning);
                     }
+                    else
+                    {
+                        stepToolbox.Outcome = StepOutcome.Success;
+                    }
+                }
+            }
+            else
+            {
+                stepToolbox.Outcome = StepOutcome.Skipped;
+                stepToolbox.Detail = "Disabled";
+            }
+
+            // --- 4) Py4GW: background injection after window is ready ---
+
+            bool py4GwEnabled = profile.Gw1Py4GwEnabled;
+            bool py4GwConfigured = py4GwEnabled &&
+                                   !string.IsNullOrWhiteSpace(profile.Gw1Py4GwDllPath) &&
+                                   File.Exists(profile.Gw1Py4GwDllPath);
+
+            if (py4GwConfigured)
+            {
+                stepPy4Gw.Outcome = StepOutcome.Pending;
+                stepPy4Gw.Detail = "Queued for background injection after window is ready";
+
+                _ = Task.Run(() => InjectPy4GwAfterWindowReady(process, profile, owner));
+            }
+            else
+            {
+                if (py4GwEnabled)
+                {
+                    stepPy4Gw.Outcome = StepOutcome.Failed;
+                    stepPy4Gw.Detail = "Enabled, but DLL path missing or file not found";
+                }
+                else
+                {
+                    stepPy4Gw.Outcome = StepOutcome.Skipped;
+                    stepPy4Gw.Detail = "Disabled";
                 }
             }
 
-            // --- PY4GW: background injection after window is ready ---
-
-            if (profile.Gw1Py4GwEnabled &&
-                !string.IsNullOrWhiteSpace(profile.Gw1Py4GwDllPath) &&
-                File.Exists(profile.Gw1Py4GwDllPath))
-            {
-                // Launch a background task that waits for the window, then injects.
-                _ = Task.Run(() => InjectPy4GwAfterWindowReady(process, profile, owner));
-            }
-
-            // NOTE: Later we’ll add gMod here too.
-
+            report.Succeeded = true;
             return true;
         }
+
+
         /// <summary>
         /// Waits until the Guild Wars process has a main window handle,
         /// or times out. Returns false if the process exits first.
@@ -369,6 +542,7 @@ namespace GWxLauncher.Services
 
             return false;
         }
+
         /// <summary>
         /// Waits for the GW1 window, then injects Py4GW if everything is still running.
         /// Runs on a background thread.
@@ -399,19 +573,88 @@ namespace GWxLauncher.Services
                     return;
 
                 // 3) Reuse the same injection helper we already use for Toolbox
-                //    Adjust this call to match your existing method signature.
                 var ok = InjectDllIntoProcess(process, dllPath, out var error);
 
                 if (!ok)
                 {
-                    // Optional: for now we stay quiet; later we can log or surface this.
-                    // If you want immediate feedback, you could do:
-                    // MessageBox.Show(owner, $"Failed to inject Py4GW:\n\n{error}", "Py4GW injection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    // Optional: later we can surface this in a log window instead.
+                    // For now, we stay quiet in the background thread.
+                    _ = owner; // suppress warning if unused
                 }
             }
             catch
             {
                 // Swallow for now; later we can wire a logger.
+            }
+        }
+
+        /// <summary>
+        /// Launch Gw.exe in suspended mode, inject gMod, then resume.
+        /// </summary>
+        private bool TryLaunchGw1WithGMod(
+            string exePath,
+            string gmodDllPath,
+            out Process? process,
+            out string errorMessage)
+        {
+            process = null;
+            errorMessage = string.Empty;
+
+            var startupInfo = new STARTUPINFO();
+            startupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
+
+            PROCESS_INFORMATION procInfo = new PROCESS_INFORMATION();
+
+            string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
+            string cmdLine = $"\"{exePath}\"";
+
+            try
+            {
+                bool created = CreateProcessW(
+                    exePath,
+                    cmdLine,
+                    IntPtr.Zero,
+                    IntPtr.Zero,
+                    false,
+                    CREATE_SUSPENDED,
+                    IntPtr.Zero,
+                    workingDir,
+                    ref startupInfo,
+                    out procInfo);
+
+                if (!created)
+                {
+                    errorMessage = $"Failed to create Guild Wars 1 process in suspended mode.\n" +
+                                   $"Win32 error: {Marshal.GetLastWin32Error()}";
+                    return false;
+                }
+
+                process = Process.GetProcessById(procInfo.dwProcessId);
+
+                // Inject gMod into the suspended process
+                if (!InjectDllIntoProcess(process, gmodDllPath, out var injectError))
+                {
+                    errorMessage = $"Failed to inject gMod DLL:\n{injectError}";
+                    return false;
+                }
+
+                // Resume the main thread so Guild Wars can start running
+                ResumeThread(procInfo.hThread);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed during gMod early injection:\n{ex.Message}";
+                return false;
+            }
+            finally
+            {
+                if (procInfo.hThread != IntPtr.Zero)
+                    CloseHandle(procInfo.hThread);
+
+                if (procInfo.hProcess != IntPtr.Zero)
+                    CloseHandle(procInfo.hProcess);
             }
         }
 
@@ -516,7 +759,7 @@ namespace GWxLauncher.Services
                     CloseHandle(hThread);
 
                 if (remoteMemory != IntPtr.Zero)
-                    CloseHandle(remoteMemory); // technically should use VirtualFreeEx, but CloseHandle is harmless here
+                    CloseHandle(remoteMemory); // strictly speaking, VirtualFreeEx would be ideal
 
                 if (hProcess != IntPtr.Zero)
                     CloseHandle(hProcess);
