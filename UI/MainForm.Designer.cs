@@ -49,6 +49,7 @@
             txtView = new TextBox();
             btnViewNext = new Button();
             chkArmBulk = new CheckBox();
+            btnLaunchAll = new Button();
             panelProfiles.SuspendLayout();
             ctxProfiles.SuspendLayout();
             panelView.SuspendLayout();
@@ -155,7 +156,7 @@
             btnAddAccount.Location = new Point(0, 0);
             btnAddAccount.Margin = new Padding(8);
             btnAddAccount.Name = "btnAddAccount";
-            btnAddAccount.Size = new Size(369, 30);
+            btnAddAccount.Size = new Size(411, 30);
             btnAddAccount.TabIndex = 0;
             btnAddAccount.Text = "ADD ACCOUNT…";
             btnAddAccount.UseVisualStyleBackColor = false;
@@ -165,6 +166,7 @@
             // 
             panelView.BackColor = Color.FromArgb(24, 24, 28);
             panelView.Controls.Add(btnNewView);
+            panelView.Controls.Add(btnLaunchAll);
             panelView.Controls.Add(lblView);
             panelView.Controls.Add(btnViewPrev);
             panelView.Controls.Add(txtView);
@@ -173,7 +175,7 @@
             panelView.Dock = DockStyle.Top;
             panelView.Location = new Point(0, 30);
             panelView.Name = "panelView";
-            panelView.Size = new Size(369, 66);
+            panelView.Size = new Size(411, 66);
             panelView.TabIndex = 10;
             // 
             // btnNewView
@@ -186,10 +188,23 @@
             btnNewView.UseVisualStyleBackColor = true;
             btnNewView.Click += btnNewView_Click;
             // 
+            // btnLaunchAll
+            // 
+            btnLaunchAll.BackColor = Color.FromArgb(45, 45, 52);
+            btnLaunchAll.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
+            btnLaunchAll.FlatStyle = FlatStyle.Flat;
+            btnLaunchAll.ForeColor = Color.White;
+            btnLaunchAll.Location = new Point(316, 2);
+            btnLaunchAll.Name = "btnLaunchAll";
+            btnLaunchAll.Size = new Size(50, 24);
+            btnLaunchAll.TabIndex = 6;
+            btnLaunchAll.Text = "Launch";
+            btnLaunchAll.UseVisualStyleBackColor = false;
+            btnLaunchAll.Click += btnLaunchAll_Click;
+            // 
             // lblView
             // 
             lblView.AutoSize = true;
-            lblView.ForeColor = Color.Gainsboro;
             lblView.Location = new Point(121, 5);
             lblView.Name = "lblView";
             lblView.Size = new Size(35, 15);
@@ -253,7 +268,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(369, 395);
+            ClientSize = new Size(411, 395);
             Controls.Add(panelProfiles);
             Controls.Add(lblStatus);
             Controls.Add(panelView);
@@ -292,5 +307,8 @@
         private CheckBox chkArmBulk;
         private Label lblView;
         private Button btnNewView;
+        private Button btnLaunchAll;
+        //private System.Windows.Forms.Button btnLaunchAll;
+
     }
 }

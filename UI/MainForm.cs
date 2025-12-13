@@ -80,6 +80,8 @@ namespace GWxLauncher
             // Bulk armed (future) is a derived state: (any eligible) + (show checked only)
             bool armed = anyEligible && _showCheckedOnly;
 
+            btnLaunchAll.Enabled = armed;
+
             if (armed)
                 lblStatus.Text = $"Bulk launch armed · View: {_views.ActiveViewName}";
             else if (_showCheckedOnly && !anyEligible)
@@ -785,6 +787,33 @@ namespace GWxLauncher
                 if (lblStatus != null)
                     lblStatus.Text = $"Error launching {gameName}.";
             }
+        }
+        private void btnLaunchAll_Click(object sender, EventArgs e)
+        {
+            // Guard: bulk launch must be explicitly armed.
+            bool anyEligible = _views.AnyEligibleInActiveView(_profileManager.Profiles);
+            bool armed = anyEligible && _showCheckedOnly;
+
+            if (!armed)
+            {
+                lblStatus.Text = $"Bulk launch not armed · View: {_views.ActiveViewName}";
+                return;
+            }
+
+            var targets = _profileManager.Profiles
+                .Where(p => _views.IsEligible(_views.ActiveViewName, p.Id))
+                .OrderBy(p => p.GameType)
+                .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+
+            if (targets.Count == 0)
+            {
+                lblStatus.Text = $"No checked profiles in view · View: {_views.ActiveViewName}";
+                return;
+            }
+
+            foreach (var profile in targets)
+                LaunchProfile(profile);
         }
 
         private void btnSetGw1Path_Click(object sender, EventArgs e)
