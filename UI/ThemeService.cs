@@ -64,6 +64,10 @@ namespace GWxLauncher.UI
                 // best effort
             }
         }
+        internal static class FontNames
+        {
+            public const string PreferredUi = "Segoe UI Variable";
+        }
 
         internal static class Palette
         {
@@ -98,6 +102,59 @@ namespace GWxLauncher.UI
             // ─────────────────────────────────────
             public static readonly Color SubtleFore = Color.FromArgb(180, 180, 190);
             public static readonly Color DisabledFore = Color.FromArgb(140, 140, 150);
+        }
+        internal static class CardPalette
+        {
+            // Card background
+            public static readonly Color Back = Color.FromArgb(35, 35, 40);
+            public static readonly Color SelectedBack = Color.FromArgb(45, 45, 52);
+
+            // Card border
+            public static readonly Color Border = Color.FromArgb(70, 70, 80);
+            public static readonly Color SelectedBorder = Color.FromArgb(0, 120, 215);
+
+            // Card text
+            public static readonly Color NameFore = Color.White;
+            public static readonly Color SubFore = Color.Silver;
+
+            // Badge pills
+            public static readonly Color BadgeBack = Color.FromArgb(60, 60, 70);
+            public static readonly Color BadgeBorder = Color.FromArgb(90, 90, 110);
+            public static readonly Color BadgeFore = Color.Gainsboro;
+        }
+
+        internal static class CardMetrics
+        {
+            // Card padding inside listbox item bounds
+            public const int OuterPadding = 4;
+
+            // Checkbox
+            public const int CheckboxOffsetX = 8;
+            public const int CheckboxOffsetY = 22;
+            public const int CheckboxSize = 16;
+
+            // Icon
+            public const int IconOffsetX = 30;
+            public const int IconOffsetY = 8;
+            public const int IconSize = 32;
+
+            // Text
+            public const int TextOffsetX = 8;   // gap after icon
+            public const int TextOffsetY = 10;
+
+            // Badges
+            public const int BadgeRightPadding = 10;
+            public const int BadgeTopPadding = 10;
+            public const int BadgeHorizontalPad = 12;
+            public const int BadgeVerticalPad = 6;
+            public const int BadgeSpacing = 6;
+            public const int SubtitleGapY = 2;
+        }
+
+        internal static class Typography
+        {
+            public static readonly Font BadgeFont = new Font("Segoe UI", 8f, FontStyle.Bold);
+            public static readonly Padding BadgePadding = new Padding(6, 2, 6, 2);
         }
 
         public static void ApplyToForm(Form f)
@@ -163,6 +220,11 @@ namespace GWxLauncher.UI
 
                 case CheckBox chk:
                     chk.ForeColor = Palette.WindowFore;
+                    break;
+
+                case GroupBox gb:
+                    gb.ForeColor = Palette.WindowFore;
+                    gb.BackColor = Palette.WindowBack;
                     break;
             }
         }

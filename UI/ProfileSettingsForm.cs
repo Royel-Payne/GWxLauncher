@@ -1,15 +1,18 @@
 ﻿using GWxLauncher.Domain;
 using GWxLauncher.Properties;
 using System;
-using System.IO;
 using System.Resources;
 using System.Windows.Forms;
+using GWxLauncher.Config;
+using System.Drawing;
 
 namespace GWxLauncher.UI
 {
     public partial class ProfileSettingsForm : Form
     {
         private readonly GameProfile _profile;
+        private readonly LauncherConfig _cfg;
+        private bool _restoredFromSavedPlacement;
 
         public ProfileSettingsForm(GameProfile profile)
         {
@@ -18,7 +21,22 @@ namespace GWxLauncher.UI
             InitializeComponent();
             ThemeService.ApplyToForm(this);
 
-            Icon = Icon.ExtractAssociatedIcon(_profile.ExecutablePath); // Use the game's icon if possible - fallback to default icon from ThemeService
+            bool isGw1 = _profile.GameType == GameType.GuildWars1;
+            grpGw1Mods.Visible = isGw1;
+
+            Icon = _profile.GameType switch
+            {
+                GameType.GuildWars1 => Resources.Gw1Icon,
+                GameType.GuildWars2 => Resources.Gw2Icon,
+                _ => Icon // fallback to whatever is already set
+            };
+
+            _cfg = LauncherConfig.Load();
+
+            TryRestoreSavedPlacement();
+            Shown += ProfileSettingsForm_Shown;
+            FormClosing += ProfileSettingsForm_FormClosing;
+
 
             // Basic title – later we can add tabs/categories here
             Text = $"Profile Settings – {profile.Name}";
@@ -37,49 +55,6 @@ namespace GWxLauncher.UI
 
             LoadFromProfile();
         }
-
-        // Theme remnants
-        //private void ApplyTheme()
-        //{
-        //    BackColor = Color.FromArgb(24, 24, 28);
-        //    ForeColor = Color.Gainsboro;
-
-        //    foreach (Control c in Controls)
-        //        ApplyThemeRecursive(c);
-        //}
-
-        private void ApplyThemeRecursive(Control c)
-        {
-            // Fix GW1 Mods group header specifically
-            if (c is GroupBox gb)
-            {
-                gb.ForeColor = Color.Gainsboro;
-                gb.BackColor = BackColor;
-            }
-
-            // Common controls
-            if (c is Label lbl)
-                lbl.ForeColor = Color.Gainsboro;
-
-            if (c is TextBox tb)
-            {
-                tb.BackColor = Color.FromArgb(18, 18, 22);
-                tb.ForeColor = Color.Gainsboro;
-                tb.BorderStyle = BorderStyle.FixedSingle;
-            }
-
-            if (c is Button btn)
-            {
-                btn.BackColor = Color.FromArgb(45, 45, 52);
-                btn.ForeColor = Color.White;
-                btn.FlatStyle = FlatStyle.Flat;
-                btn.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
-            }
-
-            foreach (Control child in c.Controls)
-                ApplyThemeRecursive(child);
-        }
-
         private void LoadFromProfile()
         {
             txtProfileName.Text = _profile.Name;
@@ -119,6 +94,77 @@ namespace GWxLauncher.UI
                 _profile.Gw1GModDllPath = txtGModDll.Text.Trim();
             }
         }
+        private void ProfileSettingsForm_Shown(object? sender, EventArgs e)
+        {
+            // If we restored from saved placement, don't override it.
+            if (_restoredFromSavedPlacement)
+                return;
+
+            // If we have an owner (MainForm shows this dialog with ShowDialog(this)), anchor near it.
+            if (Owner != null)
+            {
+                var ownerBounds = Owner.Bounds;
+
+                // Prefer to the right of the owner; if no space, place to the left.
+                var wa = Screen.FromControl(Owner).WorkingArea;
+
+                int gap = 12;
+                int xRight = ownerBounds.Right + gap;
+                int xLeft = ownerBounds.Left - gap - Width;
+
+                int x = (xRight + Width <= wa.Right) ? xRight :
+                        (xLeft >= wa.Left) ? xLeft :
+                        Math.Max(wa.Left, Math.Min(xRight, wa.Right - Width));
+
+                int y = Math.Max(wa.Top, Math.Min(ownerBounds.Top, wa.Bottom - Height));
+
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(x, y);
+            }
+            else
+            {
+                // No owner: fallback to a reasonable default
+                StartPosition = FormStartPosition.CenterScreen;
+            }
+        }
+
+        private void TryRestoreSavedPlacement()
+        {
+            if (_cfg.ProfileSettingsX >= 0 && _cfg.ProfileSettingsY >= 0)
+            {
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(_cfg.ProfileSettingsX, _cfg.ProfileSettingsY);
+                _restoredFromSavedPlacement = true;
+            }
+
+            if (_cfg.ProfileSettingsWidth > 0 && _cfg.ProfileSettingsHeight > 0)
+            {
+                Size = new Size(_cfg.ProfileSettingsWidth, _cfg.ProfileSettingsHeight);
+            }
+        }
+
+        private void ProfileSettingsForm_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            if (WindowState == FormWindowState.Normal)
+            {
+                _cfg.ProfileSettingsX = Left;
+                _cfg.ProfileSettingsY = Top;
+                _cfg.ProfileSettingsWidth = Width;
+                _cfg.ProfileSettingsHeight = Height;
+                _cfg.Save();
+            }
+            else
+            {
+                // If minimized/maximized, save RestoreBounds instead (so we persist something sane)
+                var b = RestoreBounds;
+                _cfg.ProfileSettingsX = b.Left;
+                _cfg.ProfileSettingsY = b.Top;
+                _cfg.ProfileSettingsWidth = b.Width;
+                _cfg.ProfileSettingsHeight = b.Height;
+                _cfg.Save();
+            }
+        }
+
         private bool ValidateGw1ModSettings()
         {
             // Only relevant to GW1 profiles

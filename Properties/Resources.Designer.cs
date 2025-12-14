@@ -61,12 +61,22 @@ namespace GWxLauncher.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
         /// </summary>
         internal static System.Drawing.Bitmap Gw1 {
             get {
                 object obj = ResourceManager.GetObject("Gw1", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
+        /// </summary>
+        internal static System.Drawing.Icon Gw1Icon {
+            get {
+                object obj = ResourceManager.GetObject("Gw1Icon", resourceCulture);
+                return ((System.Drawing.Icon)(obj));
             }
         }
         
@@ -77,6 +87,16 @@ namespace GWxLauncher.Properties {
             get {
                 object obj = ResourceManager.GetObject("Gw2", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Icon similar to (Icon).
+        /// </summary>
+        internal static System.Drawing.Icon Gw2Icon {
+            get {
+                object obj = ResourceManager.GetObject("Gw2Icon", resourceCulture);
+                return ((System.Drawing.Icon)(obj));
             }
         }
     }

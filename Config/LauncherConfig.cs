@@ -15,6 +15,12 @@ namespace GWxLauncher.Config
         public int WindowHeight { get; set; } = -1;
         public bool WindowMaximized { get; set; } = false;
 
+        // 🔹 Profile Settings window placement
+        public int ProfileSettingsX { get; set; } = -1;
+        public int ProfileSettingsY { get; set; } = -1;
+        public int ProfileSettingsWidth { get; set; } = -1;
+        public int ProfileSettingsHeight { get; set; } = -1;
+
         private const string ConfigFileName = "launcherConfig.json";
 
         public static LauncherConfig Load()

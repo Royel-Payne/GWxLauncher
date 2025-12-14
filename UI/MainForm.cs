@@ -33,21 +33,8 @@ namespace GWxLauncher
         private bool _viewNameDirty = false;
         private bool _suppressViewTextEvents = false;
         private bool _suppressArmBulkEvents = false;
-
-        private static readonly Font BadgeFont =
-            new Font("Segoe UI", 8f, FontStyle.Bold);
-
-        private static readonly Padding BadgePadding =
-            new Padding(6, 2, 6, 2);
-
-        private static Size MeasureBadge(Graphics g, string text)
-        {
-            var size = g.MeasureString(text, BadgeFont);
-            return new Size(
-                (int)size.Width + BadgePadding.Horizontal,
-                (int)size.Height + BadgePadding.Vertical);
-        }
-
+        private readonly Font _nameFont;
+        private readonly Font _subFont;
 
         private void RefreshProfileList()
         {
@@ -130,6 +117,18 @@ namespace GWxLauncher
         public MainForm()
         {
             InitializeComponent();
+            var baseFont = Font; // form font
+            try
+            {
+                _nameFont = new Font("Segoe UI Variable", baseFont.Size + 1, FontStyle.Bold);
+                _subFont = new Font("Segoe UI Variable", baseFont.Size - 1, FontStyle.Regular);
+            }
+            catch
+            {
+                _nameFont = new Font(baseFont.FontFamily, baseFont.Size + 1, FontStyle.Bold);
+                _subFont = new Font(baseFont.FontFamily, baseFont.Size - 1, FontStyle.Regular);
+            }
+
             chkArmBulk.BringToFront(); // ensure it's not obscured
 
             ctxProfiles.Opening += ctxProfiles_Opening;
@@ -203,20 +202,18 @@ namespace GWxLauncher
 
             // Card bounds
             Rectangle card = e.Bounds;
-            card.Inflate(-4, -4);
+            card.Inflate(-ThemeService.CardMetrics.OuterPadding, -ThemeService.CardMetrics.OuterPadding);
 
             Color backColor = selected
-                // slightly lighter neutral when selected (no bright blue fog)
-                ? Color.FromArgb(45, 45, 52)
-                : Color.FromArgb(35, 35, 40);
+                ? ThemeService.CardPalette.SelectedBack
+                : ThemeService.CardPalette.Back;
 
             Color borderColor = selected
-                // blue only on the outline to show selection
-                ? Color.FromArgb(0, 120, 215)
-                : Color.FromArgb(70, 70, 80);
+                ? ThemeService.CardPalette.SelectedBorder
+                : ThemeService.CardPalette.Border;
 
-            Color nameColor = Color.White;
-            Color subColor = Color.Silver;
+            Color nameColor = ThemeService.CardPalette.NameFore;
+            Color subColor = ThemeService.CardPalette.SubFore;
 
             using (var bgBrush = new SolidBrush(backColor))
             using (var borderPen = new Pen(borderColor))
@@ -225,13 +222,21 @@ namespace GWxLauncher
                 g.DrawRectangle(borderPen, card);
             }
             // Eligibility checkbox area (bulk launch eligibility; not selection)
-            Rectangle cb = new Rectangle(card.Left + 8, card.Top + 22, 16, 16);
+            Rectangle cb = new Rectangle(
+                card.Left + ThemeService.CardMetrics.CheckboxOffsetX,
+                card.Top + ThemeService.CardMetrics.CheckboxOffsetY,
+                ThemeService.CardMetrics.CheckboxSize,
+                ThemeService.CardMetrics.CheckboxSize);
             bool eligible = _views.IsEligible(_views.ActiveViewName, profile.Id);
             CheckBoxState cbState = eligible ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal;
             CheckBoxRenderer.DrawCheckBox(g, cb.Location, cbState);
 
             // Icon area
-            Rectangle iconRect = new Rectangle(card.Left + 30, card.Top + 8, 32, 32);
+            Rectangle iconRect = new Rectangle(
+                card.Left + ThemeService.CardMetrics.IconOffsetX,
+                card.Top + ThemeService.CardMetrics.IconOffsetY,
+                ThemeService.CardMetrics.IconSize,
+                ThemeService.CardMetrics.IconSize);
             Image? icon = profile.GameType == GameType.GuildWars1 ? _gw1Image : _gw2Image;
             if (icon != null)
             {
@@ -239,33 +244,15 @@ namespace GWxLauncher
             }
 
             // Text area
-            float textLeft = iconRect.Right + 8;
-            float textTop = card.Top + 10;
+            float textLeft = iconRect.Right + ThemeService.CardMetrics.TextOffsetX;
+            float textTop = card.Top + ThemeService.CardMetrics.TextOffsetY;
 
             // base font: always non-null
             var baseFont = e.Font ?? this.Font;
+            var nameFont = _nameFont;
+            var subFont = _subFont;
 
-            // Try a modern variable font, fall back if it doesn't exist
-            Font nameFont;
-            Font subFont;
-
-            try
-            {
-                nameFont = new Font("Segoe UI Variable", baseFont.Size + 1, FontStyle.Bold);
-                subFont = new Font("Segoe UI Variable", baseFont.Size - 1, FontStyle.Regular);
-            }
-            catch
-            {
-                nameFont = new Font(baseFont.FontFamily, baseFont.Size + 1, FontStyle.Bold);
-                subFont = new Font(baseFont.FontFamily, baseFont.Size - 1, FontStyle.Regular);
-            }
-
-            // slightly lighter gray for the sublabel
-            // Color subColor = Color.FromArgb(180, 180, 190);
-
-            using (nameFont)
             using (var nameBrush = new SolidBrush(nameColor))
-            using (subFont)
             using (var subBrush = new SolidBrush(subColor))
             {
                 // primary line: display name
@@ -281,7 +268,7 @@ namespace GWxLauncher
                     subFont,
                     subBrush,
                     textLeft,
-                    textTop + nameFont.Height + 2);
+                    textTop + nameFont.Height + ThemeService.CardMetrics.SubtitleGapY);
             }
 
             // --- Badges (GW1 only): TB, gMod (text pills) ---
@@ -295,18 +282,17 @@ namespace GWxLauncher
 
                 if (badges.Count > 0)
                 {
-                    int badgeRight = card.Right - 10;
-                    int badgeTop = card.Top + 10;
-
-                    using var badgeBg = new SolidBrush(Color.FromArgb(60, 60, 70));
-                    using var badgePen = new Pen(Color.FromArgb(90, 90, 110));
+                    int badgeRight = card.Right - ThemeService.CardMetrics.BadgeRightPadding;
+                    int badgeTop = card.Top + ThemeService.CardMetrics.BadgeTopPadding;
+                    using var badgeBg = new SolidBrush(ThemeService.CardPalette.BadgeBack);
+                    using var badgePen = new Pen(ThemeService.CardPalette.BadgeBorder);
 
                     foreach (var badge in badges.AsEnumerable().Reverse())
                     {
                         // measure
-                        var sz = g.MeasureString(badge, BadgeFont);
-                        int w = (int)sz.Width + 12;   // padding
-                        int h = (int)sz.Height + 6;   // padding
+                        var sz = g.MeasureString(badge, ThemeService.Typography.BadgeFont);
+                        int w = (int)sz.Width + ThemeService.CardMetrics.BadgeHorizontalPad;
+                        int h = (int)sz.Height + ThemeService.CardMetrics.BadgeVerticalPad;
 
                         var rect = new Rectangle(badgeRight - w, badgeTop, w, h);
 
@@ -316,12 +302,12 @@ namespace GWxLauncher
                         TextRenderer.DrawText(
                             g,
                             badge,
-                            BadgeFont,
+                            ThemeService.Typography.BadgeFont,
                             rect,
-                            Color.Gainsboro,
+                            ThemeService.CardPalette.BadgeFore,
                             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
 
-                        badgeRight -= w + 6;
+                        badgeRight -= w + ThemeService.CardMetrics.BadgeSpacing;
                     }
                 }
             }
@@ -355,7 +341,8 @@ namespace GWxLauncher
                 _config.WindowWidth = bounds.Width;
                 _config.WindowHeight = bounds.Height;
             }
-
+            _nameFont?.Dispose();
+            _subFont?.Dispose();
             _config.Save();
         }
 
@@ -536,8 +523,13 @@ namespace GWxLauncher
 
             // Checkbox rectangle must match drawing logic
             Rectangle card = itemRect;
-            card.Inflate(-4, -4);
-            Rectangle cb = new Rectangle(card.Left + 8, card.Top + 22, 16, 16);
+            card.Inflate(-ThemeService.CardMetrics.OuterPadding, -ThemeService.CardMetrics.OuterPadding);
+
+            Rectangle cb = new Rectangle(
+                card.Left + ThemeService.CardMetrics.CheckboxOffsetX,
+                card.Top + ThemeService.CardMetrics.CheckboxOffsetY,
+                ThemeService.CardMetrics.CheckboxSize,
+                ThemeService.CardMetrics.CheckboxSize);
 
             if (e.Button == MouseButtons.Left && cb.Contains(e.Location))
             {
