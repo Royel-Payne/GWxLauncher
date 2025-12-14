@@ -1,6 +1,7 @@
 ﻿using GWxLauncher.Domain;
 using System;
 using System.Windows.Forms;
+using GWxLauncher.UI;
 
 namespace GWxLauncher
 {
@@ -13,6 +14,7 @@ namespace GWxLauncher
         public AddAccountDialog()
         {
             InitializeComponent();
+            ThemeService.ApplyToForm(this);
 
             // Make sure the combo is a fixed list
             cboGameType.DropDownStyle = ComboBoxStyle.DropDownList;

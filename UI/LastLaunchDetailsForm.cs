@@ -14,8 +14,7 @@ namespace GWxLauncher.UI
             Size = new Size(700, 500);
             MinimumSize = new Size(600, 400);
 
-            BackColor = Color.FromArgb(24, 24, 28);
-            ForeColor = Color.Gainsboro;
+            ThemeService.ApplyToForm(this);
 
             var txt = new TextBox
             {
@@ -25,8 +24,8 @@ namespace GWxLauncher.UI
                 WordWrap = false,
                 Dock = DockStyle.Fill,
                 Font = new Font("Consolas", 10f),
-                BackColor = Color.FromArgb(18, 18, 22),
-                ForeColor = Color.Gainsboro,
+                BackColor = ThemeService.Palette.InputBack,
+                ForeColor = ThemeService.Palette.InputFore,
                 Text = report.ToString()
             };
 

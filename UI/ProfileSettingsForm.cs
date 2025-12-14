@@ -1,7 +1,9 @@
-﻿using System;
+﻿using GWxLauncher.Domain;
+using GWxLauncher.Properties;
+using System;
 using System.IO;
+using System.Resources;
 using System.Windows.Forms;
-using GWxLauncher.Domain;
 
 namespace GWxLauncher.UI
 {
@@ -14,6 +16,9 @@ namespace GWxLauncher.UI
             _profile = profile ?? throw new ArgumentNullException(nameof(profile));
 
             InitializeComponent();
+            ThemeService.ApplyToForm(this);
+
+            Icon = Icon.ExtractAssociatedIcon(_profile.ExecutablePath); // Use the game's icon if possible - fallback to default icon from ThemeService
 
             // Basic title – later we can add tabs/categories here
             Text = $"Profile Settings – {profile.Name}";
@@ -31,6 +36,48 @@ namespace GWxLauncher.UI
             CancelButton = btnCancel;
 
             LoadFromProfile();
+        }
+
+        // Theme remnants
+        //private void ApplyTheme()
+        //{
+        //    BackColor = Color.FromArgb(24, 24, 28);
+        //    ForeColor = Color.Gainsboro;
+
+        //    foreach (Control c in Controls)
+        //        ApplyThemeRecursive(c);
+        //}
+
+        private void ApplyThemeRecursive(Control c)
+        {
+            // Fix GW1 Mods group header specifically
+            if (c is GroupBox gb)
+            {
+                gb.ForeColor = Color.Gainsboro;
+                gb.BackColor = BackColor;
+            }
+
+            // Common controls
+            if (c is Label lbl)
+                lbl.ForeColor = Color.Gainsboro;
+
+            if (c is TextBox tb)
+            {
+                tb.BackColor = Color.FromArgb(18, 18, 22);
+                tb.ForeColor = Color.Gainsboro;
+                tb.BorderStyle = BorderStyle.FixedSingle;
+            }
+
+            if (c is Button btn)
+            {
+                btn.BackColor = Color.FromArgb(45, 45, 52);
+                btn.ForeColor = Color.White;
+                btn.FlatStyle = FlatStyle.Flat;
+                btn.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
+            }
+
+            foreach (Control child in c.Controls)
+                ApplyThemeRecursive(child);
         }
 
         private void LoadFromProfile()
@@ -190,6 +237,7 @@ namespace GWxLauncher.UI
                 textBox.Text = dlg.FileName;
             }
         }
+
 
         private void btnBrowseToolboxDll_Click(object? sender, EventArgs e)
             => BrowseDllInto(txtToolboxDll);

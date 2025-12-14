@@ -9,7 +9,6 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 using System.Collections.Generic;
@@ -26,10 +25,6 @@ namespace GWxLauncher
         private readonly Image _gw1Image = Properties.Resources.Gw1;
         private readonly Image _gw2Image = Properties.Resources.Gw2;
 
-        private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
-        private const int DWMWCP_DONOTROUND = 1;
-        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
-
         private LaunchReport? _lastLaunchReport;
 
         private readonly ViewStateStore _views = new();
@@ -38,15 +33,6 @@ namespace GWxLauncher
         private bool _viewNameDirty = false;
         private bool _suppressViewTextEvents = false;
         private bool _suppressArmBulkEvents = false;
-
-
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(
-            IntPtr hwnd,
-            int attr,
-            ref int attrValue,
-            int attrSize);
 
         private static readonly Font BadgeFont =
             new Font("Segoe UI", 8f, FontStyle.Bold);
@@ -114,65 +100,6 @@ namespace GWxLauncher
 
             RefreshProfileList();
         }
-        private void ApplyHeaderLayout()
-        {
-            // Single header strip
-            panelView.Dock = DockStyle.Top;
-            panelView.Height = 44;
-            panelView.Padding = new Padding(8, 8, 8, 8);
-
-            // Text tweaks
-            btnNewView.Text = "New Profile";
-            btnAddAccount.Text = "Add Account";
-            btnLaunchAll.Text = "Launch";
-            txtView.TextAlign = HorizontalAlignment.Center;
-
-            // Sizes (feel free to tweak)
-            btnAddAccount.Size = new Size(110, 26);
-            btnNewView.Size = new Size(95, 26);
-            btnViewPrev.Size = new Size(28, 26);
-            btnViewNext.Size = new Size(28, 26);
-            txtView.Size = new Size(140, 26);
-            chkArmBulk.Size = new Size(18, 26);
-            btnLaunchAll.Size = new Size(80, 26);
-
-            // Make sure Add Account is NOT a huge docked banner
-            btnAddAccount.Dock = DockStyle.None;
-
-            // Ensure all header controls live in panelView (safe even if already there)
-            if (btnAddAccount.Parent != panelView)
-            {
-                Controls.Remove(btnAddAccount); // harmless if not present
-                panelView.Controls.Add(btnAddAccount);
-            }
-
-            // Simple left-to-right layout
-            int x = panelView.Padding.Left;
-            int y = panelView.Padding.Top;
-
-            btnAddAccount.Location = new Point(x, y);
-            x += btnAddAccount.Width + 10;
-
-            btnNewView.Location = new Point(x, y);
-            x += btnNewView.Width + 14;
-
-            btnViewPrev.Location = new Point(x, y);
-            x += btnViewPrev.Width + 4;
-
-            txtView.Location = new Point(x, y);
-            x += txtView.Width + 4;
-
-            btnViewNext.Location = new Point(x, y);
-            x += btnViewNext.Width + 10;
-
-            chkArmBulk.Location = new Point(x, y + 3); // slight vertical alignment
-            x += chkArmBulk.Width + 12;
-
-            btnLaunchAll.Location = new Point(x, y);
-
-            // Put the profiles panel below header
-            panelProfiles.Dock = DockStyle.Fill;
-        }
 
         private void ReenableListScrollbarAndFillPanel()
         {
@@ -209,87 +136,21 @@ namespace GWxLauncher
 
             _config = LauncherConfig.Load();
 
-            // Try to enable dark title bar (immersive dark mode)
-            try
-            {
-                // 17763 = Windows 10 1809+, where this flag first appeared
-                if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
-                {
-                    int useDark = 1;
-                    DwmSetWindowAttribute(
-                        Handle,
-                        DWMWA_USE_IMMERSIVE_DARK_MODE,
-                        ref useDark,
-                        sizeof(int));
-                }
+            ThemeService.ApplyToForm(this);
 
-                // Already have: disable rounded corners on Win11+
-                if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
-                {
-                    int preference = DWMWCP_DONOTROUND;
-                    DwmSetWindowAttribute(
-                        Handle,
-                        DWMWA_WINDOW_CORNER_PREFERENCE,
-                        ref preference,
-                        sizeof(int));
-                }
-            }
-            catch
-            {
-                // If DWM isn't available for any reason, just fall back gracefully
-            }
-
-            // Basic dark mode – centralized so we can later swap palettes
-            BackColor = Color.FromArgb(24, 24, 28);
-            ForeColor = Color.Gainsboro;
-
-            panelProfiles.BackColor = BackColor;
-            panelProfiles.BorderStyle = BorderStyle.None;
-
-            lstProfiles.BackColor = BackColor;
-            lstProfiles.BorderStyle = BorderStyle.None;
-
-            lblStatus.ForeColor = Color.Gainsboro;
-
-            //ApplyHeaderLayout();
             ReenableListScrollbarAndFillPanel();
 
-            // Make the list wider than the panel so the scrollbar is clipped out of view
-            //if (lstProfiles.Parent == panelProfiles)
-            //{
-            //    int scrollbarWidth = SystemInformation.VerticalScrollBarWidth;
-            //    lstProfiles.Width = panelProfiles.Width + scrollbarWidth;
-            //    lstProfiles.Height = panelProfiles.Height; // fill panel vertically
-            //}
-
-
-            // Ensure Add Account header matches the theme
-            btnAddAccount.BackColor = Color.FromArgb(45, 45, 52);
-            btnAddAccount.ForeColor = Color.White;
-            btnAddAccount.FlatStyle = FlatStyle.Flat;
-            btnAddAccount.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
-            btnAddAccount.FlatAppearance.BorderSize = 1;
-
-            // Match Add Profile button styling to Add Account
-            btnNewView.BackColor = btnAddAccount.BackColor;
-            btnNewView.ForeColor = btnAddAccount.ForeColor;
-            btnNewView.FlatStyle = btnAddAccount.FlatStyle;
-            btnNewView.FlatAppearance.BorderColor = btnAddAccount.FlatAppearance.BorderColor;
-            btnNewView.FlatAppearance.BorderSize = btnAddAccount.FlatAppearance.BorderSize;
-
-            panelView.BackColor = Color.FromArgb(30, 30, 36); // slightly lighter than main bg
-
-            panelView.Paint += (_, e) =>
+            panelView.Paint += (s, e) =>
             {
-                using var pen = new Pen(Color.FromArgb(60, 60, 70));
-                e.Graphics.DrawLine(pen, 0, panelView.Height - 1, panelView.Width, panelView.Height - 1);
+                var r = panelView.ClientRectangle;
+                using var pen = new Pen(ThemeService.Palette.Separator);
+                e.Graphics.DrawLine(pen, r.Left, r.Bottom - 1, r.Right, r.Bottom - 1);
             };
-            panelView.Invalidate();
 
             lblView.Visible = true;
             lblView.Text = "Show checked \n Arm launch";
             lblView.AutoSize = true;
-            lblView.ForeColor = Color.FromArgb(180, 180, 190); // subtle
+            lblView.ForeColor = ThemeService.Palette.SubtleFore;
             var tip = new ToolTip();
             tip.SetToolTip(chkArmBulk, "Show checked profiles only (arms launch all)");
             tip.SetToolTip(lblView, "Show checked profiles only (arms launch all)");
@@ -319,10 +180,7 @@ namespace GWxLauncher
             ApplyViewScopedUiState();
             _suppressViewTextEvents = false;
 
-
-
             RefreshProfileList();
-
         }
 
         private void lstProfiles_DrawItem(object sender, DrawItemEventArgs e)
@@ -501,30 +359,6 @@ namespace GWxLauncher
             _config.Save();
         }
 
-        // Old version with GW1 Toolbox menu items, preserved for reference
-        // 
-        //private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
-        //{
-        //    var profile = GetSelectedProfile();
-        //    bool isGw1 = profile != null && profile.GameType == GameType.GuildWars1;
-
-        //    // Enable/disable GW1-specific items
-        //    menuGw1ToolboxToggle.Enabled = isGw1;
-        //    menuGw1ToolboxPath.Enabled = isGw1;
-
-        //    // NEW: only enabled if we have a report this session
-        //    menuShowLastLaunchDetails.Enabled = _lastLaunchReport != null;
-
-        //    // Reflect current state in the checkbox
-        //    if (isGw1 && profile != null)
-        //    {
-        //        menuGw1ToolboxToggle.Checked = profile.Gw1ToolboxEnabled;
-        //    }
-        //    else
-        //    {
-        //        menuGw1ToolboxToggle.Checked = false;
-        //    }
-        //}
         private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
         {
             // NEW: only enabled if we have a report this session
@@ -727,7 +561,7 @@ namespace GWxLauncher
             txtView.Text = newName;
             ApplyViewScopedUiState();
             _suppressViewTextEvents = false;
-            
+
             // Switching view changes which profiles are checked (per-view),
             // but does not hide profiles by name.
             RefreshProfileList();
