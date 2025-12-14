@@ -48,6 +48,21 @@ namespace GWxLauncher
             ref int attrValue,
             int attrSize);
 
+        private static readonly Font BadgeFont =
+            new Font("Segoe UI", 8f, FontStyle.Bold);
+
+        private static readonly Padding BadgePadding =
+            new Padding(6, 2, 6, 2);
+
+        private static Size MeasureBadge(Graphics g, string text)
+        {
+            var size = g.MeasureString(text, BadgeFont);
+            return new Size(
+                (int)size.Width + BadgePadding.Horizontal,
+                (int)size.Height + BadgePadding.Vertical);
+        }
+
+
         private void RefreshProfileList()
         {
             lstProfiles.Items.Clear();
@@ -98,6 +113,90 @@ namespace GWxLauncher
             _views.Save();
 
             RefreshProfileList();
+        }
+        private void ApplyHeaderLayout()
+        {
+            // Single header strip
+            panelView.Dock = DockStyle.Top;
+            panelView.Height = 44;
+            panelView.Padding = new Padding(8, 8, 8, 8);
+
+            // Text tweaks
+            btnNewView.Text = "New Profile";
+            btnAddAccount.Text = "Add Account";
+            btnLaunchAll.Text = "Launch";
+            txtView.TextAlign = HorizontalAlignment.Center;
+
+            // Sizes (feel free to tweak)
+            btnAddAccount.Size = new Size(110, 26);
+            btnNewView.Size = new Size(95, 26);
+            btnViewPrev.Size = new Size(28, 26);
+            btnViewNext.Size = new Size(28, 26);
+            txtView.Size = new Size(140, 26);
+            chkArmBulk.Size = new Size(18, 26);
+            btnLaunchAll.Size = new Size(80, 26);
+
+            // Make sure Add Account is NOT a huge docked banner
+            btnAddAccount.Dock = DockStyle.None;
+
+            // Ensure all header controls live in panelView (safe even if already there)
+            if (btnAddAccount.Parent != panelView)
+            {
+                Controls.Remove(btnAddAccount); // harmless if not present
+                panelView.Controls.Add(btnAddAccount);
+            }
+
+            // Simple left-to-right layout
+            int x = panelView.Padding.Left;
+            int y = panelView.Padding.Top;
+
+            btnAddAccount.Location = new Point(x, y);
+            x += btnAddAccount.Width + 10;
+
+            btnNewView.Location = new Point(x, y);
+            x += btnNewView.Width + 14;
+
+            btnViewPrev.Location = new Point(x, y);
+            x += btnViewPrev.Width + 4;
+
+            txtView.Location = new Point(x, y);
+            x += txtView.Width + 4;
+
+            btnViewNext.Location = new Point(x, y);
+            x += btnViewNext.Width + 10;
+
+            chkArmBulk.Location = new Point(x, y + 3); // slight vertical alignment
+            x += chkArmBulk.Width + 12;
+
+            btnLaunchAll.Location = new Point(x, y);
+
+            // Put the profiles panel below header
+            panelProfiles.Dock = DockStyle.Fill;
+        }
+
+        private void ReenableListScrollbarAndFillPanel()
+        {
+            // Stop using the "hide scrollbar by widening listbox" trick while iterating.
+            // Keep listbox exactly sized to the panel.
+            lstProfiles.Dock = DockStyle.Fill;
+            lstProfiles.IntegralHeight = false;
+
+            // Remove any previous "widened listbox" sizing effects
+            lstProfiles.Width = panelProfiles.ClientSize.Width;
+            lstProfiles.Height = panelProfiles.ClientSize.Height;
+
+            // Keep it correct on resize
+            panelProfiles.Resize -= PanelProfiles_Resize_FillList;
+            panelProfiles.Resize += PanelProfiles_Resize_FillList;
+        }
+
+        private void PanelProfiles_Resize_FillList(object? sender, EventArgs e)
+        {
+            // Ensure fill stays accurate even if Dock is changed later
+            if (lstProfiles.Dock == DockStyle.None)
+            {
+                lstProfiles.SetBounds(0, 0, panelProfiles.ClientSize.Width, panelProfiles.ClientSize.Height);
+            }
         }
 
 
@@ -152,13 +251,16 @@ namespace GWxLauncher
 
             lblStatus.ForeColor = Color.Gainsboro;
 
+            //ApplyHeaderLayout();
+            ReenableListScrollbarAndFillPanel();
+
             // Make the list wider than the panel so the scrollbar is clipped out of view
-            if (lstProfiles.Parent == panelProfiles)
-            {
-                int scrollbarWidth = SystemInformation.VerticalScrollBarWidth;
-                lstProfiles.Width = panelProfiles.Width + scrollbarWidth;
-                lstProfiles.Height = panelProfiles.Height; // fill panel vertically
-            }
+            //if (lstProfiles.Parent == panelProfiles)
+            //{
+            //    int scrollbarWidth = SystemInformation.VerticalScrollBarWidth;
+            //    lstProfiles.Width = panelProfiles.Width + scrollbarWidth;
+            //    lstProfiles.Height = panelProfiles.Height; // fill panel vertically
+            //}
 
 
             // Ensure Add Account header matches the theme
@@ -167,6 +269,30 @@ namespace GWxLauncher
             btnAddAccount.FlatStyle = FlatStyle.Flat;
             btnAddAccount.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
             btnAddAccount.FlatAppearance.BorderSize = 1;
+
+            // Match Add Profile button styling to Add Account
+            btnNewView.BackColor = btnAddAccount.BackColor;
+            btnNewView.ForeColor = btnAddAccount.ForeColor;
+            btnNewView.FlatStyle = btnAddAccount.FlatStyle;
+            btnNewView.FlatAppearance.BorderColor = btnAddAccount.FlatAppearance.BorderColor;
+            btnNewView.FlatAppearance.BorderSize = btnAddAccount.FlatAppearance.BorderSize;
+
+            panelView.BackColor = Color.FromArgb(30, 30, 36); // slightly lighter than main bg
+
+            panelView.Paint += (_, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(60, 60, 70));
+                e.Graphics.DrawLine(pen, 0, panelView.Height - 1, panelView.Width, panelView.Height - 1);
+            };
+            panelView.Invalidate();
+
+            lblView.Visible = true;
+            lblView.Text = "Show checked \n Arm launch";
+            lblView.AutoSize = true;
+            lblView.ForeColor = Color.FromArgb(180, 180, 190); // subtle
+            var tip = new ToolTip();
+            tip.SetToolTip(chkArmBulk, "Show checked profiles only (arms launch all)");
+            tip.SetToolTip(lblView, "Show checked profiles only (arms launch all)");
 
             // (your window-position restore logic)
             if (_config.WindowX >= 0 && _config.WindowY >= 0)
@@ -215,6 +341,7 @@ namespace GWxLauncher
 
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+
 
             // Card bounds
             Rectangle card = e.Bounds;
@@ -299,6 +426,48 @@ namespace GWxLauncher
                     textTop + nameFont.Height + 2);
             }
 
+            // --- Badges (GW1 only): TB, gMod (text pills) ---
+            if (profile.GameType == GameType.GuildWars1)
+            {
+                var badges = new List<string>();
+
+                // IMPORTANT: adjust these property names if yours differ
+                if (profile.Gw1ToolboxEnabled) badges.Add("TB");
+                if (profile.Gw1GModEnabled) badges.Add("gMod");
+
+                if (badges.Count > 0)
+                {
+                    int badgeRight = card.Right - 10;
+                    int badgeTop = card.Top + 10;
+
+                    using var badgeBg = new SolidBrush(Color.FromArgb(60, 60, 70));
+                    using var badgePen = new Pen(Color.FromArgb(90, 90, 110));
+
+                    foreach (var badge in badges.AsEnumerable().Reverse())
+                    {
+                        // measure
+                        var sz = g.MeasureString(badge, BadgeFont);
+                        int w = (int)sz.Width + 12;   // padding
+                        int h = (int)sz.Height + 6;   // padding
+
+                        var rect = new Rectangle(badgeRight - w, badgeTop, w, h);
+
+                        g.FillRectangle(badgeBg, rect);
+                        g.DrawRectangle(badgePen, rect);
+
+                        TextRenderer.DrawText(
+                            g,
+                            badge,
+                            BadgeFont,
+                            rect,
+                            Color.Gainsboro,
+                            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+
+                        badgeRight -= w + 6;
+                    }
+                }
+            }
+
 
 
             if (selected)
@@ -331,28 +500,37 @@ namespace GWxLauncher
 
             _config.Save();
         }
+
+        // Old version with GW1 Toolbox menu items, preserved for reference
+        // 
+        //private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
+        //{
+        //    var profile = GetSelectedProfile();
+        //    bool isGw1 = profile != null && profile.GameType == GameType.GuildWars1;
+
+        //    // Enable/disable GW1-specific items
+        //    menuGw1ToolboxToggle.Enabled = isGw1;
+        //    menuGw1ToolboxPath.Enabled = isGw1;
+
+        //    // NEW: only enabled if we have a report this session
+        //    menuShowLastLaunchDetails.Enabled = _lastLaunchReport != null;
+
+        //    // Reflect current state in the checkbox
+        //    if (isGw1 && profile != null)
+        //    {
+        //        menuGw1ToolboxToggle.Checked = profile.Gw1ToolboxEnabled;
+        //    }
+        //    else
+        //    {
+        //        menuGw1ToolboxToggle.Checked = false;
+        //    }
+        //}
         private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
         {
-            var profile = GetSelectedProfile();
-            bool isGw1 = profile != null && profile.GameType == GameType.GuildWars1;
-
-            // Enable/disable GW1-specific items
-            menuGw1ToolboxToggle.Enabled = isGw1;
-            menuGw1ToolboxPath.Enabled = isGw1;
-
             // NEW: only enabled if we have a report this session
             menuShowLastLaunchDetails.Enabled = _lastLaunchReport != null;
-
-            // Reflect current state in the checkbox
-            if (isGw1 && profile != null)
-            {
-                menuGw1ToolboxToggle.Checked = profile.Gw1ToolboxEnabled;
-            }
-            else
-            {
-                menuGw1ToolboxToggle.Checked = false;
-            }
         }
+
 
         private void btnLaunchGw1_Click(object sender, EventArgs e)
         {
@@ -715,11 +893,11 @@ namespace GWxLauncher
             if (profile == null || profile.GameType != GameType.GuildWars1)
             {
                 // Safety: if somehow clicked with no GW1 profile, just uncheck.
-                menuGw1ToolboxToggle.Checked = false;
+                // menuGw1ToolboxToggle.Checked = false;
                 return;
             }
 
-            profile.Gw1ToolboxEnabled = menuGw1ToolboxToggle.Checked;
+            //profile.Gw1ToolboxEnabled = menuGw1ToolboxToggle.Checked;
             _profileManager.Save();
 
             lblStatus.Text = $"GW1 Toolbox injection " +
