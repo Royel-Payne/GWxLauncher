@@ -36,26 +36,56 @@ namespace GWxLauncher
         private readonly Font _nameFont;
         private readonly Font _subFont;
 
+        private int _hotIndex = -1;
+
         private void RefreshProfileList()
         {
-            lstProfiles.Items.Clear();
+            int topIndex = lstProfiles.TopIndex;
+            object? selectedItem = lstProfiles.SelectedItem;
 
-            var profiles = _profileManager.Profiles
-                .OrderBy(p => p.GameType) // GW1 before GW2
-                .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-                .AsEnumerable();
-
-            // Visibility is controlled ONLY by Show Checked Accounts Only (view-scoped)
-            if (_showCheckedOnly)
+            lstProfiles.BeginUpdate();
+            try
             {
-                profiles = profiles.Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
+                lstProfiles.Items.Clear();
+
+                var profiles = _profileManager.Profiles
+                    .OrderBy(p => p.GameType) // GW1 before GW2
+                    .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+                    .AsEnumerable();
+
+                // Visibility is controlled ONLY by Show Checked Accounts Only (view-scoped)
+                if (_showCheckedOnly)
+                {
+                    profiles = profiles.Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
+                }
+
+                foreach (var profile in profiles)
+                    lstProfiles.Items.Add(profile);
+
+                // Restore selection by object identity (works because you re-add the same profile instances)
+                if (selectedItem != null)
+                {
+                    int idx = lstProfiles.Items.IndexOf(selectedItem);
+                    if (idx >= 0)
+                        lstProfiles.SelectedIndex = idx;
+                }
+
+                // Restore scroll position (clamp to list size)
+                if (lstProfiles.Items.Count > 0)
+                {
+                    if (topIndex < 0) topIndex = 0;
+                    if (topIndex >= lstProfiles.Items.Count) topIndex = lstProfiles.Items.Count - 1;
+                    lstProfiles.TopIndex = topIndex;
+                }
+
+                UpdateBulkArmingUi();
             }
-
-            foreach (var profile in profiles)
-                lstProfiles.Items.Add(profile);
-
-            UpdateBulkArmingUi();
+            finally
+            {
+                lstProfiles.EndUpdate();
+            }
         }
+
 
 
         private void UpdateBulkArmingUi()
@@ -129,6 +159,9 @@ namespace GWxLauncher
                 _subFont = new Font(baseFont.FontFamily, baseFont.Size - 1, FontStyle.Regular);
             }
 
+            lstProfiles.MouseMove += lstProfiles_MouseMove;
+            lstProfiles.MouseLeave += lstProfiles_MouseLeave;
+
             chkArmBulk.BringToFront(); // ensure it's not obscured
 
             ctxProfiles.Opening += ctxProfiles_Opening;
@@ -189,31 +222,28 @@ namespace GWxLauncher
             if (e.Index < 0 || e.Index >= lstProfiles.Items.Count)
                 return;
 
-            var profile = lstProfiles.Items[e.Index] as GameProfile;
-
-            if (profile == null)
+            if (lstProfiles.Items[e.Index] is not GameProfile profile)
                 return;
 
             bool selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            bool hot = (e.Index == _hotIndex);
 
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-
 
             // Card bounds
             Rectangle card = e.Bounds;
             card.Inflate(-ThemeService.CardMetrics.OuterPadding, -ThemeService.CardMetrics.OuterPadding);
 
-            Color backColor = selected
-                ? ThemeService.CardPalette.SelectedBack
-                : ThemeService.CardPalette.Back;
+            Color backColor =
+                selected ? ThemeService.CardPalette.SelectedBack :
+                hot ? ThemeService.CardPalette.HoverBack :
+                           ThemeService.CardPalette.Back;
 
-            Color borderColor = selected
-                ? ThemeService.CardPalette.SelectedBorder
-                : ThemeService.CardPalette.Border;
-
-            Color nameColor = ThemeService.CardPalette.NameFore;
-            Color subColor = ThemeService.CardPalette.SubFore;
+            Color borderColor =
+                selected ? ThemeService.CardPalette.Border :   // subtle border even when selected
+                hot ? ThemeService.CardPalette.HoverBorder :
+                           ThemeService.CardPalette.Border;
 
             using (var bgBrush = new SolidBrush(backColor))
             using (var borderPen = new Pen(borderColor))
@@ -221,15 +251,31 @@ namespace GWxLauncher
                 g.FillRectangle(bgBrush, card);
                 g.DrawRectangle(borderPen, card);
             }
+            // Accent bar (left) for selected (and optional hover)
+            if (selected || hot)
+            {
+                var accentRect = new Rectangle(
+                    card.Left,
+                    card.Top,
+                    ThemeService.CardMetrics.AccentWidth,
+                    card.Height);
+
+                using var accentBrush = new SolidBrush(ThemeService.CardPalette.Accent);
+                g.FillRectangle(accentBrush, accentRect);
+            }
+
             // Eligibility checkbox area (bulk launch eligibility; not selection)
             Rectangle cb = new Rectangle(
                 card.Left + ThemeService.CardMetrics.CheckboxOffsetX,
                 card.Top + ThemeService.CardMetrics.CheckboxOffsetY,
                 ThemeService.CardMetrics.CheckboxSize,
                 ThemeService.CardMetrics.CheckboxSize);
+
             bool eligible = _views.IsEligible(_views.ActiveViewName, profile.Id);
-            CheckBoxState cbState = eligible ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal;
-            CheckBoxRenderer.DrawCheckBox(g, cb.Location, cbState);
+            CheckBoxRenderer.DrawCheckBox(
+                g,
+                cb.Location,
+                eligible ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
 
             // Icon area
             Rectangle iconRect = new Rectangle(
@@ -237,32 +283,24 @@ namespace GWxLauncher
                 card.Top + ThemeService.CardMetrics.IconOffsetY,
                 ThemeService.CardMetrics.IconSize,
                 ThemeService.CardMetrics.IconSize);
+
             Image? icon = profile.GameType == GameType.GuildWars1 ? _gw1Image : _gw2Image;
             if (icon != null)
-            {
                 g.DrawImage(icon, iconRect);
-            }
 
             // Text area
             float textLeft = iconRect.Right + ThemeService.CardMetrics.TextOffsetX;
             float textTop = card.Top + ThemeService.CardMetrics.TextOffsetY;
 
-            // base font: always non-null
-            var baseFont = e.Font ?? this.Font;
             var nameFont = _nameFont;
             var subFont = _subFont;
 
-            using (var nameBrush = new SolidBrush(nameColor))
-            using (var subBrush = new SolidBrush(subColor))
+            using (var nameBrush = new SolidBrush(ThemeService.CardPalette.NameFore))
+            using (var subBrush = new SolidBrush(ThemeService.CardPalette.SubFore))
             {
-                // primary line: display name
                 g.DrawString(profile.Name, nameFont, nameBrush, textLeft, textTop);
 
-                // secondary line: game label
-                string gameLabel = profile.GameType == GameType.GuildWars1
-                    ? "Guild Wars 1"
-                    : "Guild Wars 2";
-
+                string gameLabel = profile.GameType == GameType.GuildWars1 ? "Guild Wars 1" : "Guild Wars 2";
                 g.DrawString(
                     gameLabel,
                     subFont,
@@ -271,54 +309,81 @@ namespace GWxLauncher
                     textTop + nameFont.Height + ThemeService.CardMetrics.SubtitleGapY);
             }
 
-            // --- Badges (GW1 only): TB, gMod (text pills) ---
+            // Local helper: draw badge pills (right aligned)
+            void DrawBadges(IReadOnlyList<string> badges)
+            {
+                if (badges.Count == 0)
+                    return;
+
+                int badgeRight = card.Right - ThemeService.CardMetrics.BadgeRightPadding;
+                int badgeTop = card.Top + ThemeService.CardMetrics.BadgeTopPadding;
+
+                using var badgeBg = new SolidBrush(ThemeService.CardPalette.BadgeBack);
+                using var badgePen = new Pen(ThemeService.CardPalette.BadgeBorder);
+
+                // Draw right-to-left so the right edge stays aligned
+                for (int i = badges.Count - 1; i >= 0; i--)
+                {
+                    string badge = badges[i];
+
+                    var sz = g.MeasureString(badge, ThemeService.Typography.BadgeFont);
+                    int w = (int)sz.Width + ThemeService.CardMetrics.BadgeHorizontalPad;
+                    int h = (int)sz.Height + ThemeService.CardMetrics.BadgeVerticalPad;
+
+                    var rect = new Rectangle(badgeRight - w, badgeTop, w, h);
+
+                    g.FillRectangle(badgeBg, rect);
+                    g.DrawRectangle(badgePen, rect);
+
+                    TextRenderer.DrawText(
+                        g,
+                        badge,
+                        ThemeService.Typography.BadgeFont,
+                        rect,
+                        ThemeService.CardPalette.BadgeFore,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+
+                    badgeRight -= w + ThemeService.CardMetrics.BadgeSpacing;
+                }
+            }
+
+            // --- Badges (GW1): TB, gMod ---
             if (profile.GameType == GameType.GuildWars1)
             {
-                var badges = new List<string>();
-
-                // IMPORTANT: adjust these property names if yours differ
+                var badges = new List<string>(2);
                 if (profile.Gw1ToolboxEnabled) badges.Add("TB");
                 if (profile.Gw1GModEnabled) badges.Add("gMod");
 
-                if (badges.Count > 0)
+                DrawBadges(badges);
+            }
+
+            // --- Badges (GW2): Blish (when RunAfter is enabled and contains a Blish entry) ---
+            if (profile.GameType == GameType.GuildWars2)
+            {
+                var progs = profile.Gw2RunAfterPrograms ?? new List<RunAfterProgram>();
+
+                bool anyEnabled = profile.Gw2RunAfterEnabled && progs.Any(x => x.Enabled);
+
+                if (anyEnabled)
                 {
-                    int badgeRight = card.Right - ThemeService.CardMetrics.BadgeRightPadding;
-                    int badgeTop = card.Top + ThemeService.CardMetrics.BadgeTopPadding;
-                    using var badgeBg = new SolidBrush(ThemeService.CardPalette.BadgeBack);
-                    using var badgePen = new Pen(ThemeService.CardPalette.BadgeBorder);
+                    bool blish = progs.Any(x =>
+                        x.Enabled &&
+                        (
+                            (x.Name?.IndexOf("Blish", StringComparison.OrdinalIgnoreCase) ?? -1) >= 0 ||
+                            (x.ExePath?.IndexOf("Blish", StringComparison.OrdinalIgnoreCase) ?? -1) >= 0
+                        ));
 
-                    foreach (var badge in badges.AsEnumerable().Reverse())
+                    if (blish)
                     {
-                        // measure
-                        var sz = g.MeasureString(badge, ThemeService.Typography.BadgeFont);
-                        int w = (int)sz.Width + ThemeService.CardMetrics.BadgeHorizontalPad;
-                        int h = (int)sz.Height + ThemeService.CardMetrics.BadgeVerticalPad;
-
-                        var rect = new Rectangle(badgeRight - w, badgeTop, w, h);
-
-                        g.FillRectangle(badgeBg, rect);
-                        g.DrawRectangle(badgePen, rect);
-
-                        TextRenderer.DrawText(
-                            g,
-                            badge,
-                            ThemeService.Typography.BadgeFont,
-                            rect,
-                            ThemeService.CardPalette.BadgeFore,
-                            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-
-                        badgeRight -= w + ThemeService.CardMetrics.BadgeSpacing;
+                        DrawBadges(new List<string> { "Blish" });
                     }
                 }
             }
 
-
-
             if (selected)
-            {
                 e.DrawFocusRectangle();
-            }
         }
+
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
@@ -502,7 +567,55 @@ namespace GWxLauncher
 
             // Default: no injection (GW2, or GW1 with no DLLs enabled)
             LaunchGame(exePath, gameName);
+            // GW2: launch + optional helper programs
+            try
+            {
+                Process.Start(exePath);
+
+                StartGw2RunAfterPrograms(profile);
+                lblStatus.Text = "Launched Guild Wars 2.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Failed to launch {gameName}:\n\n{ex.Message}",
+                    "Launch failed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+
         }
+        private void StartGw2RunAfterPrograms(GameProfile profile)
+        {
+            if (profile.GameType != GameType.GuildWars2)
+                return;
+
+            if (!profile.Gw2RunAfterEnabled)
+                return;
+
+            if (profile.Gw2RunAfterPrograms == null || profile.Gw2RunAfterPrograms.Count == 0)
+                return;
+
+            foreach (var p in profile.Gw2RunAfterPrograms)
+            {
+                if (!p.Enabled)
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(p.ExePath) || !File.Exists(p.ExePath))
+                    continue;
+
+                try
+                {
+                    Process.Start(p.ExePath);
+                }
+                catch
+                {
+                    // swallow for now; later we can surface this in LaunchReport-like UI
+                }
+            }
+        }
+
         private void lstProfiles_DoubleClick(object sender, EventArgs e)
         {
             var profile = GetSelectedProfile();
@@ -535,7 +648,9 @@ namespace GWxLauncher
             {
                 _views.ToggleEligible(_views.ActiveViewName, profile.Id);
                 _views.Save();
-                RefreshProfileList();
+                //RefreshProfileList();
+                // after toggling eligibility...
+                lstProfiles.Invalidate(lstProfiles.GetItemRectangle(index));
             }
 
             // Existing right-click selection behavior
@@ -898,6 +1013,33 @@ namespace GWxLauncher
         {
 
         }
+        private void lstProfiles_MouseMove(object? sender, MouseEventArgs e)
+        {
+            int idx = lstProfiles.IndexFromPoint(e.Location);
+
+            if (idx == _hotIndex)
+                return;
+
+            int old = _hotIndex;
+            _hotIndex = idx;
+
+            if (old >= 0)
+                lstProfiles.Invalidate(lstProfiles.GetItemRectangle(old));
+
+            if (_hotIndex >= 0)
+                lstProfiles.Invalidate(lstProfiles.GetItemRectangle(_hotIndex));
+        }
+
+        private void lstProfiles_MouseLeave(object? sender, EventArgs e)
+        {
+            if (_hotIndex < 0)
+                return;
+
+            int old = _hotIndex;
+            _hotIndex = -1;
+            lstProfiles.Invalidate(lstProfiles.GetItemRectangle(old));
+        }
+
     }
 }
 

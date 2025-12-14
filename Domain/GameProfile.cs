@@ -52,5 +52,16 @@ namespace GWxLauncher.Domain
 
             return $"{prefix} {Name}";
         }
+        // GW2 helpers – companion programs (e.g. Blish HUD)
+        public bool Gw2RunAfterEnabled { get; set; } = false;
+        public List<RunAfterProgram> Gw2RunAfterPrograms { get; set; } = new();
+    }
+    public class RunAfterProgram
+    {
+        public string Name { get; set; } = "";
+        public string ExePath { get; set; } = "";
+        public bool Enabled { get; set; } = true;
+
+        public override string ToString() => $"{(Enabled ? "✓" : "✗")} {Name}";
     }
 }

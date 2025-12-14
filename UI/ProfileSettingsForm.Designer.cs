@@ -34,6 +34,11 @@
             txtExecutablePath = new TextBox();
             btnBrowseExe = new Button();
             grpGw1Mods = new GroupBox();
+            grpGw2RunAfter = new GroupBox();
+            chkGw2RunAfterEnabled = new CheckBox();
+            lvGw2RunAfter = new ListView();
+            btnGw2AddProgram = new Button();
+            btnGw2RemoveProgram = new Button();
             chkToolbox = new CheckBox();
             txtToolboxDll = new TextBox();
             btnBrowseToolboxDll = new Button();
@@ -106,6 +111,66 @@
             grpGw1Mods.TabIndex = 5;
             grpGw1Mods.TabStop = false;
             grpGw1Mods.Text = "GW1 Mods";
+            // 
+            // grpGw2RunAfter
+            //
+            grpGw2RunAfter.Controls.Add(chkGw2RunAfterEnabled);
+            grpGw2RunAfter.Controls.Add(lvGw2RunAfter);
+            grpGw2RunAfter.Controls.Add(btnGw2AddProgram);
+            grpGw2RunAfter.Controls.Add(btnGw2RemoveProgram);
+            grpGw2RunAfter.Location = new Point(284, 153);
+            grpGw2RunAfter.Name = "grpGw2RunAfter";
+            grpGw2RunAfter.Size = new Size(400, 143);
+            grpGw2RunAfter.TabIndex = 5; // same tab slot as GW1 mods
+            grpGw2RunAfter.TabStop = false;
+            grpGw2RunAfter.Text = "Run after launching";
+            grpGw2RunAfter.Visible = false;
+            //
+            // chkGw2RunAfterEnabled
+            //
+            chkGw2RunAfterEnabled.AutoSize = true;
+            chkGw2RunAfterEnabled.Location = new Point(16, 24);
+            chkGw2RunAfterEnabled.Name = "chkGw2RunAfterEnabled";
+            chkGw2RunAfterEnabled.Size = new Size(197, 19);
+            chkGw2RunAfterEnabled.TabIndex = 0;
+            chkGw2RunAfterEnabled.Text = "Enable programs after launch";
+            chkGw2RunAfterEnabled.UseVisualStyleBackColor = true;
+            //
+            // lvGw2RunAfter
+            //
+            lvGw2RunAfter.CheckBoxes = true;
+            lvGw2RunAfter.FullRowSelect = true;
+            lvGw2RunAfter.HideSelection = false;
+            lvGw2RunAfter.Location = new Point(16, 52);
+            lvGw2RunAfter.Name = "lvGw2RunAfter";
+            lvGw2RunAfter.Size = new Size(280, 78);
+            lvGw2RunAfter.TabIndex = 1;
+            lvGw2RunAfter.View = View.Details;
+
+            lvGw2RunAfter.Columns.Add("Name", 120);
+            lvGw2RunAfter.Columns.Add("Path", 150);
+
+            lvGw2RunAfter.ItemChecked += lvGw2RunAfter_ItemChecked;
+            //
+            // btnGw2AddProgram
+            //
+            btnGw2AddProgram.Location = new Point(306, 52);
+            btnGw2AddProgram.Name = "btnGw2AddProgram";
+            btnGw2AddProgram.Size = new Size(75, 23);
+            btnGw2AddProgram.TabIndex = 2;
+            btnGw2AddProgram.Text = "Add...";
+            btnGw2AddProgram.UseVisualStyleBackColor = true;
+            btnGw2AddProgram.Click += btnGw2AddProgram_Click;
+            //
+            // btnGw2RemoveProgram
+            //
+            btnGw2RemoveProgram.Location = new Point(306, 81);
+            btnGw2RemoveProgram.Name = "btnGw2RemoveProgram";
+            btnGw2RemoveProgram.Size = new Size(75, 23);
+            btnGw2RemoveProgram.TabIndex = 3;
+            btnGw2RemoveProgram.Text = "Remove";
+            btnGw2RemoveProgram.UseVisualStyleBackColor = true;
+            btnGw2RemoveProgram.Click += btnGw2RemoveProgram_Click;
             // 
             // chkToolbox
             // 
@@ -212,6 +277,7 @@
             ClientSize = new Size(721, 374);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
+            Controls.Add(grpGw2RunAfter);
             Controls.Add(grpGw1Mods);
             Controls.Add(btnBrowseExe);
             Controls.Add(txtExecutablePath);
@@ -245,5 +311,11 @@
         private Button btnBrowseToolboxDll;
         private Button btnOk;
         private Button btnCancel;
+        // GW2 "Run after launching"
+        private GroupBox grpGw2RunAfter;
+        private CheckBox chkGw2RunAfterEnabled;
+        private ListView lvGw2RunAfter;
+        private Button btnGw2AddProgram;
+        private Button btnGw2RemoveProgram;
     }
 }

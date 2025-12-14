@@ -23,6 +23,7 @@ namespace GWxLauncher.UI
 
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
             grpGw1Mods.Visible = isGw1;
+            grpGw1Mods.Enabled = isGw1;
 
             Icon = _profile.GameType switch
             {
@@ -62,7 +63,14 @@ namespace GWxLauncher.UI
 
             // Only show GW1 mod options if this is a GW1 profile
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
+            // Only show GW2 mod options if this is a GW2 profile
+            bool isGw2 = _profile.GameType == GameType.GuildWars2;
+
+            grpGw1Mods.Visible = isGw1;
             grpGw1Mods.Enabled = isGw1;
+            grpGw2RunAfter.Visible = isGw2;
+            grpGw2RunAfter.Enabled = isGw2;
+
 
             if (isGw1)
             {
@@ -74,6 +82,24 @@ namespace GWxLauncher.UI
 
                 chkGMod.Checked = _profile.Gw1GModEnabled;
                 txtGModDll.Text = _profile.Gw1GModDllPath;
+            }
+            if (isGw2)
+            {
+                chkGw2RunAfterEnabled.Checked = _profile.Gw2RunAfterEnabled;
+                RefreshGw2RunAfterList();
+            }
+        }
+        private void RefreshGw2RunAfterList()
+        {
+            lvGw2RunAfter.Items.Clear();
+
+            foreach (var p in _profile.Gw2RunAfterPrograms ?? new List<RunAfterProgram>())
+            {
+                var item = new ListViewItem(p.Name);
+                item.SubItems.Add(p.ExePath);
+                item.Checked = p.Enabled;
+                item.Tag = p;
+                lvGw2RunAfter.Items.Add(item);
             }
         }
 
@@ -92,6 +118,10 @@ namespace GWxLauncher.UI
 
                 _profile.Gw1GModEnabled = chkGMod.Checked;
                 _profile.Gw1GModDllPath = txtGModDll.Text.Trim();
+            }
+            if (_profile.GameType == GameType.GuildWars2)
+            {
+                _profile.Gw2RunAfterEnabled = chkGw2RunAfterEnabled.Checked;
             }
         }
         private void ProfileSettingsForm_Shown(object? sender, EventArgs e)
@@ -283,8 +313,60 @@ namespace GWxLauncher.UI
                 textBox.Text = dlg.FileName;
             }
         }
+        private void btnGw2AddProgram_Click(object sender, EventArgs e)
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Title = "Select program to run after launching",
+                Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*"
+            };
 
+            if (dlg.ShowDialog(this) != DialogResult.OK)
+                return;
 
+            var exe = dlg.FileName;
+
+            // Friendly name: file description if available, else file name
+            string name;
+            try
+            {
+                var vi = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe);
+                name = string.IsNullOrWhiteSpace(vi.FileDescription)
+                    ? Path.GetFileNameWithoutExtension(exe)
+                    : vi.FileDescription.Trim();
+            }
+            catch
+            {
+                name = Path.GetFileNameWithoutExtension(exe);
+            }
+
+            _profile.Gw2RunAfterPrograms.Add(new RunAfterProgram
+            {
+                Name = name,
+                ExePath = exe,
+                Enabled = true
+            });
+
+            RefreshGw2RunAfterList();
+        }
+
+        private void btnGw2RemoveProgram_Click(object sender, EventArgs e)
+        {
+            if (lvGw2RunAfter.SelectedItems.Count == 0)
+                return;
+
+            var item = lvGw2RunAfter.SelectedItems[0];
+            if (item.Tag is RunAfterProgram p)
+            {
+                _profile.Gw2RunAfterPrograms.Remove(p);
+                RefreshGw2RunAfterList();
+            }
+        }
+        private void lvGw2RunAfter_ItemChecked(object sender, ItemCheckedEventArgs e)
+        {
+            if (e.Item.Tag is RunAfterProgram p)
+                p.Enabled = e.Item.Checked;
+        }
         private void btnBrowseToolboxDll_Click(object? sender, EventArgs e)
             => BrowseDllInto(txtToolboxDll);
 

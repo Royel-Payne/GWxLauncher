@@ -121,6 +121,12 @@ namespace GWxLauncher.UI
             public static readonly Color BadgeBack = Color.FromArgb(60, 60, 70);
             public static readonly Color BadgeBorder = Color.FromArgb(90, 90, 110);
             public static readonly Color BadgeFore = Color.Gainsboro;
+            // Hover
+            public static readonly Color HoverBack = Color.FromArgb(40, 40, 46);
+            public static readonly Color HoverBorder = Color.FromArgb(95, 95, 110);
+
+            // Accent (selection / hover indicator)
+            public static readonly Color Accent = Color.FromArgb(0, 120, 215); // same as SelectedBorder (Windows blue)
         }
 
         internal static class CardMetrics
@@ -149,6 +155,9 @@ namespace GWxLauncher.UI
             public const int BadgeVerticalPad = 6;
             public const int BadgeSpacing = 6;
             public const int SubtitleGapY = 2;
+
+            // Accent
+            public const int AccentWidth = 4;
         }
 
         internal static class Typography
