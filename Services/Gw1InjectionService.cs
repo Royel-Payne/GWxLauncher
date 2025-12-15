@@ -40,6 +40,44 @@ namespace GWxLauncher.Services
         private const uint PAGE_READWRITE = 0x04;
 
         [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool ReadProcessMemory(
+            IntPtr hProcess,
+            IntPtr lpBaseAddress,
+            [Out] byte[] lpBuffer,
+            int dwSize,
+            out IntPtr lpNumberOfBytesRead);
+
+        [DllImport("ntdll.dll")]
+        private static extern int NtQueryInformationProcess(
+            IntPtr processHandle,
+            int processInformationClass,
+            ref PROCESS_BASIC_INFORMATION processInformation,
+            int processInformationLength,
+            out int returnLength);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PROCESS_BASIC_INFORMATION
+        {
+            public IntPtr Reserved1;
+            public IntPtr PebBaseAddress;
+            public IntPtr Reserved2_0;
+            public IntPtr Reserved2_1;
+            public IntPtr UniqueProcessId;
+            public IntPtr Reserved3;
+        }
+
+        // Minimal PEB read: ImageBaseAddress is early in the structure.
+        // (We only read enough bytes to cover the ImageBaseAddress pointer.)
+        [StructLayout(LayoutKind.Sequential)]
+        private struct PEB_MIN
+        {
+            public IntPtr Reserved0;
+            public IntPtr Reserved1;
+            public IntPtr ImageBaseAddress;
+        }
+
+
+        [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr OpenProcess(
             ProcessAccessFlags processAccess,
             bool bInheritHandle,
@@ -297,6 +335,7 @@ namespace GWxLauncher.Services
         public bool TryLaunchGw1(
             GameProfile profile,
             string exePath,
+            bool gw1MulticlientEnabled,
             IWin32Window owner,
             out string errorMessage,
             out LaunchReport report)
@@ -357,6 +396,7 @@ namespace GWxLauncher.Services
                 if (!TryLaunchGw1WithGMod(
                         exePath,
                         profile.Gw1GModDllPath!,
+                        gw1MulticlientEnabled,
                         out process,
                         out var gmodError))
                 {
@@ -388,20 +428,119 @@ namespace GWxLauncher.Services
                     : "Disabled";
 
                 // --- 2) Normal Process.Start launch (no gMod early injection) ---
-                try
+                if (gw1MulticlientEnabled)
                 {
-                    var startInfo = new ProcessStartInfo
-                    {
-                        FileName = exePath,
-                        WorkingDirectory = Path.GetDirectoryName(exePath) ?? string.Empty,
-                        UseShellExecute = false
-                    };
+                    // Suspended launch required for multiclient
+                    var startupInfo = new STARTUPINFO();
+                    startupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
 
-                    process = Process.Start(startInfo);
+                    PROCESS_INFORMATION procInfo = new PROCESS_INFORMATION();
 
-                    if (process == null)
+                    string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
+                    string cmdLine = $"\"{exePath}\"";
+
+                    bool created = CreateProcessW(
+                        exePath,
+                        cmdLine,
+                        IntPtr.Zero,
+                        IntPtr.Zero,
+                        false,
+                        CREATE_SUSPENDED,
+                        IntPtr.Zero,
+                        workingDir,
+                        ref startupInfo,
+                        out procInfo);
+
+                    if (!created)
                     {
-                        errorMessage = "Failed to start Guild Wars 1 process.";
+                        errorMessage = $"Failed to create Guild Wars 1 process in suspended mode.\n" +
+                                       $"Win32 error: {Marshal.GetLastWin32Error()}";
+
+                        report.Succeeded = false;
+                        report.FailureMessage = errorMessage;
+
+                        stepToolbox.Outcome = StepOutcome.Skipped;
+                        stepPy4Gw.Outcome = StepOutcome.Skipped;
+                        return false;
+                    }
+
+                    try
+                    {
+                        // Apply multiclient patch before the process runs
+                        if (!TryApplyGw1MulticlientPatch(procInfo.hProcess, out var patchError))
+                        {
+                            errorMessage = $"GW1 multiclient patch failed:\n{patchError}";
+
+                            report.UsedSuspendedLaunch = true;
+                            report.Succeeded = false;
+                            report.FailureMessage = errorMessage;
+
+                            stepToolbox.Outcome = StepOutcome.Skipped;
+                            stepPy4Gw.Outcome = StepOutcome.Skipped;
+                            return false;
+                        }
+
+                        process = Process.GetProcessById(procInfo.dwProcessId);
+
+                        ResumeThread(procInfo.hThread);
+
+                        // Give GW a moment to fail fast if it's going to
+                        Thread.Sleep(500);
+
+                        try
+                        {
+                            if (process != null && process.HasExited)
+                            {
+                                errorMessage = $"GW exited immediately after resume. ExitCode={process.ExitCode}";
+                                return false;
+                            }
+                        }
+                        catch
+                        {
+                            // Process died before we could query it
+                            errorMessage = "GW exited immediately after resume (process vanished).";
+                            return false;
+                        }
+
+
+                        report.UsedSuspendedLaunch = true;
+                    }
+                    finally
+                    {
+                        if (procInfo.hThread != IntPtr.Zero) CloseHandle(procInfo.hThread);
+                        if (procInfo.hProcess != IntPtr.Zero) CloseHandle(procInfo.hProcess);
+                    }
+                }
+                else
+                {
+                    // Existing normal launch path unchanged
+                    try
+                    {
+                        var startInfo = new ProcessStartInfo
+                        {
+                            FileName = exePath,
+                            WorkingDirectory = Path.GetDirectoryName(exePath) ?? string.Empty,
+                            UseShellExecute = false
+                        };
+
+                        process = Process.Start(startInfo);
+
+                        if (process == null)
+                        {
+                            errorMessage = "Failed to start Guild Wars 1 process.";
+
+                            report.Succeeded = false;
+                            report.FailureMessage = errorMessage;
+
+                            stepToolbox.Outcome = StepOutcome.Skipped;
+                            stepPy4Gw.Outcome = StepOutcome.Skipped;
+
+                            return false;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errorMessage = $"Failed to start Guild Wars 1:\n\n{ex.Message}";
 
                         report.Succeeded = false;
                         report.FailureMessage = errorMessage;
@@ -411,18 +550,6 @@ namespace GWxLauncher.Services
 
                         return false;
                     }
-                }
-                catch (Exception ex)
-                {
-                    errorMessage = $"Failed to start Guild Wars 1:\n\n{ex.Message}";
-
-                    report.Succeeded = false;
-                    report.FailureMessage = errorMessage;
-
-                    stepToolbox.Outcome = StepOutcome.Skipped;
-                    stepPy4Gw.Outcome = StepOutcome.Skipped;
-
-                    return false;
                 }
             }
 
@@ -591,11 +718,7 @@ namespace GWxLauncher.Services
         /// <summary>
         /// Launch Gw.exe in suspended mode, inject gMod, then resume.
         /// </summary>
-        private bool TryLaunchGw1WithGMod(
-            string exePath,
-            string gmodDllPath,
-            out Process? process,
-            out string errorMessage)
+        private bool TryLaunchGw1WithGMod(string exePath, string gmodDllPath, bool gw1MulticlientEnabled, out Process? process, out string errorMessage)
         {
             process = null;
             errorMessage = string.Empty;
@@ -630,6 +753,15 @@ namespace GWxLauncher.Services
                 }
 
                 process = Process.GetProcessById(procInfo.dwProcessId);
+
+                if (gw1MulticlientEnabled)
+                {
+                    if (!TryApplyGw1MulticlientPatch(procInfo.hProcess, out var patchError))
+                    {
+                        errorMessage = $"GW1 multiclient patch failed:\n{patchError}";
+                        return false; // failure behavior: abort
+                    }
+                }
 
                 // Inject gMod into the suspended process
                 if (!InjectDllIntoProcess(process, gmodDllPath, out var injectError))
@@ -765,5 +897,124 @@ namespace GWxLauncher.Services
                     CloseHandle(hProcess);
             }
         }
+
+        // GW1 multiclient patch signature (exact bytes provided)
+        private static readonly byte[] Gw1MulticlientSignature =
+        {
+            0x56, 0x57, 0x68, 0x00, 0x01, 0x00, 0x00, 0x89, 0x85, 0xF4, 0xFE, 0xFF, 0xFF,
+            0xC7, 0x00, 0x00, 0x00, 0x00, 0x00
+        };
+
+        private bool TryApplyGw1MulticlientPatch(IntPtr processHandle, out string error)
+        {
+            error = string.Empty;
+
+            // 1) Get PEB
+            var pbi = new PROCESS_BASIC_INFORMATION();
+            int retLen;
+            int nt = NtQueryInformationProcess(
+                processHandle,
+                0, // ProcessBasicInformation
+                ref pbi,
+                Marshal.SizeOf<PROCESS_BASIC_INFORMATION>(),
+                out retLen);
+
+            if (nt != 0 || pbi.PebBaseAddress == IntPtr.Zero)
+            {
+                error = $"NtQueryInformationProcess failed (status={nt}).";
+                return false;
+            }
+
+            // 2) Read minimal PEB for ImageBaseAddress
+            byte[] pebBuf = new byte[Marshal.SizeOf<PEB_MIN>()];
+            if (!ReadProcessMemory(processHandle, pbi.PebBaseAddress, pebBuf, pebBuf.Length, out _))
+            {
+                error = $"ReadProcessMemory(PEB) failed. Win32 error: {Marshal.GetLastWin32Error()}";
+                return false;
+            }
+
+            var handle = GCHandle.Alloc(pebBuf, GCHandleType.Pinned);
+            try
+            {
+                var peb = Marshal.PtrToStructure<PEB_MIN>(handle.AddrOfPinnedObject());
+                if (peb.ImageBaseAddress == IntPtr.Zero)
+                {
+                    error = "Failed to resolve GW1 ImageBaseAddress from PEB.";
+                    return false;
+                }
+
+                IntPtr moduleBase = peb.ImageBaseAddress;
+
+                // 3) Read fixed region (0x48D000)
+                const int readSize = 0x48D000;
+                byte[] image = new byte[readSize];
+
+                if (!ReadProcessMemory(processHandle, moduleBase, image, image.Length, out _))
+                {
+                    error = $"ReadProcessMemory(image) failed. Win32 error: {Marshal.GetLastWin32Error()}";
+                    return false;
+                }
+
+                // 4) Signature scan
+                int idx = IndexOf(image, Gw1MulticlientSignature);
+                if (idx < 0)
+                {
+                    error = "GW1 multiclient signature not found in process image. Aborting (no blind patch).";
+                    return false;
+                }
+
+                // 5) patchAddress = moduleBase + idx - 0x1A
+                IntPtr patchAddress = IntPtr.Add(moduleBase, idx - 0x1A);
+
+                // Payload: 31 C0 90 C3
+                byte[] patch = new byte[] { 0x31, 0xC0, 0x90, 0xC3 };
+
+                if (!WriteProcessMemory(processHandle, patchAddress, patch, (uint)patch.Length, out var written) ||
+                    written.ToInt64() != patch.Length)
+                {
+                    error = $"WriteProcessMemory(patch) failed. Win32 error: {Marshal.GetLastWin32Error()}";
+                    return false;
+                }
+                // Read-back verify
+                byte[] verify = new byte[patch.Length];
+                if (!ReadProcessMemory(processHandle, patchAddress, verify, verify.Length, out _))
+                {
+                    error = $"ReadProcessMemory(verify) failed. Win32 error: {Marshal.GetLastWin32Error()}";
+                    return false;
+                }
+
+                for (int i = 0; i < patch.Length; i++)
+                {
+                    if (verify[i] != patch[i])
+                    {
+                        error = "GW1 multiclient patch verification failed (read-back bytes do not match payload).";
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+        private static int IndexOf(byte[] haystack, byte[] needle)
+        {
+            if (needle.Length == 0 || haystack.Length < needle.Length)
+                return -1;
+
+            for (int i = 0; i <= haystack.Length - needle.Length; i++)
+            {
+                bool match = true;
+                for (int j = 0; j < needle.Length; j++)
+                {
+                    if (haystack[i + j] != needle[j]) { match = false; break; }
+                }
+                if (match) return i;
+            }
+            return -1;
+        }
+
     }
 }

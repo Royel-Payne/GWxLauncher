@@ -1,4 +1,6 @@
-﻿namespace GWxLauncher.UI
+﻿using static System.Net.Mime.MediaTypeNames;
+
+namespace GWxLauncher.UI
 {
     partial class ProfileSettingsForm
     {
@@ -34,6 +36,7 @@
             txtExecutablePath = new TextBox();
             btnBrowseExe = new Button();
             grpGw1Mods = new GroupBox();
+            chkGw1Multiclient = new CheckBox();
             btnBrowseGModDll = new Button();
             txtGModDll = new TextBox();
             chkGMod = new CheckBox();
@@ -56,9 +59,9 @@
             // 
             // txtProfileName
             // 
-            txtProfileName.Location = new Point(381, 69);
+            txtProfileName.Location = new Point(393, 69);
             txtProfileName.Name = "txtProfileName";
-            txtProfileName.Size = new Size(183, 23);
+            txtProfileName.Size = new Size(187, 23);
             txtProfileName.TabIndex = 0;
             // 
             // label1
@@ -81,9 +84,9 @@
             // 
             // txtExecutablePath
             // 
-            txtExecutablePath.Location = new Point(381, 109);
+            txtExecutablePath.Location = new Point(393, 109);
             txtExecutablePath.Name = "txtExecutablePath";
-            txtExecutablePath.Size = new Size(183, 23);
+            txtExecutablePath.Size = new Size(187, 23);
             txtExecutablePath.TabIndex = 3;
             // 
             // btnBrowseExe
@@ -97,6 +100,7 @@
             // 
             // grpGw1Mods
             // 
+            grpGw1Mods.Controls.Add(chkGw1Multiclient);
             grpGw1Mods.Controls.Add(btnBrowseGModDll);
             grpGw1Mods.Controls.Add(txtGModDll);
             grpGw1Mods.Controls.Add(chkGMod);
@@ -108,14 +112,24 @@
             grpGw1Mods.Controls.Add(chkToolbox);
             grpGw1Mods.Location = new Point(284, 153);
             grpGw1Mods.Name = "grpGw1Mods";
-            grpGw1Mods.Size = new Size(400, 143);
+            grpGw1Mods.Size = new Size(400, 157);
             grpGw1Mods.TabIndex = 5;
             grpGw1Mods.TabStop = false;
             grpGw1Mods.Text = "GW1 Mods";
             // 
+            // chkGw1Multiclient
+            // 
+            chkGw1Multiclient.AutoSize = true;
+            chkGw1Multiclient.Location = new Point(19, 118);
+            chkGw1Multiclient.Name = "chkGw1Multiclient";
+            chkGw1Multiclient.Size = new Size(83, 19);
+            chkGw1Multiclient.TabIndex = 9;
+            chkGw1Multiclient.Text = "Multiclient";
+            chkGw1Multiclient.UseVisualStyleBackColor = true;
+            // 
             // btnBrowseGModDll
             // 
-            btnBrowseGModDll.Location = new Point(306, 97);
+            btnBrowseGModDll.Location = new Point(306, 85);
             btnBrowseGModDll.Name = "btnBrowseGModDll";
             btnBrowseGModDll.Size = new Size(75, 23);
             btnBrowseGModDll.TabIndex = 8;
@@ -124,15 +138,15 @@
             // 
             // txtGModDll
             // 
-            txtGModDll.Location = new Point(97, 97);
+            txtGModDll.Location = new Point(109, 85);
             txtGModDll.Name = "txtGModDll";
-            txtGModDll.Size = new Size(183, 23);
+            txtGModDll.Size = new Size(187, 23);
             txtGModDll.TabIndex = 7;
             // 
             // chkGMod
             // 
             chkGMod.AutoSize = true;
-            chkGMod.Location = new Point(19, 99);
+            chkGMod.Location = new Point(19, 87);
             chkGMod.Name = "chkGMod";
             chkGMod.Size = new Size(58, 19);
             chkGMod.TabIndex = 6;
@@ -141,7 +155,7 @@
             // 
             // btnBrowsePy4GwDll
             // 
-            btnBrowsePy4GwDll.Location = new Point(306, 60);
+            btnBrowsePy4GwDll.Location = new Point(306, 53);
             btnBrowsePy4GwDll.Name = "btnBrowsePy4GwDll";
             btnBrowsePy4GwDll.Size = new Size(75, 23);
             btnBrowsePy4GwDll.TabIndex = 5;
@@ -150,15 +164,15 @@
             // 
             // txtPy4GwDll
             // 
-            txtPy4GwDll.Location = new Point(97, 60);
+            txtPy4GwDll.Location = new Point(109, 53);
             txtPy4GwDll.Name = "txtPy4GwDll";
-            txtPy4GwDll.Size = new Size(183, 23);
+            txtPy4GwDll.Size = new Size(187, 23);
             txtPy4GwDll.TabIndex = 4;
             // 
             // chkPy4Gw
             // 
             chkPy4Gw.AutoSize = true;
-            chkPy4Gw.Location = new Point(19, 62);
+            chkPy4Gw.Location = new Point(19, 55);
             chkPy4Gw.Name = "chkPy4Gw";
             chkPy4Gw.Size = new Size(64, 19);
             chkPy4Gw.TabIndex = 3;
@@ -167,7 +181,7 @@
             // 
             // btnBrowseToolboxDll
             // 
-            btnBrowseToolboxDll.Location = new Point(306, 23);
+            btnBrowseToolboxDll.Location = new Point(306, 21);
             btnBrowseToolboxDll.Name = "btnBrowseToolboxDll";
             btnBrowseToolboxDll.Size = new Size(75, 23);
             btnBrowseToolboxDll.TabIndex = 2;
@@ -176,15 +190,15 @@
             // 
             // txtToolboxDll
             // 
-            txtToolboxDll.Location = new Point(97, 23);
+            txtToolboxDll.Location = new Point(109, 21);
             txtToolboxDll.Name = "txtToolboxDll";
-            txtToolboxDll.Size = new Size(183, 23);
+            txtToolboxDll.Size = new Size(187, 23);
             txtToolboxDll.TabIndex = 1;
             // 
             // chkToolbox
             // 
             chkToolbox.AutoSize = true;
-            chkToolbox.Location = new Point(19, 25);
+            chkToolbox.Location = new Point(19, 23);
             chkToolbox.Name = "chkToolbox";
             chkToolbox.Size = new Size(68, 19);
             chkToolbox.TabIndex = 0;
@@ -272,10 +286,10 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(721, 374);
+            Controls.Add(grpGw1Mods);
+            Controls.Add(grpGw2RunAfter);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
-            Controls.Add(grpGw2RunAfter);
-            Controls.Add(grpGw1Mods);
             Controls.Add(btnBrowseExe);
             Controls.Add(txtExecutablePath);
             Controls.Add(label2);
@@ -308,6 +322,7 @@
         private TextBox txtPy4GwDll;
         private CheckBox chkPy4Gw;
         private Button btnBrowseToolboxDll;
+        private CheckBox chkGw1Multiclient;
         private Button btnOk;
         private Button btnCancel;
         // GW2 "Run after launching"

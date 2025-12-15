@@ -372,6 +372,21 @@ Over the lifetime of the project, the risk profile and external ecosystem of thi
 
 ---
 
+## Theme system scope
+
+**Decision**  
+A full theme system (system detection, user switching, multiple themes) is optional and deferred.
+
+**Rationale**  
+The current default dark theme meets usability and aesthetic goals. Introducing a full theming system would add complexity without clear user benefit at this stage.
+
+**Consequences**  
+- The current theme is treated as the canonical default  
+- ThemeService may evolve incrementally but no dedicated theme UI is planned  
+- Theme switching may be revisited in a later polish phase
+
+---
+
 ## Usage notes
 
 - Add entries **only** when a decision affects architecture, scope, or long‑term direction

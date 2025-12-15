@@ -38,6 +38,8 @@ namespace GWxLauncher
 
         private int _hotIndex = -1;
 
+        private const bool ShowSelectionBorder = false;
+
         private void RefreshProfileList()
         {
             int topIndex = lstProfiles.TopIndex;
@@ -237,6 +239,11 @@ namespace GWxLauncher
             bool hot = (e.Index == _hotIndex);
 
             var g = e.Graphics;
+            using (var rowBg = new SolidBrush(ThemeService.Palette.WindowBack))
+            {
+                g.FillRectangle(rowBg, e.Bounds);
+            }
+
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
             // Card bounds
@@ -255,11 +262,16 @@ namespace GWxLauncher
                            ThemeService.CardPalette.Border;
 
             using (var bgBrush = new SolidBrush(backColor))
-            using (var borderPen = new Pen(borderColor))
             {
                 g.FillRectangle(bgBrush, card);
-                g.DrawRectangle(borderPen, card);
+
+                if (ShowSelectionBorder)
+                {
+                    using var borderPen = new Pen(borderColor);
+                    g.DrawRectangle(borderPen, card);
+                }
             }
+
 
             // Ensure listbox background matches overall theme
             lstProfiles.BackColor = ThemeService.Palette.WindowBack;
@@ -395,8 +407,8 @@ namespace GWxLauncher
                 }
             }
 
-            if (selected)
-                e.DrawFocusRectangle();
+            //if (selected)
+            //    e.DrawFocusRectangle();
         }
 
 
@@ -557,7 +569,10 @@ namespace GWxLauncher
             {
                 var gw1Service = new Gw1InjectionService();
 
-                if (gw1Service.TryLaunchGw1(profile, exePath, this, out var gw1Error, out var report))
+                bool mcEnabled = _config.Gw1MulticlientEnabled;
+
+                if (gw1Service.TryLaunchGw1(profile, exePath, mcEnabled, this, out var gw1Error, out var report))
+
                 {
                     _lastLaunchReport = report;
                     lblStatus.Text = report.BuildSummary();

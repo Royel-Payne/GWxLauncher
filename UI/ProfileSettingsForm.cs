@@ -12,6 +12,7 @@ namespace GWxLauncher.UI
     {
         private readonly GameProfile _profile;
         private readonly LauncherConfig _cfg;
+        
         private bool _restoredFromSavedPlacement;
 
         public ProfileSettingsForm(GameProfile profile)
@@ -71,6 +72,8 @@ namespace GWxLauncher.UI
             grpGw2RunAfter.Visible = isGw2;
             grpGw2RunAfter.Enabled = isGw2;
 
+            chkGw1Multiclient.Checked = _cfg.Gw1MulticlientEnabled;
+
 
             if (isGw1)
             {
@@ -118,6 +121,9 @@ namespace GWxLauncher.UI
 
                 _profile.Gw1GModEnabled = chkGMod.Checked;
                 _profile.Gw1GModDllPath = txtGModDll.Text.Trim();
+
+                _cfg.Gw1MulticlientEnabled = chkGw1Multiclient.Checked;
+                _cfg.Save();
             }
             if (_profile.GameType == GameType.GuildWars2)
             {

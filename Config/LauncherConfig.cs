@@ -8,6 +8,8 @@ namespace GWxLauncher.Config
         public string Gw1Path { get; set; } = "";
         public string Gw2Path { get; set; } = "";
 
+        public bool Gw1MulticlientEnabled { get; set; } = false;
+
         // 🔹 New: window placement
         public int WindowX { get; set; } = -1;
         public int WindowY { get; set; } = -1;
