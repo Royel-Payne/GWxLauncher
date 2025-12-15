@@ -188,12 +188,12 @@ namespace GWxLauncher
             panelProfiles.Resize += (s, e) => panelProfiles.Invalidate();
 
             lblView.Visible = true;
-            lblView.Text = "Show checked \n Arm launch";
+            lblView.Text = "Show checked \n profiles only";
             lblView.AutoSize = true;
             lblView.ForeColor = ThemeService.Palette.SubtleFore;
             var tip = new ToolTip();
-            tip.SetToolTip(chkArmBulk, "Show checked profiles only (arms launch all)");
-            tip.SetToolTip(lblView, "Show checked profiles only (arms launch all)");
+            tip.SetToolTip(chkArmBulk, "Show checked profiles only (enables launch all)");
+            tip.SetToolTip(lblView, "Show checked profiles only (enables launch all)");
 
             // (your window-position restore logic)
             if (_config.WindowX >= 0 && _config.WindowY >= 0)

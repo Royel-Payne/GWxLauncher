@@ -58,7 +58,7 @@
             lblStatus.Location = new Point(0, 374);
             lblStatus.Name = "lblStatus";
             lblStatus.Padding = new Padding(6);
-            lblStatus.Size = new Size(366, 32);
+            lblStatus.Size = new Size(367, 32);
             lblStatus.TabIndex = 2;
             lblStatus.Text = "Ready";
             lblStatus.TextAlign = ContentAlignment.MiddleLeft;
@@ -152,7 +152,7 @@
             panelView.Location = new Point(0, 0);
             panelView.Margin = new Padding(2);
             panelView.Name = "panelView";
-            panelView.Size = new Size(366, 66);
+            panelView.Size = new Size(367, 66);
             panelView.TabIndex = 10;
             // 
             // btnNewView
@@ -240,16 +240,16 @@
             // 
             // lblView
             // 
-            lblView.Location = new Point(154, 34);
+            lblView.Location = new Point(154, 31);
             lblView.Name = "lblView";
-            lblView.Size = new Size(84, 28);
+            lblView.Size = new Size(59, 28);
             lblView.TabIndex = 7;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(366, 406);
+            ClientSize = new Size(367, 406);
             Controls.Add(panelProfiles);
             Controls.Add(lblStatus);
             Controls.Add(panelView);

@@ -34,23 +34,24 @@
             txtExecutablePath = new TextBox();
             btnBrowseExe = new Button();
             grpGw1Mods = new GroupBox();
+            btnBrowseGModDll = new Button();
+            txtGModDll = new TextBox();
+            chkGMod = new CheckBox();
+            btnBrowsePy4GwDll = new Button();
+            txtPy4GwDll = new TextBox();
+            chkPy4Gw = new CheckBox();
+            btnBrowseToolboxDll = new Button();
+            txtToolboxDll = new TextBox();
+            chkToolbox = new CheckBox();
             grpGw2RunAfter = new GroupBox();
             chkGw2RunAfterEnabled = new CheckBox();
             lvGw2RunAfter = new ListView();
             btnGw2AddProgram = new Button();
             btnGw2RemoveProgram = new Button();
-            chkToolbox = new CheckBox();
-            txtToolboxDll = new TextBox();
-            btnBrowseToolboxDll = new Button();
-            chkPy4Gw = new CheckBox();
-            txtPy4GwDll = new TextBox();
-            btnBrowsePy4GwDll = new Button();
-            chkGMod = new CheckBox();
-            txtGModDll = new TextBox();
-            btnBrowseGModDll = new Button();
             btnOk = new Button();
             btnCancel = new Button();
             grpGw1Mods.SuspendLayout();
+            grpGw2RunAfter.SuspendLayout();
             SuspendLayout();
             // 
             // txtProfileName
@@ -112,117 +113,21 @@
             grpGw1Mods.TabStop = false;
             grpGw1Mods.Text = "GW1 Mods";
             // 
-            // grpGw2RunAfter
-            //
-            grpGw2RunAfter.Controls.Add(chkGw2RunAfterEnabled);
-            grpGw2RunAfter.Controls.Add(lvGw2RunAfter);
-            grpGw2RunAfter.Controls.Add(btnGw2AddProgram);
-            grpGw2RunAfter.Controls.Add(btnGw2RemoveProgram);
-            grpGw2RunAfter.Location = new Point(284, 153);
-            grpGw2RunAfter.Name = "grpGw2RunAfter";
-            grpGw2RunAfter.Size = new Size(400, 143);
-            grpGw2RunAfter.TabIndex = 5; // same tab slot as GW1 mods
-            grpGw2RunAfter.TabStop = false;
-            grpGw2RunAfter.Text = "Run after launching";
-            grpGw2RunAfter.Visible = false;
-            //
-            // chkGw2RunAfterEnabled
-            //
-            chkGw2RunAfterEnabled.AutoSize = true;
-            chkGw2RunAfterEnabled.Location = new Point(16, 24);
-            chkGw2RunAfterEnabled.Name = "chkGw2RunAfterEnabled";
-            chkGw2RunAfterEnabled.Size = new Size(197, 19);
-            chkGw2RunAfterEnabled.TabIndex = 0;
-            chkGw2RunAfterEnabled.Text = "Enable programs after launch";
-            chkGw2RunAfterEnabled.UseVisualStyleBackColor = true;
-            //
-            // lvGw2RunAfter
-            //
-            lvGw2RunAfter.CheckBoxes = true;
-            lvGw2RunAfter.FullRowSelect = true;
-            lvGw2RunAfter.HideSelection = false;
-            lvGw2RunAfter.Location = new Point(16, 52);
-            lvGw2RunAfter.Name = "lvGw2RunAfter";
-            lvGw2RunAfter.Size = new Size(280, 78);
-            lvGw2RunAfter.TabIndex = 1;
-            lvGw2RunAfter.View = View.Details;
-
-            lvGw2RunAfter.Columns.Add("Name", 120);
-            lvGw2RunAfter.Columns.Add("Path", 150);
-
-            lvGw2RunAfter.ItemChecked += lvGw2RunAfter_ItemChecked;
-            //
-            // btnGw2AddProgram
-            //
-            btnGw2AddProgram.Location = new Point(306, 52);
-            btnGw2AddProgram.Name = "btnGw2AddProgram";
-            btnGw2AddProgram.Size = new Size(75, 23);
-            btnGw2AddProgram.TabIndex = 2;
-            btnGw2AddProgram.Text = "Add...";
-            btnGw2AddProgram.UseVisualStyleBackColor = true;
-            btnGw2AddProgram.Click += btnGw2AddProgram_Click;
-            //
-            // btnGw2RemoveProgram
-            //
-            btnGw2RemoveProgram.Location = new Point(306, 81);
-            btnGw2RemoveProgram.Name = "btnGw2RemoveProgram";
-            btnGw2RemoveProgram.Size = new Size(75, 23);
-            btnGw2RemoveProgram.TabIndex = 3;
-            btnGw2RemoveProgram.Text = "Remove";
-            btnGw2RemoveProgram.UseVisualStyleBackColor = true;
-            btnGw2RemoveProgram.Click += btnGw2RemoveProgram_Click;
+            // btnBrowseGModDll
             // 
-            // chkToolbox
+            btnBrowseGModDll.Location = new Point(306, 97);
+            btnBrowseGModDll.Name = "btnBrowseGModDll";
+            btnBrowseGModDll.Size = new Size(75, 23);
+            btnBrowseGModDll.TabIndex = 8;
+            btnBrowseGModDll.Text = "Browse...";
+            btnBrowseGModDll.UseVisualStyleBackColor = true;
             // 
-            chkToolbox.AutoSize = true;
-            chkToolbox.Location = new Point(19, 25);
-            chkToolbox.Name = "chkToolbox";
-            chkToolbox.Size = new Size(68, 19);
-            chkToolbox.TabIndex = 0;
-            chkToolbox.Text = "Toolbox";
-            chkToolbox.UseVisualStyleBackColor = true;
+            // txtGModDll
             // 
-            // txtToolboxDll
-            // 
-            txtToolboxDll.Location = new Point(97, 23);
-            txtToolboxDll.Name = "txtToolboxDll";
-            txtToolboxDll.Size = new Size(183, 23);
-            txtToolboxDll.TabIndex = 1;
-            // 
-            // btnBrowseToolboxDll
-            // 
-            btnBrowseToolboxDll.Location = new Point(306, 23);
-            btnBrowseToolboxDll.Name = "btnBrowseToolboxDll";
-            btnBrowseToolboxDll.Size = new Size(75, 23);
-            btnBrowseToolboxDll.TabIndex = 2;
-            btnBrowseToolboxDll.Text = "Browse...";
-            btnBrowseToolboxDll.UseVisualStyleBackColor = true;
-            // 
-            // chkPy4Gw
-            // 
-            chkPy4Gw.AutoSize = true;
-            chkPy4Gw.Location = new Point(19, 62);
-            chkPy4Gw.Name = "chkPy4Gw";
-            chkPy4Gw.Size = new Size(64, 19);
-            chkPy4Gw.TabIndex = 3;
-            chkPy4Gw.Text = "Py4GW";
-            chkPy4Gw.UseVisualStyleBackColor = true;
-            // 
-            // txtPy4GwDll
-            // 
-            txtPy4GwDll.Location = new Point(97, 60);
-            txtPy4GwDll.Name = "txtPy4GwDll";
-            txtPy4GwDll.Size = new Size(183, 23);
-            txtPy4GwDll.TabIndex = 4;
-            // 
-            // btnBrowsePy4GwDll
-            // 
-            btnBrowsePy4GwDll.Location = new Point(306, 60);
-            btnBrowsePy4GwDll.Name = "btnBrowsePy4GwDll";
-            btnBrowsePy4GwDll.Size = new Size(75, 23);
-            btnBrowsePy4GwDll.TabIndex = 5;
-            btnBrowsePy4GwDll.Text = "Browse...";
-            btnBrowsePy4GwDll.UseVisualStyleBackColor = true;
+            txtGModDll.Location = new Point(97, 97);
+            txtGModDll.Name = "txtGModDll";
+            txtGModDll.Size = new Size(183, 23);
+            txtGModDll.TabIndex = 7;
             // 
             // chkGMod
             // 
@@ -234,26 +139,118 @@
             chkGMod.Text = "gMod";
             chkGMod.UseVisualStyleBackColor = true;
             // 
-            // txtGModDll
+            // btnBrowsePy4GwDll
             // 
-            txtGModDll.Location = new Point(97, 97);
-            txtGModDll.Name = "txtGModDll";
-            txtGModDll.Size = new Size(183, 23);
-            txtGModDll.TabIndex = 7;
+            btnBrowsePy4GwDll.Location = new Point(306, 60);
+            btnBrowsePy4GwDll.Name = "btnBrowsePy4GwDll";
+            btnBrowsePy4GwDll.Size = new Size(75, 23);
+            btnBrowsePy4GwDll.TabIndex = 5;
+            btnBrowsePy4GwDll.Text = "Browse...";
+            btnBrowsePy4GwDll.UseVisualStyleBackColor = true;
             // 
-            // btnBrowseGModDll
+            // txtPy4GwDll
             // 
-            btnBrowseGModDll.Location = new Point(306, 97);
-            btnBrowseGModDll.Name = "btnBrowseGModDll";
-            btnBrowseGModDll.Size = new Size(75, 23);
-            btnBrowseGModDll.TabIndex = 8;
-            btnBrowseGModDll.Text = "Browse...";
-            btnBrowseGModDll.UseVisualStyleBackColor = true;
+            txtPy4GwDll.Location = new Point(97, 60);
+            txtPy4GwDll.Name = "txtPy4GwDll";
+            txtPy4GwDll.Size = new Size(183, 23);
+            txtPy4GwDll.TabIndex = 4;
+            // 
+            // chkPy4Gw
+            // 
+            chkPy4Gw.AutoSize = true;
+            chkPy4Gw.Location = new Point(19, 62);
+            chkPy4Gw.Name = "chkPy4Gw";
+            chkPy4Gw.Size = new Size(64, 19);
+            chkPy4Gw.TabIndex = 3;
+            chkPy4Gw.Text = "Py4GW";
+            chkPy4Gw.UseVisualStyleBackColor = true;
+            // 
+            // btnBrowseToolboxDll
+            // 
+            btnBrowseToolboxDll.Location = new Point(306, 23);
+            btnBrowseToolboxDll.Name = "btnBrowseToolboxDll";
+            btnBrowseToolboxDll.Size = new Size(75, 23);
+            btnBrowseToolboxDll.TabIndex = 2;
+            btnBrowseToolboxDll.Text = "Browse...";
+            btnBrowseToolboxDll.UseVisualStyleBackColor = true;
+            // 
+            // txtToolboxDll
+            // 
+            txtToolboxDll.Location = new Point(97, 23);
+            txtToolboxDll.Name = "txtToolboxDll";
+            txtToolboxDll.Size = new Size(183, 23);
+            txtToolboxDll.TabIndex = 1;
+            // 
+            // chkToolbox
+            // 
+            chkToolbox.AutoSize = true;
+            chkToolbox.Location = new Point(19, 25);
+            chkToolbox.Name = "chkToolbox";
+            chkToolbox.Size = new Size(68, 19);
+            chkToolbox.TabIndex = 0;
+            chkToolbox.Text = "Toolbox";
+            chkToolbox.UseVisualStyleBackColor = true;
+            // 
+            // grpGw2RunAfter
+            // 
+            grpGw2RunAfter.Controls.Add(chkGw2RunAfterEnabled);
+            grpGw2RunAfter.Controls.Add(lvGw2RunAfter);
+            grpGw2RunAfter.Controls.Add(btnGw2AddProgram);
+            grpGw2RunAfter.Controls.Add(btnGw2RemoveProgram);
+            grpGw2RunAfter.Location = new Point(284, 153);
+            grpGw2RunAfter.Name = "grpGw2RunAfter";
+            grpGw2RunAfter.Size = new Size(400, 143);
+            grpGw2RunAfter.TabIndex = 5;
+            grpGw2RunAfter.TabStop = false;
+            grpGw2RunAfter.Text = "Run after launching";
+            grpGw2RunAfter.Visible = false;
+            // 
+            // chkGw2RunAfterEnabled
+            // 
+            chkGw2RunAfterEnabled.AutoSize = true;
+            chkGw2RunAfterEnabled.Location = new Point(16, 24);
+            chkGw2RunAfterEnabled.Name = "chkGw2RunAfterEnabled";
+            chkGw2RunAfterEnabled.Size = new Size(181, 19);
+            chkGw2RunAfterEnabled.TabIndex = 0;
+            chkGw2RunAfterEnabled.Text = "Enable programs after launch";
+            chkGw2RunAfterEnabled.UseVisualStyleBackColor = true;
+            // 
+            // lvGw2RunAfter
+            // 
+            lvGw2RunAfter.CheckBoxes = true;
+            lvGw2RunAfter.FullRowSelect = true;
+            lvGw2RunAfter.Location = new Point(16, 52);
+            lvGw2RunAfter.Name = "lvGw2RunAfter";
+            lvGw2RunAfter.Size = new Size(280, 78);
+            lvGw2RunAfter.TabIndex = 1;
+            lvGw2RunAfter.UseCompatibleStateImageBehavior = false;
+            lvGw2RunAfter.View = View.Details;
+            lvGw2RunAfter.ItemChecked += lvGw2RunAfter_ItemChecked;
+            // 
+            // btnGw2AddProgram
+            // 
+            btnGw2AddProgram.Location = new Point(306, 52);
+            btnGw2AddProgram.Name = "btnGw2AddProgram";
+            btnGw2AddProgram.Size = new Size(75, 23);
+            btnGw2AddProgram.TabIndex = 2;
+            btnGw2AddProgram.Text = "Add...";
+            btnGw2AddProgram.UseVisualStyleBackColor = true;
+            btnGw2AddProgram.Click += btnGw2AddProgram_Click;
+            // 
+            // btnGw2RemoveProgram
+            // 
+            btnGw2RemoveProgram.Location = new Point(306, 81);
+            btnGw2RemoveProgram.Name = "btnGw2RemoveProgram";
+            btnGw2RemoveProgram.Size = new Size(75, 23);
+            btnGw2RemoveProgram.TabIndex = 3;
+            btnGw2RemoveProgram.Text = "Remove";
+            btnGw2RemoveProgram.UseVisualStyleBackColor = true;
+            btnGw2RemoveProgram.Click += btnGw2RemoveProgram_Click;
             // 
             // btnOk
             // 
             btnOk.DialogResult = DialogResult.OK;
-            btnOk.Location = new Point(590, 338);
+            btnOk.Location = new Point(489, 338);
             btnOk.Name = "btnOk";
             btnOk.Size = new Size(75, 23);
             btnOk.TabIndex = 6;
@@ -263,7 +260,7 @@
             // btnCancel
             // 
             btnCancel.DialogResult = DialogResult.Cancel;
-            btnCancel.Location = new Point(489, 338);
+            btnCancel.Location = new Point(590, 338);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(75, 23);
             btnCancel.TabIndex = 7;
@@ -288,6 +285,8 @@
             Text = "ProfileSettingsForm";
             grpGw1Mods.ResumeLayout(false);
             grpGw1Mods.PerformLayout();
+            grpGw2RunAfter.ResumeLayout(false);
+            grpGw2RunAfter.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
