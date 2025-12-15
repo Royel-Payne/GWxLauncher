@@ -178,6 +178,14 @@ namespace GWxLauncher
                 using var pen = new Pen(ThemeService.Palette.Separator);
                 e.Graphics.DrawLine(pen, r.Left, r.Bottom - 1, r.Right, r.Bottom - 1);
             };
+            lblStatus.Paint += (s, e) =>
+            {
+                using var pen = new Pen(ThemeService.Palette.Separator);
+                e.Graphics.DrawLine(pen, 0, 0, lblStatus.Width - 1, 0);
+            };
+            lblStatus.Resize += (s, e) => lblStatus.Invalidate();
+
+            panelProfiles.Resize += (s, e) => panelProfiles.Invalidate();
 
             lblView.Visible = true;
             lblView.Text = "Show checked \n Arm launch";
@@ -234,6 +242,7 @@ namespace GWxLauncher
             // Card bounds
             Rectangle card = e.Bounds;
             card.Inflate(-ThemeService.CardMetrics.OuterPadding, -ThemeService.CardMetrics.OuterPadding);
+            card.Width -= ThemeService.CardMetrics.RightGutter;
 
             Color backColor =
                 selected ? ThemeService.CardPalette.SelectedBack :
@@ -251,6 +260,12 @@ namespace GWxLauncher
                 g.FillRectangle(bgBrush, card);
                 g.DrawRectangle(borderPen, card);
             }
+
+            // Ensure listbox background matches overall theme
+            lstProfiles.BackColor = ThemeService.Palette.WindowBack;
+            lstProfiles.ForeColor = ThemeService.Palette.WindowFore;
+            lstProfiles.BorderStyle = BorderStyle.None; // optional, but helps reduce contrast noise
+
             // Accent bar (left) for selected (and optional hover)
             if (selected || hot)
             {

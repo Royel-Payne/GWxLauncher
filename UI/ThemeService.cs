@@ -132,7 +132,9 @@ namespace GWxLauncher.UI
         internal static class CardMetrics
         {
             // Card padding inside listbox item bounds
-            public const int OuterPadding = 4;
+            public const int OuterPadding = 3;
+            public const int RightGutter = 0;
+
 
             // Checkbox
             public const int CheckboxOffsetX = 8;

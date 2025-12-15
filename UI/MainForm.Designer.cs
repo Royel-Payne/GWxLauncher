@@ -54,22 +54,22 @@
             // 
             // lblStatus
             // 
-            lblStatus.AutoSize = true;
             lblStatus.Dock = DockStyle.Bottom;
-            lblStatus.Location = new Point(0, 397);
+            lblStatus.Location = new Point(0, 374);
             lblStatus.Name = "lblStatus";
-            lblStatus.Padding = new Padding(6, 0, 0, 6);
-            lblStatus.Size = new Size(45, 21);
+            lblStatus.Padding = new Padding(6);
+            lblStatus.Size = new Size(366, 32);
             lblStatus.TabIndex = 2;
             lblStatus.Text = "Ready";
+            lblStatus.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // panelProfiles
             // 
             panelProfiles.BackColor = Color.FromArgb(24, 24, 28);
             panelProfiles.Controls.Add(lstProfiles);
-            panelProfiles.Location = new Point(10, 72);
+            panelProfiles.Location = new Point(9, 68);
             panelProfiles.Name = "panelProfiles";
-            panelProfiles.Size = new Size(346, 305);
+            panelProfiles.Size = new Size(348, 304);
             panelProfiles.TabIndex = 5;
             // 
             // lstProfiles
@@ -79,9 +79,10 @@
             lstProfiles.DrawMode = DrawMode.OwnerDrawFixed;
             lstProfiles.FormattingEnabled = true;
             lstProfiles.ItemHeight = 60;
-            lstProfiles.Location = new Point(0, 3);
+            lstProfiles.Location = new Point(0, 0);
+            lstProfiles.Margin = new Padding(2);
             lstProfiles.Name = "lstProfiles";
-            lstProfiles.Size = new Size(346, 304);
+            lstProfiles.Size = new Size(348, 304);
             lstProfiles.TabIndex = 6;
             lstProfiles.DrawItem += lstProfiles_DrawItem;
             lstProfiles.DoubleClick += lstProfiles_DoubleClick;
@@ -127,7 +128,7 @@
             btnAddAccount.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
             btnAddAccount.FlatStyle = FlatStyle.Flat;
             btnAddAccount.ForeColor = Color.White;
-            btnAddAccount.Location = new Point(10, 34);
+            btnAddAccount.Location = new Point(12, 34);
             btnAddAccount.Margin = new Padding(8);
             btnAddAccount.Name = "btnAddAccount";
             btnAddAccount.Size = new Size(95, 24);
@@ -149,8 +150,9 @@
             panelView.Controls.Add(lblView);
             panelView.Dock = DockStyle.Top;
             panelView.Location = new Point(0, 0);
+            panelView.Margin = new Padding(2);
             panelView.Name = "panelView";
-            panelView.Size = new Size(367, 66);
+            panelView.Size = new Size(366, 66);
             panelView.TabIndex = 10;
             // 
             // btnNewView
@@ -159,7 +161,7 @@
             btnNewView.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
             btnNewView.FlatStyle = FlatStyle.Flat;
             btnNewView.ForeColor = Color.White;
-            btnNewView.Location = new Point(10, 5);
+            btnNewView.Location = new Point(12, 5);
             btnNewView.Margin = new Padding(8);
             btnNewView.Name = "btnNewView";
             btnNewView.Size = new Size(95, 24);
@@ -201,7 +203,7 @@
             txtView.BackColor = Color.FromArgb(18, 18, 22);
             txtView.BorderStyle = BorderStyle.FixedSingle;
             txtView.ForeColor = Color.Gainsboro;
-            txtView.Location = new Point(156, 6);
+            txtView.Location = new Point(156, 5);
             txtView.Name = "txtView";
             txtView.Size = new Size(171, 23);
             txtView.TabIndex = 2;
@@ -229,7 +231,7 @@
             // 
             chkArmBulk.AutoSize = true;
             chkArmBulk.ForeColor = Color.Gainsboro;
-            chkArmBulk.Location = new Point(136, 40);
+            chkArmBulk.Location = new Point(134, 40);
             chkArmBulk.Name = "chkArmBulk";
             chkArmBulk.Size = new Size(15, 14);
             chkArmBulk.TabIndex = 4;
@@ -238,16 +240,16 @@
             // 
             // lblView
             // 
-            lblView.Location = new Point(156, 34);
+            lblView.Location = new Point(154, 34);
             lblView.Name = "lblView";
-            lblView.Size = new Size(83, 31);
+            lblView.Size = new Size(84, 28);
             lblView.TabIndex = 7;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(367, 418);
+            ClientSize = new Size(366, 406);
             Controls.Add(panelProfiles);
             Controls.Add(lblStatus);
             Controls.Add(panelView);
@@ -262,7 +264,6 @@
             panelView.ResumeLayout(false);
             panelView.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
