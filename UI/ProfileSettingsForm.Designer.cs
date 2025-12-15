@@ -59,7 +59,7 @@ namespace GWxLauncher.UI
             // 
             // txtProfileName
             // 
-            txtProfileName.Location = new Point(393, 69);
+            txtProfileName.Location = new Point(398, 21);
             txtProfileName.Name = "txtProfileName";
             txtProfileName.Size = new Size(187, 23);
             txtProfileName.TabIndex = 0;
@@ -67,7 +67,7 @@ namespace GWxLauncher.UI
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(284, 72);
+            label1.Location = new Point(289, 24);
             label1.Name = "label1";
             label1.Size = new Size(80, 15);
             label1.TabIndex = 1;
@@ -76,7 +76,7 @@ namespace GWxLauncher.UI
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(284, 112);
+            label2.Location = new Point(289, 64);
             label2.Name = "label2";
             label2.Size = new Size(97, 15);
             label2.TabIndex = 2;
@@ -84,14 +84,14 @@ namespace GWxLauncher.UI
             // 
             // txtExecutablePath
             // 
-            txtExecutablePath.Location = new Point(393, 109);
+            txtExecutablePath.Location = new Point(398, 61);
             txtExecutablePath.Name = "txtExecutablePath";
             txtExecutablePath.Size = new Size(187, 23);
             txtExecutablePath.TabIndex = 3;
             // 
             // btnBrowseExe
             // 
-            btnBrowseExe.Location = new Point(590, 108);
+            btnBrowseExe.Location = new Point(595, 60);
             btnBrowseExe.Name = "btnBrowseExe";
             btnBrowseExe.Size = new Size(75, 23);
             btnBrowseExe.TabIndex = 4;
@@ -100,7 +100,6 @@ namespace GWxLauncher.UI
             // 
             // grpGw1Mods
             // 
-            grpGw1Mods.Controls.Add(chkGw1Multiclient);
             grpGw1Mods.Controls.Add(btnBrowseGModDll);
             grpGw1Mods.Controls.Add(txtGModDll);
             grpGw1Mods.Controls.Add(chkGMod);
@@ -110,9 +109,9 @@ namespace GWxLauncher.UI
             grpGw1Mods.Controls.Add(btnBrowseToolboxDll);
             grpGw1Mods.Controls.Add(txtToolboxDll);
             grpGw1Mods.Controls.Add(chkToolbox);
-            grpGw1Mods.Location = new Point(284, 153);
+            grpGw1Mods.Location = new Point(289, 123);
             grpGw1Mods.Name = "grpGw1Mods";
-            grpGw1Mods.Size = new Size(400, 157);
+            grpGw1Mods.Size = new Size(400, 196);
             grpGw1Mods.TabIndex = 5;
             grpGw1Mods.TabStop = false;
             grpGw1Mods.Text = "GW1 Mods";
@@ -120,7 +119,7 @@ namespace GWxLauncher.UI
             // chkGw1Multiclient
             // 
             chkGw1Multiclient.AutoSize = true;
-            chkGw1Multiclient.Location = new Point(19, 118);
+            chkGw1Multiclient.Location = new Point(308, 85);
             chkGw1Multiclient.Name = "chkGw1Multiclient";
             chkGw1Multiclient.Size = new Size(83, 19);
             chkGw1Multiclient.TabIndex = 9;
@@ -211,7 +210,7 @@ namespace GWxLauncher.UI
             grpGw2RunAfter.Controls.Add(lvGw2RunAfter);
             grpGw2RunAfter.Controls.Add(btnGw2AddProgram);
             grpGw2RunAfter.Controls.Add(btnGw2RemoveProgram);
-            grpGw2RunAfter.Location = new Point(284, 153);
+            grpGw2RunAfter.Location = new Point(289, 123);
             grpGw2RunAfter.Name = "grpGw2RunAfter";
             grpGw2RunAfter.Size = new Size(400, 143);
             grpGw2RunAfter.TabIndex = 5;
@@ -264,7 +263,7 @@ namespace GWxLauncher.UI
             // btnOk
             // 
             btnOk.DialogResult = DialogResult.OK;
-            btnOk.Location = new Point(489, 338);
+            btnOk.Location = new Point(510, 339);
             btnOk.Name = "btnOk";
             btnOk.Size = new Size(75, 23);
             btnOk.TabIndex = 6;
@@ -274,7 +273,7 @@ namespace GWxLauncher.UI
             // btnCancel
             // 
             btnCancel.DialogResult = DialogResult.Cancel;
-            btnCancel.Location = new Point(590, 338);
+            btnCancel.Location = new Point(595, 338);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(75, 23);
             btnCancel.TabIndex = 7;
@@ -286,6 +285,7 @@ namespace GWxLauncher.UI
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(721, 374);
+            Controls.Add(chkGw1Multiclient);
             Controls.Add(grpGw1Mods);
             Controls.Add(grpGw2RunAfter);
             Controls.Add(btnCancel);
