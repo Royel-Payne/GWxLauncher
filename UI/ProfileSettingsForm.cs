@@ -72,9 +72,21 @@ namespace GWxLauncher.UI
             grpGw2RunAfter.Visible = isGw2;
             grpGw2RunAfter.Enabled = isGw2;
 
-            chkGw1Multiclient.Checked = _cfg.Gw1MulticlientEnabled;
-
-
+            // Global (per-game) multiclient toggle, shown only for the current profile game type.
+            if (isGw1)
+            {
+                chkGw1Multiclient.Visible = true;
+                chkGw1Multiclient.Checked = _cfg.Gw1MulticlientEnabled;
+            }
+            else if (isGw2)
+            {
+                chkGw1Multiclient.Visible = true;
+                chkGw1Multiclient.Checked = _cfg.Gw2MulticlientEnabled;
+            }
+            else
+            {
+                chkGw1Multiclient.Visible = false;
+            }
             if (isGw1)
             {
                 chkToolbox.Checked = _profile.Gw1ToolboxEnabled;
@@ -128,6 +140,9 @@ namespace GWxLauncher.UI
             if (_profile.GameType == GameType.GuildWars2)
             {
                 _profile.Gw2RunAfterEnabled = chkGw2RunAfterEnabled.Checked;
+
+                _cfg.Gw2MulticlientEnabled = chkGw1Multiclient.Checked;
+                _cfg.Save();
             }
         }
         private void ProfileSettingsForm_Shown(object? sender, EventArgs e)

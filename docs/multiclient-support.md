@@ -256,14 +256,14 @@ It is purely a startup-time process modification.
 
 # GW2 Multiclient Support — Mutex-Based Reference Method
 
-This document describes the **mutex-based multiclient mechanism** used by Guild Wars 2, as observed in the provided reference implementation.
+This document describes the **mutex-based multiclient mechanism** used by Guild Wars 2.
 
 It records:
 
 * how the single-instance mutex is identified
 * how a launcher determines whether a launch is blocked
 * how the mutex is removed (primary and fallback strategies)
-* how `-sharedArchive` is used to distinguish launch modes
+* how `-shareArchive` is used to distinguish launch modes
 
 This method is **distinct from GW1** and does **not** involve memory patching.
 
@@ -368,23 +368,23 @@ This fallback exists to handle:
 
 ---
 
-## Launch Modes and `-sharedArchive`
+## Launch Modes and `-shareArchive`
 
 The reference defines two explicit launch modes:
 
 * **Shared mode**
 
-  * includes the `-sharedArchive` argument
+  * includes the `-shareArchive` argument
 
 * **Single mode**
 
-  * omits the `-sharedArchive` argument
+  * omits the `-shareArchive` argument
 
 No additional behavior is implied beyond argument selection.
 
 The launcher must therefore:
 
-* conditionally include `-sharedArchive`
+* conditionally include `-shareArchive`
 * treat this as an explicit, user-controlled choice
 
 ---
@@ -420,7 +420,7 @@ To reproduce this method, a launcher must provide:
 
 4. Argument control
 
-   * include or exclude `-sharedArchive` based on launch mode
+   * include or exclude `-shareArchive` based on launch mode
 
 ---
 
@@ -450,3 +450,154 @@ This method should be:
 * conservative
 * clearly surfaced in UX
 * kept logically separate from GW1 multiclient logic
+
+---
+
+## GW2 Startup Timing & Mutex Re-Creation
+
+### Why Timing Matters
+
+Guild Wars 2 recreates its single-instance mutex during early startup, not atomically at process creation.
+
+In practice:
+
+- The launcher may clear the mutex successfully
+- Launch GW2 with `-shareArchive`
+- The mutex may not yet exist when the next launch attempt occurs
+
+If a second launch is attempted too quickly:
+
+- The launcher may not observe a mutex
+- The second process may start
+- GW2 later recreates the mutex
+- One of the instances silently exits
+
+This manifests most clearly during bulk launch scenarios.
+
+---
+
+### Correct Sequencing Model (Observed Behavior)
+
+A reliable GW2 multiclient sequence is:
+
+1. Launch GW2 instance N
+2. GW2 performs internal initialization
+3. GW2 creates the mutex
+4. Launcher observes mutex existence
+5. Launcher clears mutex
+6. Launch GW2 instance N+1
+
+Any implementation that skips step 4 (observation) is timing-sensitive and unreliable.
+
+---
+
+### Recommended Solution: State-Based Mutex Wait (Not Fixed Delays)
+
+Do not rely on fixed sleeps (for example, `Thread.Sleep(800)`).
+
+Empirical observation shows mutex creation timing varies based on:
+
+- CPU load
+- Disk I/O
+- Background applications
+- System performance
+
+Instead, wait until the mutex is actually observed.
+
+Conceptual approach:
+
+```csharp
+while (elapsed < timeout)
+{
+    if (MutexExists("AN-Mutex-Window-Guild Wars 2"))
+        break;
+
+    Sleep(brief_interval);
+}
+```
+
+This approach:
+
+- Adapts automatically to fast and slow systems
+- Eliminates race conditions
+- Uses a real synchronization signal
+- Avoids guesswork
+
+---
+
+### Bulk Launch Considerations
+
+When launching multiple GW2 profiles in succession:
+
+- Each launch must wait for the previous instance’s mutex to reappear
+- Only then can the mutex be safely cleared again
+- This applies even if all instances are launcher-managed
+
+Failure to do this can result in:
+
+- Only the first instance launching
+- Subsequent instances silently failing
+- Inconsistent behavior across machines
+
+---
+
+### Diagnostic Value
+
+Recording mutex timing data is strongly recommended.
+
+Example launch detail:
+
+```
+Cleared GW2 mutex in PID 31860
+(GW2 mutex observed after 750ms)
+```
+
+This provides:
+
+- Proof of correct sequencing
+- Visibility into system-dependent timing
+- Valuable debugging context
+
+---
+
+### Clarification: Role of `-shareArchive`
+
+The `-shareArchive` argument:
+
+- Enables shared data usage
+- Does not control mutex creation timing
+- Does not eliminate the need for mutex management
+- Must be combined with correct mutex handling
+
+---
+
+### Updated Minimal GW2 Multiclient Checklist
+
+To implement GW2 multiclient robustly, a launcher must:
+
+1. Detect the GW2 mutex
+2. Clear the mutex when present
+3. Launch GW2 with `-shareArchive` (if enabled)
+4. Wait until the mutex is recreated
+5. Repeat for subsequent instances
+6. Abort only if mutex clearing fails after retries
+
+---
+
+### Why This Matters
+
+Many existing launchers appear to work under light testing but fail under:
+
+- Bulk launch
+- Slower systems
+- Background load
+
+The state-based mutex wait transforms GW2 multiclient support from “usually works” into “deterministically correct”.
+
+---
+
+### Final Note
+
+This behavior was discovered through real-world testing and timing variance, not static analysis alone.
+
+Documenting it here prevents regressions and explains why the implementation is structured the way it is.
