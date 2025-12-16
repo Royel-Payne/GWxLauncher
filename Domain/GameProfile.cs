@@ -37,6 +37,7 @@ namespace GWxLauncher.Domain
         // GW1 mods – gMod (Phase 3.7 will implement early injection)
         public bool Gw1GModEnabled { get; set; } = false;
         public string Gw1GModDllPath { get; set; } = "";
+        public List<string> Gw1GModPluginPaths { get; set; } = new();
 
         // General-purpose list, still available for experiments / future
         public List<Gw1InjectedDll> Gw1InjectedDlls { get; set; } = new();

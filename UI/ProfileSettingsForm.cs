@@ -25,6 +25,13 @@ namespace GWxLauncher.UI
             lvGw2RunAfter.ForeColor = ThemeService.Palette.InputFore;
             lvGw2RunAfter.SelectedIndexChanged += (s, e) => UpdateGw2RunAfterButtons();
 
+            lvGw1GModPlugins.BackColor = ThemeService.Palette.InputBack;
+            lvGw1GModPlugins.ForeColor = ThemeService.Palette.InputFore;
+            lvGw1GModPlugins.SelectedIndexChanged += (s, e) => UpdateGw1GModPluginButtons();
+
+            btnGw1AddPlugin.Click += btnGw1AddPlugin_Click;
+            btnGw1RemovePlugin.Click += btnGw1RemovePlugin_Click;
+
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
             grpGw1Mods.Visible = isGw1;
             grpGw1Mods.Enabled = isGw1;
@@ -100,6 +107,7 @@ namespace GWxLauncher.UI
 
                 chkGMod.Checked = _profile.Gw1GModEnabled;
                 txtGModDll.Text = _profile.Gw1GModDllPath;
+                RefreshGw1GModPluginList();
             }
             if (isGw2)
             {
@@ -224,6 +232,32 @@ namespace GWxLauncher.UI
                 _cfg.Save();
             }
         }
+        // ADD
+        private void UpdateGw1GModPluginButtons()
+        {
+            btnGw1RemovePlugin.Enabled = lvGw1GModPlugins.SelectedItems.Count > 0;
+        }
+
+        // ADD
+        private void RefreshGw1GModPluginList()
+        {
+            lvGw1GModPlugins.Items.Clear();
+
+            foreach (var path in _profile.Gw1GModPluginPaths ?? new List<string>())
+            {
+                // Display: filename without extension (your preference)
+                string display = Path.GetFileNameWithoutExtension(path);
+
+                var item = new ListViewItem(display)
+                {
+                    Tag = path
+                };
+
+                lvGw1GModPlugins.Items.Add(item);
+            }
+
+            UpdateGw1GModPluginButtons();
+        }
 
         private bool ValidateGw1ModSettings()
         {
@@ -286,23 +320,80 @@ namespace GWxLauncher.UI
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
 
-                // Prevent the dialog from closing
                 DialogResult = DialogResult.None;
                 return;
             }
 
-            // Extra checks for GW1 mod settings
             if (!ValidateGw1ModSettings())
             {
-                // Validation method already showed a message; keep the dialog open
                 DialogResult = DialogResult.None;
                 return;
             }
 
-            // Push values into the profile and close as OK
+            // Push values into the profile once
             SaveToProfile();
+
+            // If GW1 + gMod enabled, prepare %AppData% copy + modlist.txt now (so launch can't fail later)
+            if (_profile.GameType == GameType.GuildWars1 && _profile.Gw1GModEnabled)
+            {
+                try
+                {
+                    Services.Gw1InjectionService.PreparePerProfileGModFolder(_profile);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        this,
+                        $"gMod is enabled but setup failed:\n\n{ex.Message}",
+                        "gMod setup failed",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    DialogResult = DialogResult.None; // keep the dialog open
+                    return;
+                }
+            }
+
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+
+        private void btnGw1AddPlugin_Click(object? sender, EventArgs e)
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Title = "Select gMod plugin (.tpf)",
+                Filter = "TPF files (*.tpf)|*.tpf|All files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            string path = dlg.FileName;
+
+            // Ensure list exists
+            _profile.Gw1GModPluginPaths ??= new List<string>();
+
+            // Dedupe (case-insensitive, absolute path as stored value)
+            if (!_profile.Gw1GModPluginPaths.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)))
+                _profile.Gw1GModPluginPaths.Add(path);
+
+            RefreshGw1GModPluginList();
+        }
+
+        // ADD
+        private void btnGw1RemovePlugin_Click(object? sender, EventArgs e)
+        {
+            if (lvGw1GModPlugins.SelectedItems.Count == 0)
+                return;
+
+            var item = lvGw1GModPlugins.SelectedItems[0];
+            if (item.Tag is string path)
+            {
+                _profile.Gw1GModPluginPaths.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+                RefreshGw1GModPluginList();
+            }
         }
 
 

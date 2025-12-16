@@ -35,6 +35,9 @@ namespace GWxLauncher.Services
             PROCESS_ALL_ACCESS = 0x001F0FFF
         }
 
+        [System.Runtime.InteropServices.DllImport("Kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+        private static extern bool CreateHardLinkW(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+
         private const uint MEM_COMMIT = 0x1000;
         private const uint MEM_RESERVE = 0x2000;
         private const uint PAGE_READWRITE = 0x04;
@@ -177,6 +180,56 @@ namespace GWxLauncher.Services
         private const uint CREATE_SUSPENDED = 0x00000004;
 
         #endregion
+        // ADD
+        internal static string GetGw1AccountFolder(string profileId)
+        {
+            // %AppData%\GWxLauncher\accounts\<ProfileId>\
+            string baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Combine(baseDir, "GWxLauncher", "accounts", profileId);
+        }
+
+        // ADD
+        internal static string PreparePerProfileGModFolder(GameProfile profile)
+        {
+            string folder = GetGw1AccountFolder(profile.Id);
+            Directory.CreateDirectory(folder);
+
+            string linkPath = Path.Combine(folder, "gMod.dll");
+            string canonical = profile.Gw1GModDllPath;
+
+            if (string.IsNullOrWhiteSpace(canonical) || !File.Exists(canonical))
+                throw new FileNotFoundException("Canonical gMod.dll path is missing or invalid.", canonical);
+
+            // Always recreate to guarantee correctness (simple + deterministic).
+            if (File.Exists(linkPath))
+            {
+                File.Delete(linkPath);
+            }
+
+            // Copy the canonical DLL into the per-profile folder (no hardlink locking behavior)
+            File.Copy(canonical, linkPath, overwrite: true);
+
+            // Generate modlist.txt deterministically, removing missing paths (your choice C)
+            string modlist = Path.Combine(folder, "modlist.txt");
+
+            var paths = (profile.Gw1GModPluginPaths ?? new List<string>())
+                .Select(p => (p ?? "").Trim())
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // Auto-remove missing plugin files from the profile list (your choice C)
+            var existing = paths.Where(File.Exists).ToList();
+            if (existing.Count != paths.Count)
+            {
+                profile.Gw1GModPluginPaths = existing;
+            }
+
+            File.WriteAllLines(modlist, existing);
+
+            return linkPath; // This is the DLL we inject
+        }
 
         /// <summary>
         /// Generic entry point: launch GW1 and inject one or more DLLs.
@@ -387,15 +440,40 @@ namespace GWxLauncher.Services
 
             // --- 1) If gMod is enabled and configured, try early (suspended) launch + injection ---
 
-            bool triedGmodEarly = profile.Gw1GModEnabled &&
-                                  !string.IsNullOrWhiteSpace(profile.Gw1GModDllPath) &&
-                                  File.Exists(profile.Gw1GModDllPath);
+            bool gmodEnabled = profile.Gw1GModEnabled;
+            bool gmodConfigured =
+                gmodEnabled &&
+                !string.IsNullOrWhiteSpace(profile.Gw1GModDllPath) &&
+                File.Exists(profile.Gw1GModDllPath);
 
-            if (triedGmodEarly)
+            if (gmodConfigured)
             {
+                string gmodToInject;
+
+                try
+                {
+                    // Build/repair per-profile folder + gMod.dll + modlist.txt (your current behavior)
+                    gmodToInject = PreparePerProfileGModFolder(profile);
+                }
+                catch (Exception ex)
+                {
+                    errorMessage = $"gMod is enabled but setup failed:\n{ex.Message}";
+
+                    stepGmod.Outcome = StepOutcome.Failed;
+                    stepGmod.Detail = ex.Message;
+
+                    stepToolbox.Outcome = StepOutcome.Skipped;
+                    stepPy4Gw.Outcome = StepOutcome.Skipped;
+
+                    report.UsedSuspendedLaunch = true;
+                    report.Succeeded = false;
+                    report.FailureMessage = errorMessage;
+                    return false;
+                }
+
                 if (!TryLaunchGw1WithGMod(
                         exePath,
-                        profile.Gw1GModDllPath!,
+                        gmodToInject,
                         gw1MulticlientEnabled,
                         out process,
                         out var gmodError))
@@ -409,25 +487,27 @@ namespace GWxLauncher.Services
                     stepToolbox.Outcome = StepOutcome.Skipped;
                     stepPy4Gw.Outcome = StepOutcome.Skipped;
 
-                    report.UsedSuspendedLaunch = true; // attempted this mode
+                    report.UsedSuspendedLaunch = true;
                     report.Succeeded = false;
                     report.FailureMessage = errorMessage;
 
                     return false;
                 }
 
-                report.UsedSuspendedLaunch = true;
+                // ✅ THIS is the piece you were missing: gMod was actually used.
                 stepGmod.Outcome = StepOutcome.Success;
+                stepGmod.Detail = "Injected";
+                report.UsedSuspendedLaunch = true;
             }
             else
             {
                 // gMod not attempted
                 stepGmod.Outcome = StepOutcome.Skipped;
-                stepGmod.Detail = profile.Gw1GModEnabled
+                stepGmod.Detail = gmodEnabled
                     ? "Enabled, but DLL path missing or file not found"
                     : "Disabled";
 
-                // --- 2) Normal Process.Start launch (no gMod early injection) ---
+                // --- 2) Normal launch (no gMod early injection) ---
                 if (gw1MulticlientEnabled)
                 {
                     // Suspended launch required for multiclient
@@ -501,7 +581,6 @@ namespace GWxLauncher.Services
                             errorMessage = "GW exited immediately after resume (process vanished).";
                             return false;
                         }
-
 
                         report.UsedSuspendedLaunch = true;
                     }
@@ -643,6 +722,7 @@ namespace GWxLauncher.Services
             report.Succeeded = true;
             return true;
         }
+
 
 
         /// <summary>

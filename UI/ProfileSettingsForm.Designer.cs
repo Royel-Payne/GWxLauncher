@@ -36,7 +36,6 @@ namespace GWxLauncher.UI
             txtExecutablePath = new TextBox();
             btnBrowseExe = new Button();
             grpGw1Mods = new GroupBox();
-            chkGw1Multiclient = new CheckBox();
             btnBrowseGModDll = new Button();
             txtGModDll = new TextBox();
             chkGMod = new CheckBox();
@@ -46,15 +45,19 @@ namespace GWxLauncher.UI
             btnBrowseToolboxDll = new Button();
             txtToolboxDll = new TextBox();
             chkToolbox = new CheckBox();
+            lblGw1GModPlugins = new Label();
+            lvGw1GModPlugins = new ListView();
+            colGw1GModPlugin = new ColumnHeader();
+            btnGw1AddPlugin = new Button();
+            btnGw1RemovePlugin = new Button();
+            chkGw1Multiclient = new CheckBox();
             grpGw2RunAfter = new GroupBox();
             chkGw2RunAfterEnabled = new CheckBox();
             lvGw2RunAfter = new ListView();
-            // ADD (initialize)
             colGw2RunAfterName = new ColumnHeader();
             colGw2RunAfterPath = new ColumnHeader();
             btnGw2AddProgram = new Button();
             btnGw2RemoveProgram = new Button();
-            btnGw2RemoveProgram.Enabled = false;
             btnOk = new Button();
             btnCancel = new Button();
             grpGw1Mods.SuspendLayout();
@@ -63,7 +66,7 @@ namespace GWxLauncher.UI
             // 
             // txtProfileName
             // 
-            txtProfileName.Location = new Point(398, 21);
+            txtProfileName.Location = new Point(103, 19);
             txtProfileName.Name = "txtProfileName";
             txtProfileName.Size = new Size(187, 23);
             txtProfileName.TabIndex = 0;
@@ -71,7 +74,7 @@ namespace GWxLauncher.UI
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(289, 24);
+            label1.Location = new Point(17, 22);
             label1.Name = "label1";
             label1.Size = new Size(80, 15);
             label1.TabIndex = 1;
@@ -80,7 +83,7 @@ namespace GWxLauncher.UI
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(289, 64);
+            label2.Location = new Point(319, 27);
             label2.Name = "label2";
             label2.Size = new Size(97, 15);
             label2.TabIndex = 2;
@@ -88,14 +91,14 @@ namespace GWxLauncher.UI
             // 
             // txtExecutablePath
             // 
-            txtExecutablePath.Location = new Point(398, 61);
+            txtExecutablePath.Location = new Point(428, 24);
             txtExecutablePath.Name = "txtExecutablePath";
             txtExecutablePath.Size = new Size(187, 23);
             txtExecutablePath.TabIndex = 3;
             // 
             // btnBrowseExe
             // 
-            btnBrowseExe.Location = new Point(595, 60);
+            btnBrowseExe.Location = new Point(625, 23);
             btnBrowseExe.Name = "btnBrowseExe";
             btnBrowseExe.Size = new Size(75, 23);
             btnBrowseExe.TabIndex = 4;
@@ -113,22 +116,16 @@ namespace GWxLauncher.UI
             grpGw1Mods.Controls.Add(btnBrowseToolboxDll);
             grpGw1Mods.Controls.Add(txtToolboxDll);
             grpGw1Mods.Controls.Add(chkToolbox);
-            grpGw1Mods.Location = new Point(289, 123);
+            grpGw1Mods.Controls.Add(lblGw1GModPlugins);
+            grpGw1Mods.Controls.Add(lvGw1GModPlugins);
+            grpGw1Mods.Controls.Add(btnGw1AddPlugin);
+            grpGw1Mods.Controls.Add(btnGw1RemovePlugin);
+            grpGw1Mods.Location = new Point(319, 86);
             grpGw1Mods.Name = "grpGw1Mods";
-            grpGw1Mods.Size = new Size(400, 196);
+            grpGw1Mods.Size = new Size(400, 257);
             grpGw1Mods.TabIndex = 5;
             grpGw1Mods.TabStop = false;
             grpGw1Mods.Text = "GW1 Mods";
-            // 
-            // chkGw1Multiclient
-            // 
-            chkGw1Multiclient.AutoSize = true;
-            chkGw1Multiclient.Location = new Point(308, 85);
-            chkGw1Multiclient.Name = "chkGw1Multiclient";
-            chkGw1Multiclient.Size = new Size(83, 19);
-            chkGw1Multiclient.TabIndex = 9;
-            chkGw1Multiclient.Text = "Multiclient";
-            chkGw1Multiclient.UseVisualStyleBackColor = true;
             // 
             // btnBrowseGModDll
             // 
@@ -208,13 +205,69 @@ namespace GWxLauncher.UI
             chkToolbox.Text = "Toolbox";
             chkToolbox.UseVisualStyleBackColor = true;
             // 
+            // lblGw1GModPlugins
+            // 
+            lblGw1GModPlugins.AutoSize = true;
+            lblGw1GModPlugins.Location = new Point(19, 120);
+            lblGw1GModPlugins.Name = "lblGw1GModPlugins";
+            lblGw1GModPlugins.Size = new Size(81, 15);
+            lblGw1GModPlugins.TabIndex = 9;
+            lblGw1GModPlugins.Text = "gMod plugins";
+            // 
+            // lvGw1GModPlugins
+            // 
+            lvGw1GModPlugins.Columns.AddRange(new ColumnHeader[] { colGw1GModPlugin });
+            lvGw1GModPlugins.FullRowSelect = true;
+            lvGw1GModPlugins.HeaderStyle = ColumnHeaderStyle.None;
+            lvGw1GModPlugins.Location = new Point(19, 140);
+            lvGw1GModPlugins.MultiSelect = false;
+            lvGw1GModPlugins.Name = "lvGw1GModPlugins";
+            lvGw1GModPlugins.Size = new Size(277, 101);
+            lvGw1GModPlugins.TabIndex = 9;
+            lvGw1GModPlugins.UseCompatibleStateImageBehavior = false;
+            lvGw1GModPlugins.View = View.Details;
+            // 
+            // colGw1GModPlugin
+            // 
+            colGw1GModPlugin.Text = "Plugin";
+            colGw1GModPlugin.Width = 260;
+            // 
+            // btnGw1AddPlugin
+            // 
+            btnGw1AddPlugin.Location = new Point(306, 140);
+            btnGw1AddPlugin.Name = "btnGw1AddPlugin";
+            btnGw1AddPlugin.Size = new Size(75, 23);
+            btnGw1AddPlugin.TabIndex = 10;
+            btnGw1AddPlugin.Text = "Add...";
+            btnGw1AddPlugin.UseVisualStyleBackColor = true;
+            // 
+            // btnGw1RemovePlugin
+            // 
+            btnGw1RemovePlugin.Enabled = false;
+            btnGw1RemovePlugin.Location = new Point(306, 169);
+            btnGw1RemovePlugin.Name = "btnGw1RemovePlugin";
+            btnGw1RemovePlugin.Size = new Size(75, 23);
+            btnGw1RemovePlugin.TabIndex = 11;
+            btnGw1RemovePlugin.Text = "Remove";
+            btnGw1RemovePlugin.UseVisualStyleBackColor = true;
+            // 
+            // chkGw1Multiclient
+            // 
+            chkGw1Multiclient.AutoSize = true;
+            chkGw1Multiclient.Location = new Point(338, 48);
+            chkGw1Multiclient.Name = "chkGw1Multiclient";
+            chkGw1Multiclient.Size = new Size(83, 19);
+            chkGw1Multiclient.TabIndex = 9;
+            chkGw1Multiclient.Text = "Multiclient";
+            chkGw1Multiclient.UseVisualStyleBackColor = true;
+            // 
             // grpGw2RunAfter
             // 
             grpGw2RunAfter.Controls.Add(chkGw2RunAfterEnabled);
             grpGw2RunAfter.Controls.Add(lvGw2RunAfter);
             grpGw2RunAfter.Controls.Add(btnGw2AddProgram);
             grpGw2RunAfter.Controls.Add(btnGw2RemoveProgram);
-            grpGw2RunAfter.Location = new Point(289, 123);
+            grpGw2RunAfter.Location = new Point(319, 86);
             grpGw2RunAfter.Name = "grpGw2RunAfter";
             grpGw2RunAfter.Size = new Size(400, 143);
             grpGw2RunAfter.TabIndex = 5;
@@ -234,29 +287,28 @@ namespace GWxLauncher.UI
             // 
             // lvGw2RunAfter
             // 
-            // REPLACE (lvGw2RunAfter block)
             lvGw2RunAfter.CheckBoxes = true;
+            lvGw2RunAfter.Columns.AddRange(new ColumnHeader[] { colGw2RunAfterName, colGw2RunAfterPath });
             lvGw2RunAfter.FullRowSelect = true;
+            lvGw2RunAfter.HeaderStyle = ColumnHeaderStyle.None;
             lvGw2RunAfter.Location = new Point(16, 52);
+            lvGw2RunAfter.MultiSelect = false;
             lvGw2RunAfter.Name = "lvGw2RunAfter";
             lvGw2RunAfter.Size = new Size(280, 78);
             lvGw2RunAfter.TabIndex = 1;
             lvGw2RunAfter.UseCompatibleStateImageBehavior = false;
             lvGw2RunAfter.View = View.Details;
-
-            // ADD (columns + behavior)
-            lvGw2RunAfter.Columns.AddRange(new ColumnHeader[] { colGw2RunAfterName, colGw2RunAfterPath });
-            lvGw2RunAfter.HeaderStyle = ColumnHeaderStyle.None;
-            lvGw2RunAfter.MultiSelect = false;
-            lvGw2RunAfter.HideSelection = false;
-
+            lvGw2RunAfter.ItemChecked += lvGw2RunAfter_ItemChecked;
+            // 
+            // colGw2RunAfterName
+            // 
             colGw2RunAfterName.Text = "Name";
             colGw2RunAfterName.Width = 90;
-
+            // 
+            // colGw2RunAfterPath
+            // 
             colGw2RunAfterPath.Text = "Path";
             colGw2RunAfterPath.Width = 170;
-
-            lvGw2RunAfter.ItemChecked += lvGw2RunAfter_ItemChecked;
             // 
             // btnGw2AddProgram
             // 
@@ -270,6 +322,7 @@ namespace GWxLauncher.UI
             // 
             // btnGw2RemoveProgram
             // 
+            btnGw2RemoveProgram.Enabled = false;
             btnGw2RemoveProgram.Location = new Point(306, 81);
             btnGw2RemoveProgram.Name = "btnGw2RemoveProgram";
             btnGw2RemoveProgram.Size = new Size(75, 23);
@@ -281,7 +334,7 @@ namespace GWxLauncher.UI
             // btnOk
             // 
             btnOk.DialogResult = DialogResult.OK;
-            btnOk.Location = new Point(510, 339);
+            btnOk.Location = new Point(540, 349);
             btnOk.Name = "btnOk";
             btnOk.Size = new Size(75, 23);
             btnOk.TabIndex = 6;
@@ -291,7 +344,7 @@ namespace GWxLauncher.UI
             // btnCancel
             // 
             btnCancel.DialogResult = DialogResult.Cancel;
-            btnCancel.Location = new Point(595, 338);
+            btnCancel.Location = new Point(625, 349);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(75, 23);
             btnCancel.TabIndex = 7;
@@ -351,6 +404,12 @@ namespace GWxLauncher.UI
         private Button btnGw2RemoveProgram;
         private ColumnHeader colGw2RunAfterName;
         private ColumnHeader colGw2RunAfterPath;
+        // GW1 "gMod plugins UI"
+        private ListView lvGw1GModPlugins;
+        private ColumnHeader colGw1GModPlugin;
+        private Button btnGw1AddPlugin;
+        private Button btnGw1RemovePlugin;
+        private Label lblGw1GModPlugins;
 
     }
 }
