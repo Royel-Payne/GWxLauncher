@@ -27,6 +27,7 @@ namespace GWxLauncher
         private readonly Image _gw2Image = Properties.Resources.Gw2;
 
         private LaunchReport? _lastLaunchReport;
+        private readonly List<LaunchReport> _lastLaunchReports = new();
 
         private readonly ViewStateStore _views = new();
         private bool _showCheckedOnly = false;
@@ -438,14 +439,20 @@ namespace GWxLauncher
             _subFont?.Dispose();
             _config.Save();
         }
-
-        private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
+        private void ctxProfiles_Opening(object sender, CancelEventArgs e)
         {
-            // NEW: only enabled if we have a report this session
-            menuShowLastLaunchDetails.Enabled = _lastLaunchReport != null;
+            var profile = GetSelectedProfile();
+            bool hasProfile = profile != null;
+
+            menuLaunchProfile.Enabled = hasProfile;
+            menuEditProfile.Enabled = hasProfile;
+
+            // This is the real "Delete" menu item name in your Designer
+            deleteToolStripMenuItem.Enabled = hasProfile;
+
+            // Enable if we have any attempts recorded
+            menuShowLastLaunchDetails.Enabled = _lastLaunchReports.Count > 0;
         }
-
-
         private void btnLaunchGw1_Click(object sender, EventArgs e)
         {
             LaunchGame(_config.Gw1Path, "Guild Wars 1");
@@ -536,14 +543,17 @@ namespace GWxLauncher
             }
         }
 
-        private void LaunchProfile(GameProfile profile, bool bulkMode = false)
+        private void LaunchProfile(GameProfile profile, bool bulkMode)
         {
             if (profile == null)
                 return;
-            // Refresh config each launch so global toggles changed in ProfileSettingsForm take effect immediately.
+
+            // Single launch = new "session". Bulk launch = append attempts to the same session.
+            if (!bulkMode)
+                _lastLaunchReports.Clear();
+
             _config = LauncherConfig.Load();
 
-            // Resolve executable path: per-profile override first, then global config
             string exePath = profile.ExecutablePath;
 
             if (string.IsNullOrWhiteSpace(exePath))
@@ -563,26 +573,24 @@ namespace GWxLauncher
                     MessageBoxIcon.Warning);
                 return;
             }
-            var gameName = profile.GameType == GameType.GuildWars1
-                ? "Guild Wars 1"
-                : "Guild Wars 2";
 
-            // If this is a GW1 profile, delegate launch + injection to Gw1InjectionService
+            // GW1: delegate launch + injection to Gw1InjectionService
             if (profile.GameType == GameType.GuildWars1)
             {
                 var gw1Service = new Gw1InjectionService();
-
                 bool mcEnabled = _config.Gw1MulticlientEnabled;
 
                 if (gw1Service.TryLaunchGw1(profile, exePath, mcEnabled, this, out var gw1Error, out var report))
-
                 {
                     _lastLaunchReport = report;
+                    _lastLaunchReports.Add(report);
+
                     lblStatus.Text = report.BuildSummary();
                 }
                 else
                 {
                     _lastLaunchReport = report;
+                    _lastLaunchReports.Add(report);
 
                     MessageBox.Show(
                         this,
@@ -596,7 +604,6 @@ namespace GWxLauncher
 
                 return;
             }
-
 
             // GW2: multiclient is mutex + args (no patching)
             if (profile.GameType == GameType.GuildWars2)
@@ -632,6 +639,7 @@ namespace GWxLauncher
                     mcStep.Detail = "Mutex check failed.";
 
                     _lastLaunchReport = report;
+                    _lastLaunchReports.Add(report);
                     lblStatus.Text = report.BuildSummary();
 
                     MessageBox.Show(this, report.FailureMessage, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -648,8 +656,8 @@ namespace GWxLauncher
                     // If GW2 is already running (mutex open), we must clear the mutex or abort.
                     if (mutexOpen)
                     {
-                        int attempts = bulkMode ? 4 : 1;          // bulk: retry a few times
-                        int delayMs = bulkMode ? 350 : 0;        // bulk: tiny backoff
+                        int attempts = bulkMode ? 4 : 1;        // bulk: retry a few times
+                        int delayMs = bulkMode ? 350 : 0;       // bulk: tiny backoff
 
                         bool cleared = false;
                         int clearedPid = 0;
@@ -684,6 +692,7 @@ namespace GWxLauncher
                             mcStep.Detail = $"GW2 mutex exists and could not be cleared. {killDetail}";
 
                             _lastLaunchReport = report;
+                            _lastLaunchReports.Add(report);
                             lblStatus.Text = report.BuildSummary();
 
                             MessageBox.Show(this, msg, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -706,6 +715,7 @@ namespace GWxLauncher
                         WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
                         Arguments = mcEnabled ? "-shareArchive" : ""
                     };
+
                     // Safety: if we got this far and mc is enabled, the step must not remain "NotAttempted".
                     if (mcEnabled && mcStep.Outcome == StepOutcome.NotAttempted)
                     {
@@ -713,13 +723,14 @@ namespace GWxLauncher
                         if (string.IsNullOrWhiteSpace(mcStep.Detail))
                             mcStep.Detail = "Multiclient enabled.";
                     }
+
                     Process.Start(startInfo);
+
                     if (bulkMode && mcEnabled)
                     {
                         // Wait until GW2 recreates its mutex, so the next bulk launch can reliably clear it again.
                         if (!WaitForGw2MutexToExist(timeoutMs: 8000, out int waited))
                         {
-                            // Don’t fail the whole launch if it times out; just log it so diagnostics explain slow/odd machines.
                             mcStep.Detail += $" (Warning: GW2 mutex did not appear within {waited}ms)";
                         }
                         else
@@ -727,6 +738,7 @@ namespace GWxLauncher
                             mcStep.Detail += $" (GW2 mutex observed after {waited}ms)";
                         }
                     }
+
                     // If multiclient enabled, keep the step success but add the arg note.
                     if (mcEnabled)
                     {
@@ -740,6 +752,7 @@ namespace GWxLauncher
                     report.Succeeded = true;
 
                     _lastLaunchReport = report;
+                    _lastLaunchReports.Add(report);
                     lblStatus.Text = report.BuildSummary();
                 }
                 catch (Exception ex)
@@ -750,6 +763,7 @@ namespace GWxLauncher
                     mcStep.Detail = "Process.Start failed.";
 
                     _lastLaunchReport = report;
+                    _lastLaunchReports.Add(report);
                     lblStatus.Text = report.BuildSummary();
 
                     MessageBox.Show(
@@ -762,9 +776,8 @@ namespace GWxLauncher
 
                 return;
             }
-
-
         }
+
         private void StartGw2RunAfterPrograms(GameProfile profile)
         {
             if (profile.GameType != GameType.GuildWars2)
@@ -800,7 +813,7 @@ namespace GWxLauncher
             var profile = GetSelectedProfile();
             if (profile != null)
             {
-                LaunchProfile(profile);
+                LaunchProfile(profile, bulkMode: false);
             }
         }
         private void lstProfiles_MouseDown(object sender, MouseEventArgs e)
@@ -925,7 +938,6 @@ namespace GWxLauncher
         {
             CommitViewRenameIfDirty();
         }
-
         private void txtView_Enter(object sender, EventArgs e)
         {
             _viewNameBeforeEdit = _views.ActiveViewName;
@@ -943,25 +955,22 @@ namespace GWxLauncher
 
             RefreshProfileList();
         }
-
         private void menuShowLastLaunchDetails_Click(object sender, EventArgs e)
         {
-            if (_lastLaunchReport == null)
+            if (_lastLaunchReports.Count == 0)
                 return;
 
-            using var dlg = new LastLaunchDetailsForm(_lastLaunchReport);
+            using var dlg = new LastLaunchDetailsForm(_lastLaunchReports);
             dlg.ShowDialog(this);
         }
-
         private void menuLaunchProfile_Click(object sender, EventArgs e)
         {
             var profile = GetSelectedProfile();
             if (profile != null)
             {
-                LaunchProfile(profile);
+                LaunchProfile(profile, bulkMode: false);
             }
         }
-
         private void menuSetProfilePath_Click(object sender, EventArgs e)
         {
             var profile = GetSelectedProfile();
@@ -970,8 +979,6 @@ namespace GWxLauncher
 
             TrySelectProfileExecutable(profile);
         }
-
-
         private void menuEditProfile_Click(object sender, EventArgs e)
         {
             var profile = lstProfiles.SelectedItem as GameProfile;
@@ -985,8 +992,6 @@ namespace GWxLauncher
                 RefreshProfileList();
             }
         }
-
-
         private void menuDeleteProfile_Click(object sender, EventArgs e)
         {
             var profile = GetSelectedProfile();
@@ -1024,7 +1029,6 @@ namespace GWxLauncher
                              (profile.Gw1ToolboxEnabled ? "enabled" : "disabled") +
                              $" for {profile.Name}.";
         }
-
         private void menuGw1ToolboxPath_Click(object sender, EventArgs e)
         {
             var profile = GetSelectedProfile();
@@ -1033,7 +1037,6 @@ namespace GWxLauncher
 
             TrySelectGw1ToolboxDll(profile);
         }
-
         private void LaunchGame(string exePath, string gameName)
         {
             try
@@ -1110,10 +1113,12 @@ namespace GWxLauncher
                 return;
             }
 
+            _lastLaunchReports.Clear();
+
             foreach (var profile in targets)
                 LaunchProfile(profile, bulkMode: true);
-        }
 
+        }
         private void btnSetGw1Path_Click(object sender, EventArgs e)
         {
             using (var dialog = new OpenFileDialog())
@@ -1142,7 +1147,6 @@ namespace GWxLauncher
                 }
             }
         }
-
         private void btnSetGw2Path_Click(object sender, EventArgs e)
         {
             using (var dialog = new OpenFileDialog())
@@ -1170,7 +1174,6 @@ namespace GWxLauncher
                 }
             }
         }
-
         private void btnAddAcount_Click(object sender, EventArgs e)
         {
             using (var dialog = new AddAccountDialog())
@@ -1235,7 +1238,6 @@ namespace GWxLauncher
             if (_hotIndex >= 0)
                 lstProfiles.Invalidate(lstProfiles.GetItemRectangle(_hotIndex));
         }
-
         private void lstProfiles_MouseLeave(object? sender, EventArgs e)
         {
             if (_hotIndex < 0)
@@ -1245,7 +1247,6 @@ namespace GWxLauncher
             _hotIndex = -1;
             lstProfiles.Invalidate(lstProfiles.GetItemRectangle(old));
         }
-
     }
 }
 

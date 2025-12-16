@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using GWxLauncher.Services;
 
@@ -7,12 +10,12 @@ namespace GWxLauncher.UI
 {
     internal sealed class LastLaunchDetailsForm : Form
     {
-        public LastLaunchDetailsForm(LaunchReport report)
+        public LastLaunchDetailsForm(IReadOnlyList<LaunchReport> reports)
         {
-            Text = "Last Launch Details";
+            Text = reports.Count <= 1 ? "Last Launch Details" : $"Last Launch Details ({reports.Count} attempts)";
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(700, 500);
-            MinimumSize = new Size(600, 400);
+            Size = new Size(800, 550);
+            MinimumSize = new Size(650, 420);
 
             ThemeService.ApplyToForm(this);
 
@@ -26,10 +29,41 @@ namespace GWxLauncher.UI
                 Font = new Font("Consolas", 10f),
                 BackColor = ThemeService.Palette.InputBack,
                 ForeColor = ThemeService.Palette.InputFore,
-                Text = report.ToString()
+                Text = BuildCombinedText(reports)
             };
 
             Controls.Add(txt);
+        }
+
+        // Back-compat convenience (optional): lets old call sites compile if any remain.
+        public LastLaunchDetailsForm(LaunchReport report)
+            : this(new List<LaunchReport> { report })
+        {
+        }
+
+        private static string BuildCombinedText(IReadOnlyList<LaunchReport> reports)
+        {
+            if (reports.Count == 0)
+                return "(No launch data.)";
+
+            if (reports.Count == 1)
+                return reports[0].ToString();
+
+            var sb = new StringBuilder();
+            for (int i = 0; i < reports.Count; i++)
+            {
+                if (i > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine(new string('-', 90));
+                    sb.AppendLine();
+                }
+
+                sb.AppendLine($"Attempt {i + 1} of {reports.Count}");
+                sb.AppendLine(reports[i].ToString());
+            }
+
+            return sb.ToString();
         }
     }
 }
