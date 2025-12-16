@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Text.Json;
+using System;
 
 namespace GWxLauncher.Config
 {
@@ -24,25 +25,30 @@ namespace GWxLauncher.Config
         public int ProfileSettingsWidth { get; set; } = -1;
         public int ProfileSettingsHeight { get; set; } = -1;
 
-        private const string ConfigFileName = "launcherConfig.json";
+        private static readonly string ConfigFilePath =
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "GWxLauncher",
+                "launcherConfig.json");
+
 
         public static LauncherConfig Load()
         {
             try
             {
-                if (!File.Exists(ConfigFileName))
+                if (!File.Exists(ConfigFilePath))
                     return new LauncherConfig();
 
-                string json = File.ReadAllText(ConfigFileName);
+                string json = File.ReadAllText(ConfigFilePath);
                 var config = JsonSerializer.Deserialize<LauncherConfig>(json);
                 return config ?? new LauncherConfig();
             }
             catch
             {
-                // If anything goes wrong, just use defaults
                 return new LauncherConfig();
             }
         }
+
 
         public void Save()
         {
@@ -52,7 +58,12 @@ namespace GWxLauncher.Config
             };
 
             string json = JsonSerializer.Serialize(this, options);
-            File.WriteAllText(ConfigFileName, json);
+
+            var dir = Path.GetDirectoryName(ConfigFilePath);
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir!);
+
+            File.WriteAllText(ConfigFilePath, json);
         }
     }
 }
