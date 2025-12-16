@@ -181,6 +181,81 @@ namespace GWxLauncher.Services
 
         #endregion
         // ADD
+        private static string BuildGw1AutoLoginArgs(GameProfile profile, LaunchReport report)
+        {
+            var step = new LaunchStep { Label = "Auto-Login" };
+            report.Steps.Add(step);
+
+            if (!profile.Gw1AutoLoginEnabled)
+            {
+                step.Outcome = StepOutcome.Skipped;
+                step.Detail = "Disabled";
+                return string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(profile.Gw1Email) ||
+                string.IsNullOrWhiteSpace(profile.Gw1PasswordProtected))
+            {
+                step.Outcome = StepOutcome.Failed;
+                step.Detail = "Email or password not configured";
+                return string.Empty;
+            }
+
+            string password;
+            try
+            {
+                password = DpapiProtector.UnprotectFromBase64(profile.Gw1PasswordProtected);
+            }
+            catch
+            {
+                step.Outcome = StepOutcome.Failed;
+                step.Detail = "Stored password could not be decrypted";
+                return string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                step.Outcome = StepOutcome.Failed;
+                step.Detail = "Decrypted password was empty";
+                return string.Empty;
+            }
+
+            var sb = new StringBuilder();
+            sb.Append($"-email \"{profile.Gw1Email}\" ");
+            sb.Append($"-password \"{password}\"");
+
+            // Always include -character for reliability.
+            // If auto-select is enabled and a real name is present, pass it.
+            // Otherwise pass a single-space placeholder: -character " "
+            if (profile.Gw1AutoSelectCharacterEnabled && !string.IsNullOrWhiteSpace(profile.Gw1CharacterName))
+            {
+                sb.Append($" -character \"{profile.Gw1CharacterName}\"");
+                step.Detail = "Email + password + character";
+            }
+            else
+            {
+                sb.Append(" -character \" \"");
+                step.Detail = profile.Gw1AutoSelectCharacterEnabled
+                    ? "Email + password (character placeholder)"
+                    : "Email + password (character placeholder; auto-select disabled)";
+            }
+
+            step.Outcome = StepOutcome.Success;
+            return sb.ToString();
+        }
+
+        private static string BuildCreateProcessCommandLine(string exePath, string? args)
+        {
+            // CreateProcessW expects a full command line string.
+            // We always quote the exePath, and only append args if present.
+            string quotedExe = $"\"{exePath}\"";
+
+            string a = (args ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(a))
+                return quotedExe;
+
+            return quotedExe + " " + a;
+        }
         internal static string GetGw1AccountFolder(string profileId)
         {
             // %AppData%\GWxLauncher\accounts\<ProfileId>\
@@ -188,7 +263,6 @@ namespace GWxLauncher.Services
             return Path.Combine(baseDir, "GWxLauncher", "accounts", profileId);
         }
 
-        // ADD
         internal static string PreparePerProfileGModFolder(GameProfile profile)
         {
             string folder = GetGw1AccountFolder(profile.Id);
@@ -206,10 +280,9 @@ namespace GWxLauncher.Services
                 File.Delete(linkPath);
             }
 
-            // Copy the canonical DLL into the per-profile folder (no hardlink locking behavior)
             File.Copy(canonical, linkPath, overwrite: true);
 
-            // Generate modlist.txt deterministically, removing missing paths (your choice C)
+            // Generate modlist.txt deterministically, removing missing paths 
             string modlist = Path.Combine(folder, "modlist.txt");
 
             var paths = (profile.Gw1GModPluginPaths ?? new List<string>())
@@ -219,7 +292,7 @@ namespace GWxLauncher.Services
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            // Auto-remove missing plugin files from the profile list (your choice C)
+            // Auto-remove missing plugin files from the profile list 
             var existing = paths.Where(File.Exists).ToList();
             if (existing.Count != paths.Count)
             {
@@ -409,6 +482,7 @@ namespace GWxLauncher.Services
             report.Steps.Add(stepGmod);
             report.Steps.Add(stepToolbox);
             report.Steps.Add(stepPy4Gw);
+            string gwArgs = BuildGw1AutoLoginArgs(profile, report);
 
             if (profile.GameType != GameType.GuildWars1)
             {
@@ -474,6 +548,7 @@ namespace GWxLauncher.Services
                 if (!TryLaunchGw1WithGMod(
                         exePath,
                         gmodToInject,
+                        gwArgs,
                         gw1MulticlientEnabled,
                         out process,
                         out var gmodError))
@@ -517,7 +592,7 @@ namespace GWxLauncher.Services
                     PROCESS_INFORMATION procInfo = new PROCESS_INFORMATION();
 
                     string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
-                    string cmdLine = $"\"{exePath}\"";
+                    string cmdLine = BuildCreateProcessCommandLine(exePath, gwArgs);
 
                     bool created = CreateProcessW(
                         exePath,
@@ -798,7 +873,13 @@ namespace GWxLauncher.Services
         /// <summary>
         /// Launch Gw.exe in suspended mode, inject gMod, then resume.
         /// </summary>
-        private bool TryLaunchGw1WithGMod(string exePath, string gmodDllPath, bool gw1MulticlientEnabled, out Process? process, out string errorMessage)
+        private bool TryLaunchGw1WithGMod(
+            string exePath,
+            string gmodDllPath,
+            string gwArgs,
+            bool gw1MulticlientEnabled,
+            out Process? process,
+            out string errorMessage)
         {
             process = null;
             errorMessage = string.Empty;
@@ -809,7 +890,7 @@ namespace GWxLauncher.Services
             PROCESS_INFORMATION procInfo = new PROCESS_INFORMATION();
 
             string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
-            string cmdLine = $"\"{exePath}\"";
+            string cmdLine = BuildCreateProcessCommandLine(exePath, gwArgs);
 
             try
             {

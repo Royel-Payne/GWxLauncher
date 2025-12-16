@@ -58,6 +58,17 @@ namespace GWxLauncher.UI
             colGw2RunAfterPath = new ColumnHeader();
             btnGw2AddProgram = new Button();
             btnGw2RemoveProgram = new Button();
+            grpGw1Login = new GroupBox();
+            chkGw1AutoLogin = new CheckBox();
+            lblGw1Email = new Label();
+            txtGw1Email = new TextBox();
+            lblGw1Password = new Label();
+            txtGw1Password = new TextBox();
+            lblGw1PasswordSaved = new Label();
+            chkGw1AutoSelectCharacter = new CheckBox();
+            lblGw1CharacterName = new Label();
+            txtGw1CharacterName = new TextBox();
+            lblGw1LoginWarning = new Label();
             btnOk = new Button();
             btnCancel = new Button();
             grpGw1Mods.SuspendLayout();
@@ -66,7 +77,7 @@ namespace GWxLauncher.UI
             // 
             // txtProfileName
             // 
-            txtProfileName.Location = new Point(103, 19);
+            txtProfileName.Location = new Point(103, 23);
             txtProfileName.Name = "txtProfileName";
             txtProfileName.Size = new Size(187, 23);
             txtProfileName.TabIndex = 0;
@@ -74,7 +85,7 @@ namespace GWxLauncher.UI
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(17, 22);
+            label1.Location = new Point(17, 27);
             label1.Name = "label1";
             label1.Size = new Size(80, 15);
             label1.TabIndex = 1;
@@ -91,7 +102,7 @@ namespace GWxLauncher.UI
             // 
             // txtExecutablePath
             // 
-            txtExecutablePath.Location = new Point(428, 24);
+            txtExecutablePath.Location = new Point(428, 23);
             txtExecutablePath.Name = "txtExecutablePath";
             txtExecutablePath.Size = new Size(187, 23);
             txtExecutablePath.TabIndex = 3;
@@ -104,6 +115,105 @@ namespace GWxLauncher.UI
             btnBrowseExe.TabIndex = 4;
             btnBrowseExe.Text = "Browse...";
             btnBrowseExe.UseVisualStyleBackColor = true;
+            // 
+            // grpGw1Login
+            // 
+            grpGw1Login.Controls.Add(lblGw1LoginWarning);
+            grpGw1Login.Controls.Add(lblGw1PasswordSaved);
+            grpGw1Login.Controls.Add(txtGw1CharacterName);
+            grpGw1Login.Controls.Add(lblGw1CharacterName);
+            grpGw1Login.Controls.Add(chkGw1AutoSelectCharacter);
+            grpGw1Login.Controls.Add(txtGw1Password);
+            grpGw1Login.Controls.Add(lblGw1Password);
+            grpGw1Login.Controls.Add(txtGw1Email);
+            grpGw1Login.Controls.Add(lblGw1Email);
+            grpGw1Login.Controls.Add(chkGw1AutoLogin);
+            grpGw1Login.Location = new Point(17, 86);
+            grpGw1Login.Name = "grpGw1Login";
+            grpGw1Login.Size = new Size(273, 257);
+            grpGw1Login.TabIndex = 5;
+            grpGw1Login.TabStop = false;
+            grpGw1Login.Text = "GW1 Login";
+
+            // chkGw1AutoLogin
+            chkGw1AutoLogin.AutoSize = true;
+            chkGw1AutoLogin.Location = new Point(16, 25);
+            chkGw1AutoLogin.Name = "chkGw1AutoLogin";
+            chkGw1AutoLogin.Size = new Size(186, 19);
+            chkGw1AutoLogin.TabIndex = 0;
+            chkGw1AutoLogin.Text = "Enable GW1 Auto-Login";
+            chkGw1AutoLogin.UseVisualStyleBackColor = true;
+
+            // lblGw1Email
+            lblGw1Email.AutoSize = true;
+            lblGw1Email.Location = new Point(16, 59);
+            lblGw1Email.Name = "lblGw1Email";
+            lblGw1Email.Size = new Size(36, 15);
+            lblGw1Email.TabIndex = 1;
+            lblGw1Email.Text = "Email";
+
+            // txtGw1Email
+            txtGw1Email.Location = new Point(16, 77);
+            txtGw1Email.Name = "txtGw1Email";
+            txtGw1Email.Size = new Size(241, 23);
+            txtGw1Email.TabIndex = 2;
+
+            // lblGw1Password
+            lblGw1Password.AutoSize = true;
+            lblGw1Password.Location = new Point(16, 109);
+            lblGw1Password.Name = "lblGw1Password";
+            lblGw1Password.Size = new Size(57, 15);
+            lblGw1Password.TabIndex = 3;
+            lblGw1Password.Text = "Password";
+
+            // txtGw1Password
+            txtGw1Password.Location = new Point(16, 127);
+            txtGw1Password.Name = "txtGw1Password";
+            txtGw1Password.Size = new Size(241, 23);
+            txtGw1Password.TabIndex = 4;
+            txtGw1Password.UseSystemPasswordChar = true;
+
+            // lblGw1PasswordSaved
+            lblGw1PasswordSaved.AutoSize = true;
+            lblGw1PasswordSaved.Location = new Point(16, 153);
+            lblGw1PasswordSaved.Name = "lblGw1PasswordSaved";
+            lblGw1PasswordSaved.Size = new Size(95, 15);
+            lblGw1PasswordSaved.TabIndex = 5;
+            lblGw1PasswordSaved.Text = "Password saved";
+            lblGw1PasswordSaved.Visible = false;
+
+            // chkGw1AutoSelectCharacter
+            chkGw1AutoSelectCharacter.AutoSize = true;
+            chkGw1AutoSelectCharacter.Location = new Point(16, 176);
+            chkGw1AutoSelectCharacter.Name = "chkGw1AutoSelectCharacter";
+            chkGw1AutoSelectCharacter.Size = new Size(162, 19);
+            chkGw1AutoSelectCharacter.TabIndex = 6;
+            chkGw1AutoSelectCharacter.Text = "Auto-select Character";
+            chkGw1AutoSelectCharacter.UseVisualStyleBackColor = true;
+
+            // lblGw1CharacterName
+            lblGw1CharacterName.AutoSize = true;
+            lblGw1CharacterName.Location = new Point(16, 200);
+            lblGw1CharacterName.Name = "lblGw1CharacterName";
+            lblGw1CharacterName.Size = new Size(97, 15);
+            lblGw1CharacterName.TabIndex = 7;
+            lblGw1CharacterName.Text = "Character Name";
+
+            // txtGw1CharacterName
+            txtGw1CharacterName.Location = new Point(16, 218);
+            txtGw1CharacterName.Name = "txtGw1CharacterName";
+            txtGw1CharacterName.Size = new Size(241, 23);
+            txtGw1CharacterName.TabIndex = 8;
+
+            // lblGw1LoginWarning
+            lblGw1LoginWarning.AutoSize = true;
+            lblGw1LoginWarning.Location = new Point(16, 45);
+            lblGw1LoginWarning.Name = "lblGw1LoginWarning";
+            lblGw1LoginWarning.Size = new Size(240, 15);
+            lblGw1LoginWarning.TabIndex = 9;
+            lblGw1LoginWarning.Text = "Auto-login stores credentials (DPAPI).";
+            lblGw1LoginWarning.Visible = false;
+
             // 
             // grpGw1Mods
             // 
@@ -366,6 +476,7 @@ namespace GWxLauncher.UI
             Controls.Add(label2);
             Controls.Add(label1);
             Controls.Add(txtProfileName);
+            Controls.Add(grpGw1Login);
             Name = "ProfileSettingsForm";
             Text = "ProfileSettingsForm";
             grpGw1Mods.ResumeLayout(false);
@@ -410,6 +521,18 @@ namespace GWxLauncher.UI
         private Button btnGw1AddPlugin;
         private Button btnGw1RemovePlugin;
         private Label lblGw1GModPlugins;
+        private GroupBox grpGw1Login;
+        private CheckBox chkGw1AutoLogin;
+        private Label lblGw1Email;
+        private TextBox txtGw1Email;
+        private Label lblGw1Password;
+        private TextBox txtGw1Password;
+        private Label lblGw1PasswordSaved;
+        private CheckBox chkGw1AutoSelectCharacter;
+        private Label lblGw1CharacterName;
+        private TextBox txtGw1CharacterName;
+        private Label lblGw1LoginWarning;
+
 
     }
 }

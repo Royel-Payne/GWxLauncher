@@ -35,6 +35,9 @@ namespace GWxLauncher.UI
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
             grpGw1Mods.Visible = isGw1;
             grpGw1Mods.Enabled = isGw1;
+            grpGw1Login.Visible = isGw1;
+            grpGw1Login.Enabled = isGw1;
+
 
             Icon = _profile.GameType switch
             {
@@ -71,6 +74,23 @@ namespace GWxLauncher.UI
         {
             txtProfileName.Text = _profile.Name;
             txtExecutablePath.Text = _profile.ExecutablePath;
+            chkGw1AutoLogin.Checked = _profile.Gw1AutoLoginEnabled;
+            txtGw1Email.Text = _profile.Gw1Email;
+            chkGw1AutoSelectCharacter.Checked = _profile.Gw1AutoSelectCharacterEnabled;
+            txtGw1CharacterName.Text = _profile.Gw1CharacterName;
+
+            // Never display stored password; show a hint instead.
+            txtGw1Password.Text = "";
+            lblGw1PasswordSaved.Visible = !string.IsNullOrWhiteSpace(_profile.Gw1PasswordProtected);
+
+            // Warning visible only when enabled
+            lblGw1LoginWarning.Visible = chkGw1AutoLogin.Checked;
+            lblGw1LoginWarning.ForeColor = Color.Goldenrod;
+
+            chkGw1AutoLogin.CheckedChanged += (s, e) =>
+            {
+                lblGw1LoginWarning.Visible = chkGw1AutoLogin.Checked;
+            };
 
             // Only show GW1 mod options if this is a GW1 profile
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
@@ -139,6 +159,17 @@ namespace GWxLauncher.UI
         {
             _profile.Name = txtProfileName.Text.Trim();
             _profile.ExecutablePath = txtExecutablePath.Text.Trim();
+            _profile.Gw1AutoLoginEnabled = chkGw1AutoLogin.Checked;
+            _profile.Gw1Email = txtGw1Email.Text.Trim();
+            _profile.Gw1AutoSelectCharacterEnabled = chkGw1AutoSelectCharacter.Checked;
+            _profile.Gw1CharacterName = txtGw1CharacterName.Text.Trim();
+
+            // Only update stored password if user typed a new one.
+            var pw = txtGw1Password.Text;
+            if (!string.IsNullOrWhiteSpace(pw))
+            {
+                _profile.Gw1PasswordProtected = Services.DpapiProtector.ProtectToBase64(pw);
+            }
 
             if (_profile.GameType == GameType.GuildWars1)
             {
