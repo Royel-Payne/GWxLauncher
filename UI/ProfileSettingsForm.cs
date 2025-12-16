@@ -14,6 +14,7 @@ namespace GWxLauncher.UI
         private readonly LauncherConfig _cfg;
         
         private bool _restoredFromSavedPlacement;
+        private bool _gw1GmodPluginsInteractive = true;
 
         public ProfileSettingsForm(GameProfile profile)
         {
@@ -28,6 +29,12 @@ namespace GWxLauncher.UI
             lvGw1GModPlugins.BackColor = ThemeService.Palette.InputBack;
             lvGw1GModPlugins.ForeColor = ThemeService.Palette.InputFore;
             lvGw1GModPlugins.SelectedIndexChanged += (s, e) => UpdateGw1GModPluginButtons();
+
+            lvGw1GModPlugins.ItemSelectionChanged += (s, e) =>
+            {
+                if (!_gw1GmodPluginsInteractive && e.IsSelected)
+                    e.Item.Selected = false;
+            };
 
             btnGw1AddPlugin.Click += btnGw1AddPlugin_Click;
             btnGw1RemovePlugin.Click += btnGw1RemovePlugin_Click;
@@ -70,31 +77,43 @@ namespace GWxLauncher.UI
 
             LoadFromProfile();
         }
+        // REPLACE beginning of LoadFromProfile()
         private void LoadFromProfile()
         {
+            // ---- Load values first ----
             txtProfileName.Text = _profile.Name;
             txtExecutablePath.Text = _profile.ExecutablePath;
+
             chkGw1AutoLogin.Checked = _profile.Gw1AutoLoginEnabled;
             txtGw1Email.Text = _profile.Gw1Email;
+
             chkGw1AutoSelectCharacter.Checked = _profile.Gw1AutoSelectCharacterEnabled;
             txtGw1CharacterName.Text = _profile.Gw1CharacterName;
 
             // Never display stored password; show a hint instead.
             txtGw1Password.Text = "";
             lblGw1PasswordSaved.Visible = !string.IsNullOrWhiteSpace(_profile.Gw1PasswordProtected);
+            lblGw1PasswordSaved.ForeColor = Color.Goldenrod;
 
             // Warning visible only when enabled
             lblGw1LoginWarning.Visible = chkGw1AutoLogin.Checked;
             lblGw1LoginWarning.ForeColor = Color.Goldenrod;
 
+            // ---- Wire events once ----
             chkGw1AutoLogin.CheckedChanged += (s, e) =>
             {
                 lblGw1LoginWarning.Visible = chkGw1AutoLogin.Checked;
+                UpdateGw1LoginUiState();
             };
 
-            // Only show GW1 mod options if this is a GW1 profile
+            chkGw1AutoSelectCharacter.CheckedChanged += (s, e) => UpdateGw1LoginUiState();
+
+            chkToolbox.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
+            chkPy4Gw.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
+            chkGMod.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
+
+            // ---- Existing GW1/GW2 visibility + populate mods/run-after ----
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
-            // Only show GW2 mod options if this is a GW2 profile
             bool isGw2 = _profile.GameType == GameType.GuildWars2;
 
             grpGw1Mods.Visible = isGw1;
@@ -102,23 +121,11 @@ namespace GWxLauncher.UI
             grpGw2RunAfter.Visible = isGw2;
             grpGw2RunAfter.Enabled = isGw2;
 
-            // Global (per-game) multiclient toggle, shown only for the current profile game type.
             if (isGw1)
             {
                 chkGw1Multiclient.Visible = true;
                 chkGw1Multiclient.Checked = _cfg.Gw1MulticlientEnabled;
-            }
-            else if (isGw2)
-            {
-                chkGw1Multiclient.Visible = true;
-                chkGw1Multiclient.Checked = _cfg.Gw2MulticlientEnabled;
-            }
-            else
-            {
-                chkGw1Multiclient.Visible = false;
-            }
-            if (isGw1)
-            {
+
                 chkToolbox.Checked = _profile.Gw1ToolboxEnabled;
                 txtToolboxDll.Text = _profile.Gw1ToolboxDllPath;
 
@@ -127,13 +134,87 @@ namespace GWxLauncher.UI
 
                 chkGMod.Checked = _profile.Gw1GModEnabled;
                 txtGModDll.Text = _profile.Gw1GModDllPath;
+
                 RefreshGw1GModPluginList();
             }
-            if (isGw2)
+            else if (isGw2)
             {
+                chkGw1Multiclient.Visible = true;
+                chkGw1Multiclient.Checked = _cfg.Gw2MulticlientEnabled;
+
                 chkGw2RunAfterEnabled.Checked = _profile.Gw2RunAfterEnabled;
                 RefreshGw2RunAfterList();
             }
+            else
+            {
+                chkGw1Multiclient.Visible = false;
+            }
+
+            // ---- Apply UI state AFTER all values are set ----
+            UpdateGw1LoginUiState();
+            UpdateGw1ModsUiState();
+        }
+
+
+        private void UpdateGw1AutoLoginUiState()
+        {
+            bool enabled = chkGw1AutoLogin.Checked;
+
+            // Grey out the login fields when auto-login is off
+            txtGw1Email.Enabled = enabled;
+            lblGw1Email.Enabled = enabled;
+
+            txtGw1Password.Enabled = enabled;
+            lblGw1Password.Enabled = enabled;
+
+            // Auto-select controls still exist, but are gated by Auto-Login first
+            chkGw1AutoSelectCharacter.Enabled = enabled;
+
+            // Character name remains gated by Auto-select, but only if auto-login is enabled
+            bool charEnabled = enabled && chkGw1AutoSelectCharacter.Checked;
+            txtGw1CharacterName.Enabled = charEnabled;
+            lblGw1CharacterName.Enabled = charEnabled;
+
+            // Status label stays visible if password is stored, but “greys out” when auto-login disabled
+            lblGw1PasswordSaved.Enabled = enabled;
+        }
+
+        private void UpdateGw1LoginUiState()
+        {
+            UpdateGw1AutoLoginUiState();
+        }
+
+        // REPLACE
+        private void UpdateGw1ModsUiState()
+        {
+            // Toolbox
+            txtToolboxDll.Enabled = chkToolbox.Checked;
+            btnBrowseToolboxDll.Enabled = chkToolbox.Checked;
+
+            // Py4GW
+            txtPy4GwDll.Enabled = chkPy4Gw.Checked;
+            btnBrowsePy4GwDll.Enabled = chkPy4Gw.Checked;
+
+            // gMod
+            bool gmod = chkGMod.Checked;
+            _gw1GmodPluginsInteractive = gmod;
+            txtGModDll.Enabled = gmod;
+            btnBrowseGModDll.Enabled = gmod;
+
+            // gMod plugins:
+            // Keep the dark background ALWAYS (do not disable the control),
+            // just grey out the text and block actions.
+            lvGw1GModPlugins.Enabled = true; // keep theme background
+            lvGw1GModPlugins.BackColor = ThemeService.Palette.InputBack;
+            lvGw1GModPlugins.ForeColor = gmod ? ThemeService.Palette.InputFore : ThemeService.Palette.DisabledFore;
+            lblGw1GModPlugins.Enabled = gmod;
+
+            btnGw1AddPlugin.Enabled = gmod;
+            btnGw1RemovePlugin.Enabled = gmod && (lvGw1GModPlugins.SelectedItems.Count > 0);
+
+            // If gMod is off, also clear any selection so it *feels* disabled.
+            if (!gmod && lvGw1GModPlugins.SelectedItems.Count > 0)
+                lvGw1GModPlugins.SelectedItems.Clear();
         }
         private void RefreshGw2RunAfterList()
         {
@@ -263,13 +344,12 @@ namespace GWxLauncher.UI
                 _cfg.Save();
             }
         }
-        // ADD
         private void UpdateGw1GModPluginButtons()
         {
-            btnGw1RemovePlugin.Enabled = lvGw1GModPlugins.SelectedItems.Count > 0;
+            bool gmod = chkGMod.Checked;
+            btnGw1RemovePlugin.Enabled = gmod && (lvGw1GModPlugins.SelectedItems.Count > 0);
         }
 
-        // ADD
         private void RefreshGw1GModPluginList()
         {
             lvGw1GModPlugins.Items.Clear();
