@@ -62,7 +62,7 @@ namespace GWxLauncher.Services
             if (Steps.Count > 0)
             {
                 lines.Add("");
-                lines.Add("Steps:");
+                lines.Add("Mods:");
                 foreach (var s in Steps)
                 {
                     lines.Add($"- {s.Label}: {s.OutcomeText}");

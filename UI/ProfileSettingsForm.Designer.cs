@@ -49,8 +49,12 @@ namespace GWxLauncher.UI
             grpGw2RunAfter = new GroupBox();
             chkGw2RunAfterEnabled = new CheckBox();
             lvGw2RunAfter = new ListView();
+            // ADD (initialize)
+            colGw2RunAfterName = new ColumnHeader();
+            colGw2RunAfterPath = new ColumnHeader();
             btnGw2AddProgram = new Button();
             btnGw2RemoveProgram = new Button();
+            btnGw2RemoveProgram.Enabled = false;
             btnOk = new Button();
             btnCancel = new Button();
             grpGw1Mods.SuspendLayout();
@@ -230,6 +234,7 @@ namespace GWxLauncher.UI
             // 
             // lvGw2RunAfter
             // 
+            // REPLACE (lvGw2RunAfter block)
             lvGw2RunAfter.CheckBoxes = true;
             lvGw2RunAfter.FullRowSelect = true;
             lvGw2RunAfter.Location = new Point(16, 52);
@@ -238,6 +243,19 @@ namespace GWxLauncher.UI
             lvGw2RunAfter.TabIndex = 1;
             lvGw2RunAfter.UseCompatibleStateImageBehavior = false;
             lvGw2RunAfter.View = View.Details;
+
+            // ADD (columns + behavior)
+            lvGw2RunAfter.Columns.AddRange(new ColumnHeader[] { colGw2RunAfterName, colGw2RunAfterPath });
+            lvGw2RunAfter.HeaderStyle = ColumnHeaderStyle.None;
+            lvGw2RunAfter.MultiSelect = false;
+            lvGw2RunAfter.HideSelection = false;
+
+            colGw2RunAfterName.Text = "Name";
+            colGw2RunAfterName.Width = 90;
+
+            colGw2RunAfterPath.Text = "Path";
+            colGw2RunAfterPath.Width = 170;
+
             lvGw2RunAfter.ItemChecked += lvGw2RunAfter_ItemChecked;
             // 
             // btnGw2AddProgram
@@ -331,5 +349,8 @@ namespace GWxLauncher.UI
         private ListView lvGw2RunAfter;
         private Button btnGw2AddProgram;
         private Button btnGw2RemoveProgram;
+        private ColumnHeader colGw2RunAfterName;
+        private ColumnHeader colGw2RunAfterPath;
+
     }
 }

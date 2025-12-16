@@ -105,7 +105,9 @@ namespace GWxLauncher
             btnLaunchAll.Enabled = armed;
 
             if (armed)
-                lblStatus.Text = $"Bulk launch armed · View: {_views.ActiveViewName}";
+                lblStatus.Text = $"Launch All ready · View: {_views.ActiveViewName}";
+            if (!armed)
+                lblStatus.Text = $"Launch All not ready · View: {_views.ActiveViewName}";
             else if (_showCheckedOnly && !anyEligible)
                 lblStatus.Text = $"No checked profiles in view · View: {_views.ActiveViewName}";
         }
@@ -192,12 +194,12 @@ namespace GWxLauncher
             panelProfiles.Resize += (s, e) => panelProfiles.Invalidate();
 
             lblView.Visible = true;
-            lblView.Text = "Show checked \n profiles only";
+            lblView.Text = "Show Checked \nAccounts Only";
             lblView.AutoSize = true;
             lblView.ForeColor = ThemeService.Palette.SubtleFore;
             var tip = new ToolTip();
-            tip.SetToolTip(chkArmBulk, "Show checked profiles only (enables launch all)");
-            tip.SetToolTip(lblView, "Show checked profiles only (enables launch all)");
+            tip.SetToolTip(chkArmBulk, "Show Checked Accounts Only (enables launch all)");
+            tip.SetToolTip(lblView, "Show Checked Accounts Only (enables launch all)");
 
             // (your window-position restore logic)
             if (_config.WindowX >= 0 && _config.WindowY >= 0)
@@ -840,9 +842,21 @@ namespace GWxLauncher
             {
                 _views.ToggleEligible(_views.ActiveViewName, profile.Id);
                 _views.Save();
-                //RefreshProfileList();
-                // after toggling eligibility...
-                lstProfiles.Invalidate(lstProfiles.GetItemRectangle(index));
+
+                if (_showCheckedOnly)
+                {
+                    // In "show checked only" mode, eligibility changes affect visibility,
+                    // so we must rebuild the list.
+                    RefreshProfileList();
+                }
+                else
+                {
+                    // Otherwise, a lightweight repaint is enough.
+                    lstProfiles.Invalidate(lstProfiles.GetItemRectangle(index));
+                }
+
+                // Keep bulk launch UI state accurate either way.
+                UpdateBulkArmingUi();
             }
 
             // Existing right-click selection behavior
@@ -1232,12 +1246,15 @@ namespace GWxLauncher
             int old = _hotIndex;
             _hotIndex = idx;
 
-            if (old >= 0)
+            // Old hot index might be invalid if the list was refreshed/filtered.
+            if (old >= 0 && old < lstProfiles.Items.Count)
                 lstProfiles.Invalidate(lstProfiles.GetItemRectangle(old));
 
-            if (_hotIndex >= 0)
+            // New hot index might be -1 (no item) or invalid if list changed mid-event.
+            if (_hotIndex >= 0 && _hotIndex < lstProfiles.Items.Count)
                 lstProfiles.Invalidate(lstProfiles.GetItemRectangle(_hotIndex));
         }
+    
         private void lstProfiles_MouseLeave(object? sender, EventArgs e)
         {
             if (_hotIndex < 0)
@@ -1245,7 +1262,9 @@ namespace GWxLauncher
 
             int old = _hotIndex;
             _hotIndex = -1;
-            lstProfiles.Invalidate(lstProfiles.GetItemRectangle(old));
+
+            if (old >= 0 && old < lstProfiles.Items.Count)
+                lstProfiles.Invalidate(lstProfiles.GetItemRectangle(old));
         }
     }
 }

@@ -21,6 +21,9 @@ namespace GWxLauncher.UI
 
             InitializeComponent();
             ThemeService.ApplyToForm(this);
+            lvGw2RunAfter.BackColor = ThemeService.Palette.InputBack;
+            lvGw2RunAfter.ForeColor = ThemeService.Palette.InputFore;
+            lvGw2RunAfter.SelectedIndexChanged += (s, e) => UpdateGw2RunAfterButtons();
 
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
             grpGw1Mods.Visible = isGw1;
@@ -116,8 +119,14 @@ namespace GWxLauncher.UI
                 item.Tag = p;
                 lvGw2RunAfter.Items.Add(item);
             }
-        }
 
+            UpdateGw2RunAfterButtons();
+        }
+        private void UpdateGw2RunAfterButtons()
+        {
+            // Only meaningful on GW2 profiles, but safe to call always
+            btnGw2RemoveProgram.Enabled = lvGw2RunAfter.SelectedItems.Count > 0;
+        }
         private void SaveToProfile()
         {
             _profile.Name = txtProfileName.Text.Trim();
