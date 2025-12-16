@@ -668,41 +668,57 @@ namespace GWxLauncher.Services
                 else
                 {
                     // Existing normal launch path unchanged
+                    // Normal launch (no multiclient patch needed), but use CreateProcessW so args delivery
+                    // matches the gMod path and auto-login is consistent.
+                    var startupInfo = new STARTUPINFO();
+                    startupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
+
+                    PROCESS_INFORMATION procInfo = new PROCESS_INFORMATION();
+
+                    string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
+                    string cmdLine = BuildCreateProcessCommandLine(exePath, gwArgs);
+
                     try
                     {
-                        var startInfo = new ProcessStartInfo
-                        {
-                            FileName = exePath,
-                            WorkingDirectory = Path.GetDirectoryName(exePath) ?? string.Empty,
-                            UseShellExecute = false
-                        };
+                        bool created = CreateProcessW(
+                            exePath,
+                            cmdLine,
+                            IntPtr.Zero,
+                            IntPtr.Zero,
+                            false,
+                            0, // <-- normal (not suspended)
+                            IntPtr.Zero,
+                            workingDir,
+                            ref startupInfo,
+                            out procInfo);
 
-                        process = Process.Start(startInfo);
-
-                        if (process == null)
+                        if (!created)
                         {
-                            errorMessage = "Failed to start Guild Wars 1 process.";
+                            errorMessage = $"Failed to create Guild Wars 1 process.\n" +
+                                           $"Win32 error: {Marshal.GetLastWin32Error()}";
 
                             report.Succeeded = false;
                             report.FailureMessage = errorMessage;
-
-                            stepToolbox.Outcome = StepOutcome.Skipped;
-                            stepPy4Gw.Outcome = StepOutcome.Skipped;
-
                             return false;
                         }
+
+                        process = Process.GetProcessById(procInfo.dwProcessId);
+
+                        // Not suspended, so no ResumeThread here.
+                        report.UsedSuspendedLaunch = false;
                     }
                     catch (Exception ex)
                     {
-                        errorMessage = $"Failed to start Guild Wars 1:\n\n{ex.Message}";
-
+                        errorMessage = $"Failed to start Guild Wars 1:\n{ex.Message}";
                         report.Succeeded = false;
                         report.FailureMessage = errorMessage;
-
-                        stepToolbox.Outcome = StepOutcome.Skipped;
-                        stepPy4Gw.Outcome = StepOutcome.Skipped;
-
                         return false;
+                    }
+                    finally
+                    {
+                        // Always close native handles we created
+                        if (procInfo.hThread != IntPtr.Zero) CloseHandle(procInfo.hThread);
+                        if (procInfo.hProcess != IntPtr.Zero) CloseHandle(procInfo.hProcess);
                     }
                 }
             }
