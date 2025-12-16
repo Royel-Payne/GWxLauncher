@@ -6,14 +6,6 @@ using System.Windows.Forms.VisualStyles;
 using System.Drawing.Drawing2D;
 using System.ComponentModel;
 using System.Diagnostics;
-//using System.Threading;
-//using System;
-//using System.Drawing;
-//using System.IO;
-//using System.Linq;
-//using System.Windows.Forms;
-//using System.Collections.Generic;
-//using System.Text.Json;
 
 namespace GWxLauncher
 {
@@ -378,12 +370,13 @@ namespace GWxLauncher
                 }
             }
 
-            // --- Badges (GW1): TB, gMod ---
+            // --- Badges (GW1): TB, gMod, Py4GW---
             if (profile.GameType == GameType.GuildWars1)
             {
                 var badges = new List<string>(2);
                 if (profile.Gw1ToolboxEnabled) badges.Add("TB");
                 if (profile.Gw1GModEnabled) badges.Add("gMod");
+                if (profile.Gw1Py4GwEnabled) badges.Add("Py4");
 
                 DrawBadges(badges);
             }

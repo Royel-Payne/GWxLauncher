@@ -794,7 +794,7 @@ namespace GWxLauncher.Services
                 stepPy4Gw.Outcome = StepOutcome.Pending;
                 stepPy4Gw.Detail = "Queued for background injection after window is ready";
 
-                _ = Task.Run(() => InjectPy4GwAfterWindowReady(process, profile, owner));
+                _ = Task.Run(() => InjectPy4GwAfterWindowReady(process, profile, owner, stepPy4Gw));
             }
             else
             {
@@ -845,22 +845,44 @@ namespace GWxLauncher.Services
         /// Waits for the GW1 window, then injects Py4GW if everything is still running.
         /// Runs on a background thread.
         /// </summary>
-        private void InjectPy4GwAfterWindowReady(Process process, GameProfile profile, IWin32Window? owner)
+        private void InjectPy4GwAfterWindowReady(
+            Process process,
+            GameProfile profile,
+            IWin32Window? owner,
+            LaunchStep stepPy4Gw)
         {
             try
             {
-                // Basic sanity checks
+                // Extra safety: if something changed, reflect it in the report
                 if (!profile.Gw1Py4GwEnabled)
+                {
+                    stepPy4Gw.Outcome = StepOutcome.Skipped;
+                    stepPy4Gw.Detail = "Disabled";
                     return;
+                }
 
                 var dllPath = profile.Gw1Py4GwDllPath;
-                if (string.IsNullOrWhiteSpace(dllPath))
+                if (string.IsNullOrWhiteSpace(dllPath) || !File.Exists(dllPath))
+                {
+                    stepPy4Gw.Outcome = StepOutcome.Failed;
+                    stepPy4Gw.Detail = "Enabled, but DLL path missing or file not found";
                     return;
+                }
 
                 // 1) Wait up to 30s for the GW window
                 if (!WaitForGuildWarsWindow(process, TimeSpan.FromSeconds(30)))
                 {
-                    // Optional: log or status message later
+                    if (process.HasExited)
+                    {
+                        stepPy4Gw.Outcome = StepOutcome.Failed;
+                        stepPy4Gw.Detail = "Process exited before window was ready";
+                    }
+                    else
+                    {
+                        stepPy4Gw.Outcome = StepOutcome.Failed;
+                        stepPy4Gw.Detail = "Timed out waiting for window to be ready";
+                    }
+
                     return;
                 }
 
@@ -868,23 +890,35 @@ namespace GWxLauncher.Services
                 Thread.Sleep(TimeSpan.FromSeconds(5));
 
                 if (process.HasExited)
+                {
+                    stepPy4Gw.Outcome = StepOutcome.Failed;
+                    stepPy4Gw.Detail = "Process exited before injection";
                     return;
+                }
 
-                // 3) Reuse the same injection helper we already use for Toolbox
+                // 3) Inject
                 var ok = InjectDllIntoProcess(process, dllPath, out var error);
 
-                if (!ok)
+                if (ok)
                 {
-                    // Optional: later we can surface this in a log window instead.
-                    // For now, we stay quiet in the background thread.
-                    _ = owner; // suppress warning if unused
+                    stepPy4Gw.Outcome = StepOutcome.Success;
+                    stepPy4Gw.Detail = "Injected";
                 }
+                else
+                {
+                    stepPy4Gw.Outcome = StepOutcome.Failed;
+                    stepPy4Gw.Detail = error;
+                }
+
+                _ = owner; // keep signature consistent (owner may be used later)
             }
-            catch
+            catch (Exception ex)
             {
-                // Swallow for now; later we can wire a logger.
+                stepPy4Gw.Outcome = StepOutcome.Failed;
+                stepPy4Gw.Detail = $"Exception during background injection: {ex.Message}";
             }
         }
+
 
         /// <summary>
         /// Launch Gw.exe in suspended mode, inject gMod, then resume.
