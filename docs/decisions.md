@@ -305,13 +305,16 @@ This enables granular, per-account plugin selection **without**:
 **Implementation model**  
 For each profile/account, GWxLauncher creates:
 
-%AppData%\GWxLauncher\accounts<ProfileId>
+%AppData%\GWxLauncher\accounts\<ProfileId>
 gMod.dll (hardlink → canonical gMod.dll)
 modlist.txt (generated per profile)
+Canonical gMod.dll path is per-profile (each profile can point to a different canonical source; its hardlink folder follows that).
+Example: cmd /c mklink /H "C:\Users\Chris\AppData\Roaming\GWxLauncher\accounts\<ProfileId>\gMod.dll" "C:\Games\GW plugins\gMod.dll" 
 
 - `modlist.txt` contains absolute paths to plugin files
 - plugin files remain in their original locations
 - no plugin or DLL files are duplicated or relocated
+- supported plugin files use extension .tpf
 
 **UI behavior**  
 In the GW1 profile settings panel:
@@ -319,11 +322,13 @@ In the GW1 profile settings panel:
 - Selected plugins are displayed as a list
 - Removing a plugin updates the list
 - Any change regenerates `modlist.txt` deterministically
+- No per-plugin toggles: list is the enabled set; remove = disable.
 
 **Launch behavior**  
 When launching GW1 with gMod enabled:
 - gMod is injected from the per-account folder
 - gMod loads plugins listed in that account’s `modlist.txt`
+- No report entries (silent, only affects behavior)
 
 **Canonical gMod.dll handling**  
 GWxLauncher treats the user-selected gMod.dll path as the canonical source.
