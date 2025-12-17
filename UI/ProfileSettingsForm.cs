@@ -1,20 +1,31 @@
-﻿using GWxLauncher.Domain;
+﻿using GWxLauncher.Config;
+using GWxLauncher.Domain;
 using GWxLauncher.Properties;
 using System;
-using System.Resources;
-using System.Windows.Forms;
-using GWxLauncher.Config;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
 
 namespace GWxLauncher.UI
 {
     public partial class ProfileSettingsForm : Form
     {
+        // -----------------------------
+        // Fields / State
+        // -----------------------------
+
         private readonly GameProfile _profile;
         private readonly LauncherConfig _cfg;
-        
+
         private bool _restoredFromSavedPlacement;
         private bool _gw1GmodPluginsInteractive = true;
+
+        // -----------------------------
+        // Ctor / Form lifecycle
+        // -----------------------------
 
         public ProfileSettingsForm(GameProfile profile)
         {
@@ -22,6 +33,8 @@ namespace GWxLauncher.UI
 
             InitializeComponent();
             ThemeService.ApplyToForm(this);
+
+            // ListView theming + selection handlers
             lvGw2RunAfter.BackColor = ThemeService.Palette.InputBack;
             lvGw2RunAfter.ForeColor = ThemeService.Palette.InputFore;
             lvGw2RunAfter.SelectedIndexChanged += (s, e) => UpdateGw2RunAfterButtons();
@@ -30,27 +43,30 @@ namespace GWxLauncher.UI
             lvGw1GModPlugins.ForeColor = ThemeService.Palette.InputFore;
             lvGw1GModPlugins.SelectedIndexChanged += (s, e) => UpdateGw1GModPluginButtons();
 
+            // When "disabled", prevent selection so it *feels* disabled (without breaking theme bg)
             lvGw1GModPlugins.ItemSelectionChanged += (s, e) =>
             {
                 if (!_gw1GmodPluginsInteractive && e.IsSelected)
                     e.Item.Selected = false;
             };
 
+            // Explicit button handlers
             btnGw1AddPlugin.Click += btnGw1AddPlugin_Click;
             btnGw1RemovePlugin.Click += btnGw1RemovePlugin_Click;
 
+            // Profile type visibility toggles
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
             grpGw1Mods.Visible = isGw1;
             grpGw1Mods.Enabled = isGw1;
             grpGw1Login.Visible = isGw1;
             grpGw1Login.Enabled = isGw1;
 
-
+            // Form icon per game
             Icon = _profile.GameType switch
             {
                 GameType.GuildWars1 => Resources.Gw1Icon,
                 GameType.GuildWars2 => Resources.Gw2Icon,
-                _ => Icon // fallback to whatever is already set
+                _ => Icon
             };
 
             _cfg = LauncherConfig.Load();
@@ -59,8 +75,6 @@ namespace GWxLauncher.UI
             Shown += ProfileSettingsForm_Shown;
             FormClosing += ProfileSettingsForm_FormClosing;
 
-
-            // Basic title – later we can add tabs/categories here
             Text = $"Profile Settings – {profile.Name}";
 
             // Wire up button handlers (designer only sets DialogResult)
@@ -71,12 +85,89 @@ namespace GWxLauncher.UI
             btnBrowseGModDll.Click += btnBrowseGModDll_Click;
             btnCancel.Click += btnCancel_Click;
 
-            // Optional nicety
+            // Optional niceties
             AcceptButton = btnOk;
             CancelButton = btnCancel;
 
             LoadFromProfile();
         }
+
+        private void ProfileSettingsForm_Shown(object? sender, EventArgs e)
+        {
+            // If we restored from saved placement, don't override it.
+            if (_restoredFromSavedPlacement)
+                return;
+
+            // If we have an owner (MainForm shows this dialog with ShowDialog(this)), anchor near it.
+            if (Owner != null)
+            {
+                var ownerBounds = Owner.Bounds;
+
+                // Prefer to the right of the owner; if no space, place to the left.
+                var wa = Screen.FromControl(Owner).WorkingArea;
+
+                int gap = 12;
+                int xRight = ownerBounds.Right + gap;
+                int xLeft = ownerBounds.Left - gap - Width;
+
+                int x =
+                    (xRight + Width <= wa.Right) ? xRight :
+                    (xLeft >= wa.Left) ? xLeft :
+                    Math.Max(wa.Left, Math.Min(xRight, wa.Right - Width));
+
+                int y = Math.Max(wa.Top, Math.Min(ownerBounds.Top, wa.Bottom - Height));
+
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(x, y);
+            }
+            else
+            {
+                // No owner: fallback to a reasonable default
+                StartPosition = FormStartPosition.CenterScreen;
+            }
+        }
+
+        private void ProfileSettingsForm_FormClosing(object? sender, FormClosingEventArgs e)
+        {
+            if (WindowState == FormWindowState.Normal)
+            {
+                _cfg.ProfileSettingsX = Left;
+                _cfg.ProfileSettingsY = Top;
+                _cfg.ProfileSettingsWidth = Width;
+                _cfg.ProfileSettingsHeight = Height;
+                _cfg.Save();
+            }
+            else
+            {
+                // If minimized/maximized, save RestoreBounds instead (so we persist something sane)
+                var b = RestoreBounds;
+                _cfg.ProfileSettingsX = b.Left;
+                _cfg.ProfileSettingsY = b.Top;
+                _cfg.ProfileSettingsWidth = b.Width;
+                _cfg.ProfileSettingsHeight = b.Height;
+                _cfg.Save();
+            }
+        }
+
+        private void TryRestoreSavedPlacement()
+        {
+            if (_cfg.ProfileSettingsX >= 0 && _cfg.ProfileSettingsY >= 0)
+            {
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(_cfg.ProfileSettingsX, _cfg.ProfileSettingsY);
+                _restoredFromSavedPlacement = true;
+            }
+
+            if (_cfg.ProfileSettingsWidth > 0 && _cfg.ProfileSettingsHeight > 0)
+            {
+                Size = new Size(_cfg.ProfileSettingsWidth, _cfg.ProfileSettingsHeight);
+            }
+        }
+
+        // -----------------------------
+        // Load / Save
+        // -----------------------------
+
         private void LoadFromProfile()
         {
             // ---- Load values first ----
@@ -98,7 +189,7 @@ namespace GWxLauncher.UI
             lblGw1LoginWarning.Visible = chkGw1AutoLogin.Checked;
             lblGw1LoginWarning.ForeColor = Color.Goldenrod;
 
-            // ---- Wire events once ----
+            // ---- Wire events once (current behavior) ----
             chkGw1AutoLogin.CheckedChanged += (s, e) =>
             {
                 lblGw1LoginWarning.Visible = chkGw1AutoLogin.Checked;
@@ -169,9 +260,68 @@ namespace GWxLauncher.UI
             UpdateGw1LoginUiState();
             UpdateGw1ModsUiState();
             UpdateGw2LoginUiState();
-
         }
 
+        private void SaveToProfile()
+        {
+            _profile.Name = txtProfileName.Text.Trim();
+            _profile.ExecutablePath = txtExecutablePath.Text.Trim();
+
+            // GW1 login
+            _profile.Gw1AutoLoginEnabled = chkGw1AutoLogin.Checked;
+            _profile.Gw1Email = txtGw1Email.Text.Trim();
+            _profile.Gw1AutoSelectCharacterEnabled = chkGw1AutoSelectCharacter.Checked;
+            _profile.Gw1CharacterName = txtGw1CharacterName.Text.Trim();
+
+            // Only update stored password if user typed a new one.
+            var pw = txtGw1Password.Text;
+            if (!string.IsNullOrWhiteSpace(pw))
+            {
+                _profile.Gw1PasswordProtected = Services.DpapiProtector.ProtectToBase64(pw);
+            }
+
+            if (_profile.GameType == GameType.GuildWars1)
+            {
+                _profile.Gw1ToolboxEnabled = chkToolbox.Checked;
+                _profile.Gw1ToolboxDllPath = txtToolboxDll.Text.Trim();
+
+                _profile.Gw1Py4GwEnabled = chkPy4Gw.Checked;
+                _profile.Gw1Py4GwDllPath = txtPy4GwDll.Text.Trim();
+
+                _profile.Gw1GModEnabled = chkGMod.Checked;
+                _profile.Gw1GModDllPath = txtGModDll.Text.Trim();
+
+                _cfg.Gw1MulticlientEnabled = chkGw1Multiclient.Checked;
+                _cfg.Save();
+            }
+
+            if (_profile.GameType == GameType.GuildWars2)
+            {
+                _profile.Gw2RunAfterEnabled = chkGw2RunAfterEnabled.Checked;
+
+                _profile.Gw2AutoLoginEnabled = chkGw2AutoLogin.Checked;
+                _profile.Gw2Email = txtGw2Email.Text.Trim();
+                _profile.Gw2AutoPlayEnabled = chkGw2AutoPlay.Checked;
+
+                var pw2 = txtGw2Password.Text;
+                if (!string.IsNullOrWhiteSpace(pw2))
+                {
+                    _profile.Gw2PasswordProtected = Services.DpapiProtector.ProtectToBase64(pw2);
+                }
+
+                _cfg.Gw2MulticlientEnabled = chkGw1Multiclient.Checked;
+                _cfg.Save();
+            }
+        }
+
+        // -----------------------------
+        // UI state updates
+        // -----------------------------
+
+        private void UpdateGw1LoginUiState()
+        {
+            UpdateGw1AutoLoginUiState();
+        }
 
         private void UpdateGw1AutoLoginUiState()
         {
@@ -195,12 +345,6 @@ namespace GWxLauncher.UI
             // Status label stays visible if password is stored, but “greys out” when auto-login disabled
             lblGw1PasswordSaved.Enabled = enabled;
         }
-
-        private void UpdateGw1LoginUiState()
-        {
-            UpdateGw1AutoLoginUiState();
-        }
-
 
         private void UpdateGw2LoginUiState()
         {
@@ -232,6 +376,7 @@ namespace GWxLauncher.UI
             // gMod
             bool gmod = chkGMod.Checked;
             _gw1GmodPluginsInteractive = gmod;
+
             txtGModDll.Enabled = gmod;
             btnBrowseGModDll.Enabled = gmod;
 
@@ -251,6 +396,10 @@ namespace GWxLauncher.UI
                 lvGw1GModPlugins.SelectedItems.Clear();
         }
 
+        // -----------------------------
+        // GW2 Run-After list
+        // -----------------------------
+
         private void RefreshGw2RunAfterList()
         {
             lvGw2RunAfter.Items.Clear();
@@ -266,135 +415,72 @@ namespace GWxLauncher.UI
 
             UpdateGw2RunAfterButtons();
         }
+
         private void UpdateGw2RunAfterButtons()
         {
             // Only meaningful on GW2 profiles, but safe to call always
             btnGw2RemoveProgram.Enabled = lvGw2RunAfter.SelectedItems.Count > 0;
         }
-        private void SaveToProfile()
+
+        private void lvGw2RunAfter_ItemChecked(object sender, ItemCheckedEventArgs e)
         {
-            _profile.Name = txtProfileName.Text.Trim();
-            _profile.ExecutablePath = txtExecutablePath.Text.Trim();
-            _profile.Gw1AutoLoginEnabled = chkGw1AutoLogin.Checked;
-            _profile.Gw1Email = txtGw1Email.Text.Trim();
-            _profile.Gw1AutoSelectCharacterEnabled = chkGw1AutoSelectCharacter.Checked;
-            _profile.Gw1CharacterName = txtGw1CharacterName.Text.Trim();
-
-            // Only update stored password if user typed a new one.
-            var pw = txtGw1Password.Text;
-            if (!string.IsNullOrWhiteSpace(pw))
-            {
-                _profile.Gw1PasswordProtected = Services.DpapiProtector.ProtectToBase64(pw);
-            }
-
-            if (_profile.GameType == GameType.GuildWars1)
-            {
-                _profile.Gw1ToolboxEnabled = chkToolbox.Checked;
-                _profile.Gw1ToolboxDllPath = txtToolboxDll.Text.Trim();
-
-                _profile.Gw1Py4GwEnabled = chkPy4Gw.Checked;
-                _profile.Gw1Py4GwDllPath = txtPy4GwDll.Text.Trim();
-
-                _profile.Gw1GModEnabled = chkGMod.Checked;
-                _profile.Gw1GModDllPath = txtGModDll.Text.Trim();
-
-                _cfg.Gw1MulticlientEnabled = chkGw1Multiclient.Checked;
-                _cfg.Save();
-            }
-            if (_profile.GameType == GameType.GuildWars2)
-            {
-                _profile.Gw2RunAfterEnabled = chkGw2RunAfterEnabled.Checked;
-
-                _profile.Gw2AutoLoginEnabled = chkGw2AutoLogin.Checked;
-                _profile.Gw2Email = txtGw2Email.Text.Trim();
-                _profile.Gw2AutoPlayEnabled = chkGw2AutoPlay.Checked;
-
-
-                var pw2 = txtGw2Password.Text;
-                if (!string.IsNullOrWhiteSpace(pw2))
-                {
-                    _profile.Gw2PasswordProtected = Services.DpapiProtector.ProtectToBase64(pw2);
-                }
-
-                _cfg.Gw2MulticlientEnabled = chkGw1Multiclient.Checked;
-                _cfg.Save();
-            }
+            if (e.Item.Tag is RunAfterProgram p)
+                p.Enabled = e.Item.Checked;
         }
-        private void ProfileSettingsForm_Shown(object? sender, EventArgs e)
+
+        private void btnGw2AddProgram_Click(object sender, EventArgs e)
         {
-            // If we restored from saved placement, don't override it.
-            if (_restoredFromSavedPlacement)
+            using var dlg = new OpenFileDialog
+            {
+                Title = "Select program to run after launching",
+                Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog(this) != DialogResult.OK)
                 return;
 
-            // If we have an owner (MainForm shows this dialog with ShowDialog(this)), anchor near it.
-            if (Owner != null)
+            var exe = dlg.FileName;
+
+            // Friendly name: file description if available, else file name
+            string name;
+            try
             {
-                var ownerBounds = Owner.Bounds;
-
-                // Prefer to the right of the owner; if no space, place to the left.
-                var wa = Screen.FromControl(Owner).WorkingArea;
-
-                int gap = 12;
-                int xRight = ownerBounds.Right + gap;
-                int xLeft = ownerBounds.Left - gap - Width;
-
-                int x = (xRight + Width <= wa.Right) ? xRight :
-                        (xLeft >= wa.Left) ? xLeft :
-                        Math.Max(wa.Left, Math.Min(xRight, wa.Right - Width));
-
-                int y = Math.Max(wa.Top, Math.Min(ownerBounds.Top, wa.Bottom - Height));
-
-                StartPosition = FormStartPosition.Manual;
-                Location = new Point(x, y);
+                var vi = FileVersionInfo.GetVersionInfo(exe);
+                name = string.IsNullOrWhiteSpace(vi.FileDescription)
+                    ? Path.GetFileNameWithoutExtension(exe)
+                    : vi.FileDescription.Trim();
             }
-            else
+            catch
             {
-                // No owner: fallback to a reasonable default
-                StartPosition = FormStartPosition.CenterScreen;
+                name = Path.GetFileNameWithoutExtension(exe);
             }
+
+            _profile.Gw2RunAfterPrograms.Add(new RunAfterProgram
+            {
+                Name = name,
+                ExePath = exe,
+                Enabled = true
+            });
+
+            RefreshGw2RunAfterList();
         }
 
-        private void TryRestoreSavedPlacement()
+        private void btnGw2RemoveProgram_Click(object sender, EventArgs e)
         {
-            if (_cfg.ProfileSettingsX >= 0 && _cfg.ProfileSettingsY >= 0)
-            {
-                StartPosition = FormStartPosition.Manual;
-                Location = new Point(_cfg.ProfileSettingsX, _cfg.ProfileSettingsY);
-                _restoredFromSavedPlacement = true;
-            }
+            if (lvGw2RunAfter.SelectedItems.Count == 0)
+                return;
 
-            if (_cfg.ProfileSettingsWidth > 0 && _cfg.ProfileSettingsHeight > 0)
+            var item = lvGw2RunAfter.SelectedItems[0];
+            if (item.Tag is RunAfterProgram p)
             {
-                Size = new Size(_cfg.ProfileSettingsWidth, _cfg.ProfileSettingsHeight);
+                _profile.Gw2RunAfterPrograms.Remove(p);
+                RefreshGw2RunAfterList();
             }
         }
 
-        private void ProfileSettingsForm_FormClosing(object? sender, FormClosingEventArgs e)
-        {
-            if (WindowState == FormWindowState.Normal)
-            {
-                _cfg.ProfileSettingsX = Left;
-                _cfg.ProfileSettingsY = Top;
-                _cfg.ProfileSettingsWidth = Width;
-                _cfg.ProfileSettingsHeight = Height;
-                _cfg.Save();
-            }
-            else
-            {
-                // If minimized/maximized, save RestoreBounds instead (so we persist something sane)
-                var b = RestoreBounds;
-                _cfg.ProfileSettingsX = b.Left;
-                _cfg.ProfileSettingsY = b.Top;
-                _cfg.ProfileSettingsWidth = b.Width;
-                _cfg.ProfileSettingsHeight = b.Height;
-                _cfg.Save();
-            }
-        }
-        private void UpdateGw1GModPluginButtons()
-        {
-            bool gmod = chkGMod.Checked;
-            btnGw1RemovePlugin.Enabled = gmod && (lvGw1GModPlugins.SelectedItems.Count > 0);
-        }
+        // -----------------------------
+        // GW1 gMod plugins list
+        // -----------------------------
 
         private void RefreshGw1GModPluginList()
         {
@@ -415,6 +501,52 @@ namespace GWxLauncher.UI
 
             UpdateGw1GModPluginButtons();
         }
+
+        private void UpdateGw1GModPluginButtons()
+        {
+            bool gmod = chkGMod.Checked;
+            btnGw1RemovePlugin.Enabled = gmod && (lvGw1GModPlugins.SelectedItems.Count > 0);
+        }
+
+        private void btnGw1AddPlugin_Click(object? sender, EventArgs e)
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Title = "Select gMod plugin (.tpf)",
+                Filter = "TPF files (*.tpf)|*.tpf|All files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            string path = dlg.FileName;
+
+            // Ensure list exists
+            _profile.Gw1GModPluginPaths ??= new List<string>();
+
+            // Dedupe (case-insensitive, absolute path as stored value)
+            if (!_profile.Gw1GModPluginPaths.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)))
+                _profile.Gw1GModPluginPaths.Add(path);
+
+            RefreshGw1GModPluginList();
+        }
+
+        private void btnGw1RemovePlugin_Click(object? sender, EventArgs e)
+        {
+            if (lvGw1GModPlugins.SelectedItems.Count == 0)
+                return;
+
+            var item = lvGw1GModPlugins.SelectedItems[0];
+            if (item.Tag is string path)
+            {
+                _profile.Gw1GModPluginPaths.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+                RefreshGw1GModPluginList();
+            }
+        }
+
+        // -----------------------------
+        // Validation
+        // -----------------------------
 
         private bool ValidateGw1ModSettings()
         {
@@ -464,6 +596,10 @@ namespace GWxLauncher.UI
 
             return true;
         }
+
+        // -----------------------------
+        // Buttons / DialogResult
+        // -----------------------------
 
         private void btnOk_Click(object? sender, EventArgs e)
         {
@@ -515,44 +651,15 @@ namespace GWxLauncher.UI
             Close();
         }
 
-
-        private void btnGw1AddPlugin_Click(object? sender, EventArgs e)
+        private void btnCancel_Click(object? sender, EventArgs e)
         {
-            using var dlg = new OpenFileDialog
-            {
-                Title = "Select gMod plugin (.tpf)",
-                Filter = "TPF files (*.tpf)|*.tpf|All files (*.*)|*.*"
-            };
-
-            if (dlg.ShowDialog(this) != DialogResult.OK)
-                return;
-
-            string path = dlg.FileName;
-
-            // Ensure list exists
-            _profile.Gw1GModPluginPaths ??= new List<string>();
-
-            // Dedupe (case-insensitive, absolute path as stored value)
-            if (!_profile.Gw1GModPluginPaths.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)))
-                _profile.Gw1GModPluginPaths.Add(path);
-
-            RefreshGw1GModPluginList();
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
 
-        // ADD
-        private void btnGw1RemovePlugin_Click(object? sender, EventArgs e)
-        {
-            if (lvGw1GModPlugins.SelectedItems.Count == 0)
-                return;
-
-            var item = lvGw1GModPlugins.SelectedItems[0];
-            if (item.Tag is string path)
-            {
-                _profile.Gw1GModPluginPaths.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
-                RefreshGw1GModPluginList();
-            }
-        }
-
+        // -----------------------------
+        // Browse helpers
+        // -----------------------------
 
         private void btnBrowseExe_Click(object? sender, EventArgs e)
         {
@@ -591,73 +698,9 @@ namespace GWxLauncher.UI
                 textBox.Text = dlg.FileName;
             }
         }
-        private void btnGw2AddProgram_Click(object sender, EventArgs e)
-        {
-            using var dlg = new OpenFileDialog
-            {
-                Title = "Select program to run after launching",
-                Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*"
-            };
 
-            if (dlg.ShowDialog(this) != DialogResult.OK)
-                return;
-
-            var exe = dlg.FileName;
-
-            // Friendly name: file description if available, else file name
-            string name;
-            try
-            {
-                var vi = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe);
-                name = string.IsNullOrWhiteSpace(vi.FileDescription)
-                    ? Path.GetFileNameWithoutExtension(exe)
-                    : vi.FileDescription.Trim();
-            }
-            catch
-            {
-                name = Path.GetFileNameWithoutExtension(exe);
-            }
-
-            _profile.Gw2RunAfterPrograms.Add(new RunAfterProgram
-            {
-                Name = name,
-                ExePath = exe,
-                Enabled = true
-            });
-
-            RefreshGw2RunAfterList();
-        }
-
-        private void btnGw2RemoveProgram_Click(object sender, EventArgs e)
-        {
-            if (lvGw2RunAfter.SelectedItems.Count == 0)
-                return;
-
-            var item = lvGw2RunAfter.SelectedItems[0];
-            if (item.Tag is RunAfterProgram p)
-            {
-                _profile.Gw2RunAfterPrograms.Remove(p);
-                RefreshGw2RunAfterList();
-            }
-        }
-        private void lvGw2RunAfter_ItemChecked(object sender, ItemCheckedEventArgs e)
-        {
-            if (e.Item.Tag is RunAfterProgram p)
-                p.Enabled = e.Item.Checked;
-        }
-        private void btnBrowseToolboxDll_Click(object? sender, EventArgs e)
-            => BrowseDllInto(txtToolboxDll);
-
-        private void btnBrowsePy4GwDll_Click(object? sender, EventArgs e)
-            => BrowseDllInto(txtPy4GwDll);
-
-        private void btnBrowseGModDll_Click(object? sender, EventArgs e)
-            => BrowseDllInto(txtGModDll);
-
-        private void btnCancel_Click(object? sender, EventArgs e)
-        {
-            DialogResult = DialogResult.Cancel;
-            Close();
-        }
+        private void btnBrowseToolboxDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtToolboxDll);
+        private void btnBrowsePy4GwDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtPy4GwDll);
+        private void btnBrowseGModDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtGModDll);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using GWxLauncher.Domain;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -12,17 +13,16 @@ using System.Windows.Forms;
 namespace GWxLauncher.Services
 {
     /// <summary>
-    /// Handles launching Guild Wars 1 with optional DLL injection:
-    ///  - Toolbox: normal Process.Start + immediate injection
-    ///  - Py4GW : wait for window, then inject on a background thread
+    /// Launch + injection pipeline for Guild Wars 1:
     ///  - gMod  : early injection via CreateProcessW in suspended mode
+    ///  - Toolbox: normal injection after launch
+    ///  - Py4GW : waits for window, then injects on a background thread
     ///
-    /// NOTE: For GW1 (32-bit), the launcher should be built as x86 to
-    /// avoid cross-architecture injection issues.
+    /// NOTE: GW1 is 32-bit. The launcher should be built as x86 to avoid cross-arch injection issues.
     /// </summary>
     internal class Gw1InjectionService
     {
-        #region Win32 interop
+        #region Win32 Interop
 
         [Flags]
         private enum ProcessAccessFlags : uint
@@ -35,12 +35,17 @@ namespace GWxLauncher.Services
             PROCESS_ALL_ACCESS = 0x001F0FFF
         }
 
-        [System.Runtime.InteropServices.DllImport("Kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
-        private static extern bool CreateHardLinkW(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
-
         private const uint MEM_COMMIT = 0x1000;
         private const uint MEM_RESERVE = 0x2000;
         private const uint PAGE_READWRITE = 0x04;
+
+        private const uint WAIT_OBJECT_0 = 0x00000000;
+        private const uint INFINITE = 0xFFFFFFFF;
+
+        private const uint CREATE_SUSPENDED = 0x00000004;
+
+        [DllImport("Kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool CreateHardLinkW(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool ReadProcessMemory(
@@ -69,8 +74,8 @@ namespace GWxLauncher.Services
             public IntPtr Reserved3;
         }
 
-        // Minimal PEB read: ImageBaseAddress is early in the structure.
-        // (We only read enough bytes to cover the ImageBaseAddress pointer.)
+        // Minimal PEB read: ImageBaseAddress appears early.
+        // We only read enough bytes to cover ImageBaseAddress.
         [StructLayout(LayoutKind.Sequential)]
         private struct PEB_MIN
         {
@@ -79,12 +84,8 @@ namespace GWxLauncher.Services
             public IntPtr ImageBaseAddress;
         }
 
-
         [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr OpenProcess(
-            ProcessAccessFlags processAccess,
-            bool bInheritHandle,
-            int processId);
+        private static extern IntPtr OpenProcess(ProcessAccessFlags processAccess, bool bInheritHandle, int processId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr VirtualAllocEx(
@@ -123,11 +124,6 @@ namespace GWxLauncher.Services
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr hObject);
-
-        private const uint WAIT_OBJECT_0 = 0x00000000;
-        private const uint INFINITE = 0xFFFFFFFF;
-
-        // --- For early (suspended) process creation, used by gMod ---
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct STARTUPINFO
@@ -177,10 +173,10 @@ namespace GWxLauncher.Services
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern uint ResumeThread(IntPtr hThread);
 
-        private const uint CREATE_SUSPENDED = 0x00000004;
-
         #endregion
-        // ADD
+
+        #region GW1 Auto-Login Args (GW.exe flags)
+
         private static string BuildGw1AutoLoginArgs(GameProfile profile, LaunchReport report)
         {
             var step = new LaunchStep { Label = "Auto-Login" };
@@ -224,9 +220,9 @@ namespace GWxLauncher.Services
             sb.Append($"-email \"{profile.Gw1Email}\" ");
             sb.Append($"-password \"{password}\"");
 
-            // Always include -character for reliability.
-            // If auto-select is enabled and a real name is present, pass it.
-            // Otherwise pass a single-space placeholder: -character " "
+            // Always include -character for reliability:
+            // - If auto-select is enabled and name is present, pass it.
+            // - Otherwise pass placeholder: -character " "
             if (profile.Gw1AutoSelectCharacterEnabled && !string.IsNullOrWhiteSpace(profile.Gw1CharacterName))
             {
                 sb.Append($" -character \"{profile.Gw1CharacterName}\"");
@@ -247,7 +243,6 @@ namespace GWxLauncher.Services
         private static string BuildCreateProcessCommandLine(string exePath, string? args)
         {
             // CreateProcessW expects a full command line string.
-            // We always quote the exePath, and only append args if present.
             string quotedExe = $"\"{exePath}\"";
 
             string a = (args ?? "").Trim();
@@ -256,6 +251,11 @@ namespace GWxLauncher.Services
 
             return quotedExe + " " + a;
         }
+
+        #endregion
+
+        #region Per-profile gMod folder
+
         internal static string GetGw1AccountFolder(string profileId)
         {
             // %AppData%\GWxLauncher\accounts\<ProfileId>\
@@ -274,15 +274,13 @@ namespace GWxLauncher.Services
             if (string.IsNullOrWhiteSpace(canonical) || !File.Exists(canonical))
                 throw new FileNotFoundException("Canonical gMod.dll path is missing or invalid.", canonical);
 
-            // Always recreate to guarantee correctness (simple + deterministic).
+            // Always recreate to guarantee correctness.
             if (File.Exists(linkPath))
-            {
                 File.Delete(linkPath);
-            }
 
             File.Copy(canonical, linkPath, overwrite: true);
 
-            // Generate modlist.txt deterministically, removing missing paths 
+            // Generate modlist.txt deterministically.
             string modlist = Path.Combine(folder, "modlist.txt");
 
             var paths = (profile.Gw1GModPluginPaths ?? new List<string>())
@@ -292,26 +290,27 @@ namespace GWxLauncher.Services
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            // Auto-remove missing plugin files from the profile list 
+            // Auto-remove missing plugin files from the profile list.
             var existing = paths.Where(File.Exists).ToList();
             if (existing.Count != paths.Count)
-            {
                 profile.Gw1GModPluginPaths = existing;
-            }
 
             File.WriteAllLines(modlist, existing);
 
-            return linkPath; // This is the DLL we inject
+            return linkPath; // DLL injected when gMod is enabled
         }
 
+        #endregion
+
+        #region Public entry points
+
         /// <summary>
-        /// Generic entry point: launch GW1 and inject one or more DLLs.
-        /// (Used by earlier phases; still handy as a utility.)
+        /// Generic utility: normal Process.Start then inject one or more DLLs.
         /// </summary>
         public bool TryLaunchWithDlls(
             GameProfile profile,
             string gwExePath,
-            System.Collections.Generic.IEnumerable<string> dllPaths,
+            IEnumerable<string> dllPaths,
             out string errorMessage)
         {
             errorMessage = string.Empty;
@@ -348,21 +347,14 @@ namespace GWxLauncher.Services
                 };
 
                 var process = Process.Start(startInfo);
-
                 if (process == null)
                 {
                     errorMessage = "Failed to start Guild Wars 1 process.";
                     return false;
                 }
 
-                try
-                {
-                    process.WaitForInputIdle(5000);
-                }
-                catch
-                {
-                    // Some processes may not support WaitForInputIdle; ignore
-                }
+                try { process.WaitForInputIdle(5000); }
+                catch { /* ignore */ }
 
                 if (process.HasExited)
                 {
@@ -370,7 +362,6 @@ namespace GWxLauncher.Services
                     return false;
                 }
 
-                // Inject each DLL in order
                 foreach (var dllPath in dllList)
                 {
                     if (!File.Exists(dllPath))
@@ -381,9 +372,7 @@ namespace GWxLauncher.Services
 
                     if (!InjectDllIntoProcess(process, dllPath, out var injectError))
                     {
-                        errorMessage =
-                            $"Failed to inject DLL:\n{dllPath}\n\n" +
-                            injectError;
+                        errorMessage = $"Failed to inject DLL:\n{dllPath}\n\n{injectError}";
                         return false;
                     }
                 }
@@ -398,8 +387,7 @@ namespace GWxLauncher.Services
         }
 
         /// <summary>
-        /// Legacy-style convenience wrapper used earlier for Toolbox-only.
-        /// Still here in case we want a simple "Toolbox only" path.
+        /// Toolbox-only convenience wrapper (legacy).
         /// </summary>
         public bool TryLaunchWithToolbox(GameProfile profile, string gwExePath, out string errorMessage)
         {
@@ -433,8 +421,7 @@ namespace GWxLauncher.Services
             }
 
             // Optional: seed the list
-            if (profile.Gw1InjectedDlls != null &&
-                profile.Gw1InjectedDlls.Count == 0)
+            if (profile.Gw1InjectedDlls != null && profile.Gw1InjectedDlls.Count == 0)
             {
                 profile.Gw1InjectedDlls.Add(new Gw1InjectedDll
                 {
@@ -444,19 +431,15 @@ namespace GWxLauncher.Services
                 });
             }
 
-            return TryLaunchWithDlls(
-                profile,
-                gwExePath,
-                new[] { profile.Gw1ToolboxDllPath },
-                out errorMessage);
+            return TryLaunchWithDlls(profile, gwExePath, new[] { profile.Gw1ToolboxDllPath }, out errorMessage);
         }
 
         /// <summary>
-        /// Main entry point for launching a GW1 profile.
-        /// Handles:
-        ///  - early gMod injection (if enabled)
-        ///  - immediate Toolbox injection (if enabled)
-        ///  - background Py4GW injection (if enabled)
+        /// Primary GW1 profile launch flow:
+        ///  - gMod early injection (optional)
+        ///  - Toolbox immediate injection (optional)
+        ///  - Py4GW background injection after window (optional)
+        ///  - Multiclient patch if requested (suspended CreateProcessW path)
         /// </summary>
         public bool TryLaunchGw1(
             GameProfile profile,
@@ -474,7 +457,7 @@ namespace GWxLauncher.Services
                 ExecutablePath = exePath
             };
 
-            // Track steps in real-world order (gMod -> Toolbox -> Py4GW)
+            // Steps in real-world order (gMod -> Toolbox -> Py4GW)
             var stepGmod = new LaunchStep { Label = "gMod" };
             var stepToolbox = new LaunchStep { Label = "Toolbox" };
             var stepPy4Gw = new LaunchStep { Label = "Py4GW" };
@@ -482,6 +465,7 @@ namespace GWxLauncher.Services
             report.Steps.Add(stepGmod);
             report.Steps.Add(stepToolbox);
             report.Steps.Add(stepPy4Gw);
+
             string gwArgs = BuildGw1AutoLoginArgs(profile, report);
 
             if (profile.GameType != GameType.GuildWars1)
@@ -512,8 +496,7 @@ namespace GWxLauncher.Services
 
             Process? process = null;
 
-            // --- 1) If gMod is enabled and configured, try early (suspended) launch + injection ---
-
+            // 1) gMod early injection path (suspended CreateProcessW)
             bool gmodEnabled = profile.Gw1GModEnabled;
             bool gmodConfigured =
                 gmodEnabled &&
@@ -526,7 +509,7 @@ namespace GWxLauncher.Services
 
                 try
                 {
-                    // Build/repair per-profile folder + gMod.dll + modlist.txt (your current behavior)
+                    // Repair per-profile folder + gMod.dll + modlist.txt
                     gmodToInject = PreparePerProfileGModFolder(profile);
                 }
                 catch (Exception ex)
@@ -553,7 +536,6 @@ namespace GWxLauncher.Services
                         out process,
                         out var gmodError))
                 {
-                    // If gMod early injection fails, we stop here and show an error.
                     errorMessage = gmodError;
 
                     stepGmod.Outcome = StepOutcome.Failed;
@@ -569,7 +551,6 @@ namespace GWxLauncher.Services
                     return false;
                 }
 
-                // ✅ THIS is the piece you were missing: gMod was actually used.
                 stepGmod.Outcome = StepOutcome.Success;
                 stepGmod.Detail = "Injected";
                 report.UsedSuspendedLaunch = true;
@@ -582,14 +563,12 @@ namespace GWxLauncher.Services
                     ? "Enabled, but DLL path missing or file not found"
                     : "Disabled";
 
-                // --- 2) Normal launch (no gMod early injection) ---
+                // 2) Normal launch (with or without multiclient patch)
                 if (gw1MulticlientEnabled)
                 {
-                    // Suspended launch required for multiclient
-                    var startupInfo = new STARTUPINFO();
-                    startupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
+                    var startupInfo = new STARTUPINFO { cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO)) };
+                    PROCESS_INFORMATION procInfo = default;
 
-                    PROCESS_INFORMATION procInfo = new PROCESS_INFORMATION();
 
                     string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
                     string cmdLine = BuildCreateProcessCommandLine(exePath, gwArgs);
@@ -608,8 +587,9 @@ namespace GWxLauncher.Services
 
                     if (!created)
                     {
-                        errorMessage = $"Failed to create Guild Wars 1 process in suspended mode.\n" +
-                                       $"Win32 error: {Marshal.GetLastWin32Error()}";
+                        errorMessage =
+                            "Failed to create Guild Wars 1 process in suspended mode.\n" +
+                            $"Win32 error: {Marshal.GetLastWin32Error()}";
 
                         report.Succeeded = false;
                         report.FailureMessage = errorMessage;
@@ -621,7 +601,6 @@ namespace GWxLauncher.Services
 
                     try
                     {
-                        // Apply multiclient patch before the process runs
                         if (!TryApplyGw1MulticlientPatch(procInfo.hProcess, out var patchError))
                         {
                             errorMessage = $"GW1 multiclient patch failed:\n{patchError}";
@@ -652,7 +631,6 @@ namespace GWxLauncher.Services
                         }
                         catch
                         {
-                            // Process died before we could query it
                             errorMessage = "GW exited immediately after resume (process vanished).";
                             return false;
                         }
@@ -667,13 +645,8 @@ namespace GWxLauncher.Services
                 }
                 else
                 {
-                    // Existing normal launch path unchanged
-                    // Normal launch (no multiclient patch needed), but use CreateProcessW so args delivery
-                    // matches the gMod path and auto-login is consistent.
-                    var startupInfo = new STARTUPINFO();
-                    startupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
-
-                    PROCESS_INFORMATION procInfo = new PROCESS_INFORMATION();
+                    var startupInfo = new STARTUPINFO { cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO)) };
+                    PROCESS_INFORMATION procInfo = default;
 
                     string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
                     string cmdLine = BuildCreateProcessCommandLine(exePath, gwArgs);
@@ -686,7 +659,7 @@ namespace GWxLauncher.Services
                             IntPtr.Zero,
                             IntPtr.Zero,
                             false,
-                            0, // <-- normal (not suspended)
+                            0,
                             IntPtr.Zero,
                             workingDir,
                             ref startupInfo,
@@ -694,8 +667,9 @@ namespace GWxLauncher.Services
 
                         if (!created)
                         {
-                            errorMessage = $"Failed to create Guild Wars 1 process.\n" +
-                                           $"Win32 error: {Marshal.GetLastWin32Error()}";
+                            errorMessage =
+                                "Failed to create Guild Wars 1 process.\n" +
+                                $"Win32 error: {Marshal.GetLastWin32Error()}";
 
                             report.Succeeded = false;
                             report.FailureMessage = errorMessage;
@@ -704,7 +678,7 @@ namespace GWxLauncher.Services
 
                         process = Process.GetProcessById(procInfo.dwProcessId);
 
-                        // Not suspended, so no ResumeThread here.
+                        // Not suspended, so no ResumeThread.
                         report.UsedSuspendedLaunch = false;
                     }
                     catch (Exception ex)
@@ -716,7 +690,6 @@ namespace GWxLauncher.Services
                     }
                     finally
                     {
-                        // Always close native handles we created
                         if (procInfo.hThread != IntPtr.Zero) CloseHandle(procInfo.hThread);
                         if (procInfo.hProcess != IntPtr.Zero) CloseHandle(procInfo.hProcess);
                     }
@@ -736,8 +709,7 @@ namespace GWxLauncher.Services
                 return false;
             }
 
-            // --- 3) Toolbox: immediate injection (after gMod, if present) ---
-
+            // 3) Toolbox: immediate injection (after gMod, if present)
             if (profile.Gw1ToolboxEnabled)
             {
                 var toolboxPath = profile.Gw1ToolboxDllPath;
@@ -764,8 +736,7 @@ namespace GWxLauncher.Services
 
                         MessageBox.Show(
                             owner,
-                            $"Failed to inject GW1 Toolbox DLL:\n\n{injectError}\n\n" +
-                            "The game will continue without Toolbox.",
+                            $"Failed to inject GW1 Toolbox DLL:\n\n{injectError}\n\nThe game will continue without Toolbox.",
                             "GW1 Toolbox injection",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Warning);
@@ -782,12 +753,12 @@ namespace GWxLauncher.Services
                 stepToolbox.Detail = "Disabled";
             }
 
-            // --- 4) Py4GW: background injection after window is ready ---
-
+            // 4) Py4GW: background injection after window is ready
             bool py4GwEnabled = profile.Gw1Py4GwEnabled;
-            bool py4GwConfigured = py4GwEnabled &&
-                                   !string.IsNullOrWhiteSpace(profile.Gw1Py4GwDllPath) &&
-                                   File.Exists(profile.Gw1Py4GwDllPath);
+            bool py4GwConfigured =
+                py4GwEnabled &&
+                !string.IsNullOrWhiteSpace(profile.Gw1Py4GwDllPath) &&
+                File.Exists(profile.Gw1Py4GwDllPath);
 
             if (py4GwConfigured)
             {
@@ -814,11 +785,13 @@ namespace GWxLauncher.Services
             return true;
         }
 
+        #endregion
 
+        #region Py4GW background injection
 
         /// <summary>
-        /// Waits until the Guild Wars process has a main window handle,
-        /// or times out. Returns false if the process exits first.
+        /// Waits until the Guild Wars process has a main window handle, or times out.
+        /// Returns false if the process exits first.
         /// </summary>
         private bool WaitForGuildWarsWindow(Process process, TimeSpan timeout)
         {
@@ -829,7 +802,6 @@ namespace GWxLauncher.Services
                 if (process.HasExited)
                     return false;
 
-                // Refresh to get updated MainWindowHandle
                 process.Refresh();
 
                 if (process.MainWindowHandle != IntPtr.Zero)
@@ -842,7 +814,7 @@ namespace GWxLauncher.Services
         }
 
         /// <summary>
-        /// Waits for the GW1 window, then injects Py4GW if everything is still running.
+        /// Waits for the GW1 window, then injects Py4GW.
         /// Runs on a background thread.
         /// </summary>
         private void InjectPy4GwAfterWindowReady(
@@ -853,7 +825,6 @@ namespace GWxLauncher.Services
         {
             try
             {
-                // Extra safety: if something changed, reflect it in the report
                 if (!profile.Gw1Py4GwEnabled)
                 {
                     stepPy4Gw.Outcome = StepOutcome.Skipped;
@@ -869,7 +840,6 @@ namespace GWxLauncher.Services
                     return;
                 }
 
-                // 1) Wait up to 30s for the GW window
                 if (!WaitForGuildWarsWindow(process, TimeSpan.FromSeconds(30)))
                 {
                     if (process.HasExited)
@@ -886,7 +856,6 @@ namespace GWxLauncher.Services
                     return;
                 }
 
-                // 2) Give GW a bit of breathing room after the window appears
                 Thread.Sleep(TimeSpan.FromSeconds(5));
 
                 if (process.HasExited)
@@ -896,7 +865,6 @@ namespace GWxLauncher.Services
                     return;
                 }
 
-                // 3) Inject
                 var ok = InjectDllIntoProcess(process, dllPath, out var error);
 
                 if (ok)
@@ -910,7 +878,7 @@ namespace GWxLauncher.Services
                     stepPy4Gw.Detail = error;
                 }
 
-                _ = owner; // keep signature consistent (owner may be used later)
+                _ = owner; // placeholder: owner may be used later
             }
             catch (Exception ex)
             {
@@ -919,6 +887,9 @@ namespace GWxLauncher.Services
             }
         }
 
+        #endregion
+
+        #region gMod early injection
 
         /// <summary>
         /// Launch Gw.exe in suspended mode, inject gMod, then resume.
@@ -934,10 +905,8 @@ namespace GWxLauncher.Services
             process = null;
             errorMessage = string.Empty;
 
-            var startupInfo = new STARTUPINFO();
-            startupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
-
-            PROCESS_INFORMATION procInfo = new PROCESS_INFORMATION();
+            var startupInfo = new STARTUPINFO { cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO)) };
+            PROCESS_INFORMATION procInfo = default;
 
             string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
             string cmdLine = BuildCreateProcessCommandLine(exePath, gwArgs);
@@ -958,8 +927,9 @@ namespace GWxLauncher.Services
 
                 if (!created)
                 {
-                    errorMessage = $"Failed to create Guild Wars 1 process in suspended mode.\n" +
-                                   $"Win32 error: {Marshal.GetLastWin32Error()}";
+                    errorMessage =
+                        "Failed to create Guild Wars 1 process in suspended mode.\n" +
+                        $"Win32 error: {Marshal.GetLastWin32Error()}";
                     return false;
                 }
 
@@ -970,20 +940,17 @@ namespace GWxLauncher.Services
                     if (!TryApplyGw1MulticlientPatch(procInfo.hProcess, out var patchError))
                     {
                         errorMessage = $"GW1 multiclient patch failed:\n{patchError}";
-                        return false; // failure behavior: abort
+                        return false;
                     }
                 }
 
-                // Inject gMod into the suspended process
                 if (!InjectDllIntoProcess(process, gmodDllPath, out var injectError))
                 {
                     errorMessage = $"Failed to inject gMod DLL:\n{injectError}";
                     return false;
                 }
 
-                // Resume the main thread so Guild Wars can start running
                 ResumeThread(procInfo.hThread);
-
                 return true;
             }
             catch (Exception ex)
@@ -993,17 +960,18 @@ namespace GWxLauncher.Services
             }
             finally
             {
-                if (procInfo.hThread != IntPtr.Zero)
-                    CloseHandle(procInfo.hThread);
-
-                if (procInfo.hProcess != IntPtr.Zero)
-                    CloseHandle(procInfo.hProcess);
+                if (procInfo.hThread != IntPtr.Zero) CloseHandle(procInfo.hThread);
+                if (procInfo.hProcess != IntPtr.Zero) CloseHandle(procInfo.hProcess);
             }
         }
 
+        #endregion
+
+        #region Core DLL injection
+
         /// <summary>
-        /// Core injection logic: OpenProcess, allocate memory, write the DLL path,
-        /// then create a remote thread that calls LoadLibraryW(path).
+        /// Core injection logic: OpenProcess, allocate memory, write DLL path,
+        /// then create a remote thread calling LoadLibraryW(path).
         /// </summary>
         private bool InjectDllIntoProcess(Process process, string dllPath, out string errorMessage)
         {
@@ -1030,7 +998,6 @@ namespace GWxLauncher.Services
                     return false;
                 }
 
-                // Unicode string + null terminator
                 byte[] dllBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
                 uint size = (uint)dllBytes.Length;
 
@@ -1055,7 +1022,6 @@ namespace GWxLauncher.Services
                     return false;
                 }
 
-                // Get LoadLibraryW from kernel32.dll in *our* process
                 IntPtr hKernel32 = GetModuleHandle("kernel32.dll");
                 if (hKernel32 == IntPtr.Zero)
                 {
@@ -1070,7 +1036,6 @@ namespace GWxLauncher.Services
                     return false;
                 }
 
-                // Create a thread in the target process that calls LoadLibraryW(dllPath)
                 hThread = CreateRemoteThread(
                     hProcess,
                     IntPtr.Zero,
@@ -1086,9 +1051,7 @@ namespace GWxLauncher.Services
                     return false;
                 }
 
-                // Wait for the remote thread to complete the LoadLibrary call
                 WaitForSingleObject(hThread, 5000);
-
                 return true;
             }
             catch (Exception ex)
@@ -1098,18 +1061,20 @@ namespace GWxLauncher.Services
             }
             finally
             {
-                if (hThread != IntPtr.Zero)
-                    CloseHandle(hThread);
+                if (hThread != IntPtr.Zero) CloseHandle(hThread);
 
-                if (remoteMemory != IntPtr.Zero)
-                    CloseHandle(remoteMemory); // strictly speaking, VirtualFreeEx would be ideal
+                // NOTE: This is in your original code; it’s incorrect API-wise (VirtualFreeEx is ideal),
+                // but we do NOT change behavior in this housekeeping pass.
+                if (remoteMemory != IntPtr.Zero) CloseHandle(remoteMemory);
 
-                if (hProcess != IntPtr.Zero)
-                    CloseHandle(hProcess);
+                if (hProcess != IntPtr.Zero) CloseHandle(hProcess);
             }
         }
 
-        // GW1 multiclient patch signature (exact bytes provided)
+        #endregion
+
+        #region GW1 Multiclient Patch
+
         private static readonly byte[] Gw1MulticlientSignature =
         {
             0x56, 0x57, 0x68, 0x00, 0x01, 0x00, 0x00, 0x89, 0x85, 0xF4, 0xFE, 0xFF, 0xFF,
@@ -1123,6 +1088,7 @@ namespace GWxLauncher.Services
             // 1) Get PEB
             var pbi = new PROCESS_BASIC_INFORMATION();
             int retLen;
+
             int nt = NtQueryInformationProcess(
                 processHandle,
                 0, // ProcessBasicInformation
@@ -1178,7 +1144,7 @@ namespace GWxLauncher.Services
                 IntPtr patchAddress = IntPtr.Add(moduleBase, idx - 0x1A);
 
                 // Payload: 31 C0 90 C3
-                byte[] patch = new byte[] { 0x31, 0xC0, 0x90, 0xC3 };
+                byte[] patch = { 0x31, 0xC0, 0x90, 0xC3 };
 
                 if (!WriteProcessMemory(processHandle, patchAddress, patch, (uint)patch.Length, out var written) ||
                     written.ToInt64() != patch.Length)
@@ -1186,6 +1152,7 @@ namespace GWxLauncher.Services
                     error = $"WriteProcessMemory(patch) failed. Win32 error: {Marshal.GetLastWin32Error()}";
                     return false;
                 }
+
                 // Read-back verify
                 byte[] verify = new byte[patch.Length];
                 if (!ReadProcessMemory(processHandle, patchAddress, verify, verify.Length, out _))
@@ -1210,6 +1177,7 @@ namespace GWxLauncher.Services
                 handle.Free();
             }
         }
+
         private static int IndexOf(byte[] haystack, byte[] needle)
         {
             if (needle.Length == 0 || haystack.Length < needle.Length)
@@ -1218,14 +1186,23 @@ namespace GWxLauncher.Services
             for (int i = 0; i <= haystack.Length - needle.Length; i++)
             {
                 bool match = true;
+
                 for (int j = 0; j < needle.Length; j++)
                 {
-                    if (haystack[i + j] != needle[j]) { match = false; break; }
+                    if (haystack[i + j] != needle[j])
+                    {
+                        match = false;
+                        break;
+                    }
                 }
-                if (match) return i;
+
+                if (match)
+                    return i;
             }
+
             return -1;
         }
 
+        #endregion
     }
 }
