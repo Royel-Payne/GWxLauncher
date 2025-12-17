@@ -32,6 +32,21 @@ namespace GWxLauncher.Services
         private const double PassClickX = 0.180;
         private const double PassClickY = 0.520;
 
+        // --- PLAY button ratios inside the GW2 client area ---
+        // Derived from your provided screenshots / testing.
+        private const double PlayClickX = 0.725;
+        private const double PlayClickY = 0.715;
+
+        private const int PlayWaitTimeoutMs = 30000;
+        private const int PlayPollMs = 200;
+        private const int PlayRequiredStableMs = 600;
+
+        // Hand-cursor gate (best-effort)
+        private const int HandGateTimeoutMs = 700;  // per probe point
+        private const int HandGatePollMs = 50;
+        private const int HandHuntTotalTimeoutMs = 3500; // total time to hunt around target
+
+
         // --- Public entry point ---
         public bool TryAutomateLogin(Process? gw2Process, GameProfile profile, LaunchReport report, out string error)
         {
@@ -106,41 +121,33 @@ namespace GWxLauncher.Services
                 return true;
             }
 
-            string diagBase = $"hwnd=0x{gw2Hwnd.ToInt64():X} class={GetClassNameSafe(gw2Hwnd)} pid={gw2Process.Id}";
-
             bool blocked = false;
             try
             {
-                // Ensure we are not fighting modifier keys (Ctrl/Alt/Shift) at the OS level.
                 WaitForModifierKeysUp(timeoutMs: 2000);
 
-                // Force foreground and let it settle
                 if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 250, timeoutMs: 5000))
                     throw new Exception("Failed to acquire GW2 foreground.");
 
                 Thread.Sleep(PostForegroundSettleMs);
 
-                // Wait until the client rect is stable (this is the missing piece you observed)
                 if (!WaitForClientRectStable(gw2Hwnd, requiredStableMs: StabilizeRequiredStableMs, timeoutMs: 12000, out var clientTL, out var clientWH))
                     throw new Exception("GW2 client area did not stabilize in time (UI not rendered).");
 
                 Thread.Sleep(PostStableExtraSettleMs);
 
-                // BlockInput during the critical send phase
                 blocked = BlockInput(true);
 
-                // Re-assert foreground after BlockInput (it can cause tiny focus transitions)
                 if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 250, timeoutMs: 3000))
                     throw new Exception("Failed to keep GW2 foreground before typing.");
 
-                // Compute click points in SCREEN coords from client TL + client WH
                 int emailX = clientTL.X + (int)(clientWH.X * EmailClickX);
                 int emailY = clientTL.Y + (int)(clientWH.Y * EmailClickY);
 
                 int passX = clientTL.X + (int)(clientWH.X * PassClickX);
                 int passY = clientTL.Y + (int)(clientWH.Y * PassClickY);
 
-                // --- Email field ---
+                // --- Email ---
                 MouseClickScreen(emailX, emailY);
                 Thread.Sleep(AfterClickMs);
 
@@ -149,10 +156,9 @@ namespace GWxLauncher.Services
 
                 SendCtrlA_Clear();
                 Thread.Sleep(AfterClearMs);
-
                 TypeUnicodeText(profile.Gw2Email, perCharDelayMs: CharDelayMs);
 
-                // --- Password field ---
+                // --- Password ---
                 Thread.Sleep(120);
 
                 MouseClickScreen(passX, passY);
@@ -163,14 +169,14 @@ namespace GWxLauncher.Services
 
                 SendCtrlA_Clear();
                 Thread.Sleep(AfterClearMs);
-
                 TypeUnicodeText(password, perCharDelayMs: CharDelayMs);
 
+                // Submit login
+                Thread.Sleep(250);
+                KeyPress(VK_RETURN);
+
                 stepLogin.Outcome = StepOutcome.Success;
-                stepLogin.Detail =
-                    $"Typed email+password via SendInput(UNICODE) (client coords, stable wait, BlockInput). " +
-                    $"clientTL=({clientTL.X},{clientTL.Y}) clientWH=({clientWH.X},{clientWH.Y}) " +
-                    $"EmailClick=({emailX},{emailY}) PassClick=({passX},{passY}) | {diagBase}";
+                stepLogin.Detail = "Typed email+password via SendInput(UNICODE) (stable wait, BlockInput).";
             }
             catch (Exception ex)
             {
@@ -196,22 +202,136 @@ namespace GWxLauncher.Services
 
             try
             {
-                // Give CEF a moment to apply the final text
-                Thread.Sleep(900);
+                // Re-stabilize client rect (screen coords) post-login transition
+                if (!WaitForClientRectStable(gw2Hwnd, requiredStableMs: StabilizeRequiredStableMs, timeoutMs: 20000, out var clientTL2, out var clientWH2))
+                {
+                    stepPlay.Outcome = StepOutcome.Pending;
+                    stepPlay.Detail = "PLAY wait skipped: client area did not stabilize post-login.";
+                    return true; // best-effort
+                }
 
-                KeyPress(VK_RETURN);
+                int playX = clientTL2.X + (int)(clientWH2.X * PlayClickX);
+                int playY = clientTL2.Y + (int)(clientWH2.Y * PlayClickY);
 
+                if (!WaitForPlayScreen(playX, playY, PlayWaitTimeoutMs, out string gateDiag))
+                {
+                    stepPlay.Outcome = StepOutcome.Pending;
+                    stepPlay.Detail = $"PLAY not detected: {gateDiag}";
+                    return true; // best-effort
+                }
+
+                if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 250, timeoutMs: 5000))
+                    throw new Exception("Failed to keep GW2 foreground before PLAY click.");
+
+                // --- NEW: hand-cursor hunt around the PLAY target ---
+                // If GW2 uses the standard system hand cursor, this confirms we are on a clickable hotspot.
+                // If not, this will just fail and we will fall back to clicking the target anyway.
+                string handDiag;
+                if (TryFindHandCursorHotspot(playX, playY, HandHuntTotalTimeoutMs, out int hx, out int hy, out handDiag))
+                {
+                    MouseClickScreen(hx, hy);
+                    stepPlay.Outcome = StepOutcome.Success;
+                    stepPlay.Detail = $"Clicked PLAY (hand cursor). {gateDiag} {handDiag}";
+                    return true;
+                }
+
+                // Fallback: click the computed target
+                MouseClickScreen(playX, playY);
                 stepPlay.Outcome = StepOutcome.Success;
-                stepPlay.Detail = "Sent Enter (SendInput).";
+                stepPlay.Detail = $"Clicked PLAY. {gateDiag} {handDiag}";
                 return true;
             }
             catch (Exception ex)
             {
                 stepPlay.Outcome = StepOutcome.Failed;
-                stepPlay.Detail = "Failed to send Enter.";
+                stepPlay.Detail = $"Failed to click PLAY: {ex.Message}";
                 error = ex.Message;
                 return false;
             }
+        }
+
+        // -----------------------------
+        // Hand-cursor gating (best-effort)
+        // -----------------------------
+
+        private static bool TryFindHandCursorHotspot(int baseX, int baseY, int totalTimeoutMs, out int foundX, out int foundY, out string diag)
+        {
+            foundX = baseX;
+            foundY = baseY;
+            diag = "";
+
+            // Search pattern around the target point.
+            // The idea: if our ratio lands near-but-not-on the interactive region, we "walk" into it.
+            var offsets = new (int dx, int dy)[]
+            {
+                (0, 0),
+                (-30, 0), (30, 0),
+                (0, -18), (0, 18),
+                (-50, 0), (50, 0),
+                (-30, -18), (30, -18),
+                (-30, 18), (30, 18),
+                (-70, 0), (70, 0),
+                (0, -28), (0, 28),
+                (-50, -18), (50, -18),
+                (-50, 18), (50, 18),
+            };
+
+            var sw = Stopwatch.StartNew();
+            int tries = 0;
+
+            while (sw.ElapsedMilliseconds < totalTimeoutMs)
+            {
+                foreach (var (dx, dy) in offsets)
+                {
+                    if (sw.ElapsedMilliseconds >= totalTimeoutMs)
+                        break;
+
+                    tries++;
+
+                    int x = baseX + dx;
+                    int y = baseY + dy;
+
+                    // Move cursor there first.
+                    SetCursorPos(x, y);
+                    Thread.Sleep(30);
+
+                    if (WaitForSystemHandCursor(HandGateTimeoutMs, HandGatePollMs))
+                    {
+                        foundX = x;
+                        foundY = y;
+                        diag = $"(hand found after {sw.ElapsedMilliseconds}ms, tries={tries}, at dx={dx},dy={dy})";
+                        return true;
+                    }
+                }
+
+                // If we didn't find it in one sweep, wait a moment and try again (UI may still be settling)
+                Thread.Sleep(80);
+            }
+
+            diag = $"(hand not detected after {sw.ElapsedMilliseconds}ms, tries={tries})";
+            return false;
+        }
+
+        private static bool WaitForSystemHandCursor(int timeoutMs, int pollMs)
+        {
+            IntPtr hand = LoadCursor(IntPtr.Zero, IDC_HAND);
+            if (hand == IntPtr.Zero)
+                return false;
+
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                var ci = new CURSORINFO { cbSize = Marshal.SizeOf<CURSORINFO>() };
+                if (GetCursorInfo(out ci) && (ci.flags & CURSOR_SHOWING) != 0)
+                {
+                    if (ci.hCursor == hand)
+                        return true;
+                }
+
+                Thread.Sleep(pollMs);
+            }
+
+            return false;
         }
 
         // -----------------------------
@@ -269,7 +389,6 @@ namespace GWxLauncher.Services
                     continue;
                 }
 
-                // Ignore obviously bogus values (happens during early render)
                 if (wh.X < 200 || wh.Y < 200)
                 {
                     Thread.Sleep(StabilizeCheckMs);
@@ -350,17 +469,14 @@ namespace GWxLauncher.Services
             if (IsIconic(hwnd))
                 ShowWindow(hwnd, SW_RESTORE);
 
-            // Try standard path first
             SetForegroundWindow(hwnd);
             BringWindowToTop(hwnd);
 
-            // Harder path: attach thread input to foreground thread
             IntPtr fg = GetForegroundWindow();
             uint fgTid = GetWindowThreadProcessId(fg, out _);
             uint myTid = GetCurrentThreadId();
             uint targetTid = GetWindowThreadProcessId(hwnd, out _);
 
-            // Attach our thread to FG and to target briefly
             AttachThreadInput(myTid, fgTid, true);
             AttachThreadInput(myTid, targetTid, true);
             try
@@ -395,18 +511,15 @@ namespace GWxLauncher.Services
 
         private static void SendCtrlA_Clear()
         {
-            // Ctrl down
             SendKey(VK_CONTROL, keyUp: false);
             Thread.Sleep(10);
 
-            // A down/up
             SendKey((ushort)'A', keyUp: false);
             Thread.Sleep(10);
             SendKey((ushort)'A', keyUp: true);
 
             Thread.Sleep(10);
 
-            // Ctrl up
             SendKey(VK_CONTROL, keyUp: true);
         }
 
@@ -451,7 +564,6 @@ namespace GWxLauncher.Services
 
         private static void SendUnicodeChar(char c)
         {
-            // KEYEVENTF_UNICODE uses wScan, wVk must be 0
             INPUT[] inputs = new INPUT[2];
 
             inputs[0] = new INPUT
@@ -532,6 +644,81 @@ namespace GWxLauncher.Services
             return sb.ToString();
         }
 
+        private static bool TryGetScreenPixel(int x, int y, out byte r, out byte g, out byte b)
+        {
+            r = g = b = 0;
+
+            IntPtr hdc = GetDC(IntPtr.Zero);
+            if (hdc == IntPtr.Zero)
+                return false;
+
+            try
+            {
+                uint c = GetPixel(hdc, x, y);
+                r = (byte)(c & 0xFF);
+                g = (byte)((c >> 8) & 0xFF);
+                b = (byte)((c >> 16) & 0xFF);
+                return true;
+            }
+            finally
+            {
+                ReleaseDC(IntPtr.Zero, hdc);
+            }
+        }
+
+        private static bool IsNearWhite(byte r, byte g, byte b)
+        {
+            return r >= 240 && g >= 240 && b >= 240;
+        }
+
+        private static bool WaitForPlayScreen(int playX, int playY, int timeoutMs, out string diag)
+        {
+            diag = "";
+
+            var samples = new (int dx, int dy)[]
+            {
+                (0, 0),
+                (-18, 14),
+                (18, 14),
+            };
+
+            long stableFor = 0;
+            var sw = Stopwatch.StartNew();
+
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                int nonWhite = 0;
+
+                foreach (var (dx, dy) in samples)
+                {
+                    if (!TryGetScreenPixel(playX + dx, playY + dy, out var r, out var g, out var b))
+                        continue;
+
+                    if (!IsNearWhite(r, g, b))
+                        nonWhite++;
+                }
+
+                if (nonWhite >= 2)
+                {
+                    stableFor += PlayPollMs;
+                    if (stableFor >= PlayRequiredStableMs)
+                    {
+                        diag = $"Ready after {sw.ElapsedMilliseconds}ms (nonWhite={nonWhite}/3)";
+                        return true;
+                    }
+                }
+                else
+                {
+                    stableFor = 0;
+                }
+
+                Thread.Sleep(PlayPollMs);
+            }
+
+            diag = $"Timed out after {sw.ElapsedMilliseconds}ms waiting for PLAY screen.";
+            return false;
+        }
+
         // -----------------------------
         // Win32
         // -----------------------------
@@ -553,6 +740,9 @@ namespace GWxLauncher.Services
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
         private const uint MOUSEEVENTF_LEFTUP = 0x0004;
 
+        private const int CURSOR_SHOWING = 0x00000001;
+        private const int IDC_HAND = 32649;
+
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
         {
@@ -564,6 +754,15 @@ namespace GWxLauncher.Services
         {
             public int X;
             public int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct CURSORINFO
+        {
+            public int cbSize;
+            public int flags;
+            public IntPtr hCursor;
+            public POINT ptScreenPos;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -601,10 +800,19 @@ namespace GWxLauncher.Services
             public IntPtr dwExtraInfo;
         }
 
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetDC(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+        [DllImport("gdi32.dll")]
+        private static extern uint GetPixel(IntPtr hdc, int nXPos, int nYPos);
+
         [DllImport("user32.dll")]
         private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
@@ -659,5 +867,11 @@ namespace GWxLauncher.Services
 
         [DllImport("user32.dll")]
         private static extern bool BlockInput(bool fBlock);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorInfo(out CURSORINFO pci);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr LoadCursor(IntPtr hInstance, int lpCursorName);
     }
 }
