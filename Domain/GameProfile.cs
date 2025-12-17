@@ -31,7 +31,8 @@ namespace GWxLauncher.Domain
         public string Gw1Email { get; set; } = "";
         public string Gw1PasswordProtected { get; set; } = ""; // base64; DPAPI-encrypted
         public bool Gw1AutoSelectCharacterEnabled { get; set; } = false;
-        public string Gw1CharacterName { get; set; } = "";        
+        public string Gw1CharacterName { get; set; } = "";      
+        
         public List<Gw1InjectedDll> Gw1InjectedDlls { get; set; } = new();
 
         public override string ToString()
@@ -45,9 +46,12 @@ namespace GWxLauncher.Domain
 
             return $"{prefix} {Name}";
         }
-        // GW2 helpers – companion programs (e.g. Blish HUD)
         public bool Gw2RunAfterEnabled { get; set; } = false;
         public List<RunAfterProgram> Gw2RunAfterPrograms { get; set; } = new();
+        public bool Gw2AutoLoginEnabled { get; set; } = false;
+        public string Gw2Email { get; set; } = "";
+        public string Gw2PasswordProtected { get; set; } = ""; // base64; DPAPI-encrypted
+        public bool Gw2AutoPlayEnabled { get; set; } = false;
     }
     public class RunAfterProgram
     {

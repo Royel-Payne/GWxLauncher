@@ -77,7 +77,6 @@ namespace GWxLauncher.UI
 
             LoadFromProfile();
         }
-        // REPLACE beginning of LoadFromProfile()
         private void LoadFromProfile()
         {
             // ---- Load values first ----
@@ -106,20 +105,24 @@ namespace GWxLauncher.UI
                 UpdateGw1LoginUiState();
             };
 
+            chkGw2AutoLogin.CheckedChanged += (s, e) => UpdateGw2LoginUiState();
             chkGw1AutoSelectCharacter.CheckedChanged += (s, e) => UpdateGw1LoginUiState();
 
             chkToolbox.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
             chkPy4Gw.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
             chkGMod.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
 
-            // ---- Existing GW1/GW2 visibility + populate mods/run-after ----
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
             bool isGw2 = _profile.GameType == GameType.GuildWars2;
 
             grpGw1Mods.Visible = isGw1;
             grpGw1Mods.Enabled = isGw1;
-            grpGw2RunAfter.Visible = isGw2;
-            grpGw2RunAfter.Enabled = isGw2;
+
+            grpGw1Login.Visible = isGw1;
+            grpGw1Login.Enabled = isGw1;
+
+            grpGw2Login.Visible = isGw2;
+            grpGw2Login.Enabled = isGw2;
 
             if (isGw1)
             {
@@ -139,10 +142,23 @@ namespace GWxLauncher.UI
             }
             else if (isGw2)
             {
+                grpGw2RunAfter.Visible = true;
+                grpGw2RunAfter.Enabled = true;
+
                 chkGw1Multiclient.Visible = true;
                 chkGw1Multiclient.Checked = _cfg.Gw2MulticlientEnabled;
 
                 chkGw2RunAfterEnabled.Checked = _profile.Gw2RunAfterEnabled;
+
+                chkGw2AutoLogin.Checked = _profile.Gw2AutoLoginEnabled;
+                txtGw2Email.Text = _profile.Gw2Email ?? "";
+                txtGw2Password.Text = "";
+                chkGw2AutoPlay.Checked = _profile.Gw2AutoPlayEnabled;
+
+                lblGw2PasswordSaved.Visible = !string.IsNullOrWhiteSpace(_profile.Gw2PasswordProtected);
+                lblGw2PasswordSaved.ForeColor = Color.Goldenrod;
+                lblGw2LoginInfo.ForeColor = Color.Goldenrod;
+
                 RefreshGw2RunAfterList();
             }
             else
@@ -150,9 +166,10 @@ namespace GWxLauncher.UI
                 chkGw1Multiclient.Visible = false;
             }
 
-            // ---- Apply UI state AFTER all values are set ----
             UpdateGw1LoginUiState();
             UpdateGw1ModsUiState();
+            UpdateGw2LoginUiState();
+
         }
 
 
@@ -184,7 +201,24 @@ namespace GWxLauncher.UI
             UpdateGw1AutoLoginUiState();
         }
 
-        // REPLACE
+
+        private void UpdateGw2LoginUiState()
+        {
+            // Only meaningful on GW2 profiles, but safe to call always
+            bool enabled = chkGw2AutoLogin.Checked;
+
+            txtGw2Email.Enabled = enabled;
+            lblGw2Email.Enabled = enabled;
+
+            txtGw2Password.Enabled = enabled;
+            lblGw2Password.Enabled = enabled;
+
+            chkGw2AutoPlay.Enabled = enabled;
+
+            // “Password saved” label stays visible if stored, but greys out when disabled
+            lblGw2PasswordSaved.Enabled = enabled;
+        }
+
         private void UpdateGw1ModsUiState()
         {
             // Toolbox
@@ -216,6 +250,7 @@ namespace GWxLauncher.UI
             if (!gmod && lvGw1GModPlugins.SelectedItems.Count > 0)
                 lvGw1GModPlugins.SelectedItems.Clear();
         }
+
         private void RefreshGw2RunAfterList()
         {
             lvGw2RunAfter.Items.Clear();
@@ -269,6 +304,17 @@ namespace GWxLauncher.UI
             if (_profile.GameType == GameType.GuildWars2)
             {
                 _profile.Gw2RunAfterEnabled = chkGw2RunAfterEnabled.Checked;
+
+                _profile.Gw2AutoLoginEnabled = chkGw2AutoLogin.Checked;
+                _profile.Gw2Email = txtGw2Email.Text.Trim();
+                _profile.Gw2AutoPlayEnabled = chkGw2AutoPlay.Checked;
+
+
+                var pw2 = txtGw2Password.Text;
+                if (!string.IsNullOrWhiteSpace(pw2))
+                {
+                    _profile.Gw2PasswordProtected = Services.DpapiProtector.ProtectToBase64(pw2);
+                }
 
                 _cfg.Gw2MulticlientEnabled = chkGw1Multiclient.Checked;
                 _cfg.Save();

@@ -579,7 +579,6 @@ namespace GWxLauncher
                 {
                     _lastLaunchReport = report;
                     _lastLaunchReports.Add(report);
-
                     lblStatus.Text = report.BuildSummary();
                 }
                 else
@@ -719,19 +718,15 @@ namespace GWxLauncher
                             mcStep.Detail = "Multiclient enabled.";
                     }
 
-                    Process.Start(startInfo);
+                    var process = Process.Start(startInfo);
 
                     if (bulkMode && mcEnabled)
                     {
                         // Wait until GW2 recreates its mutex, so the next bulk launch can reliably clear it again.
                         if (!WaitForGw2MutexToExist(timeoutMs: 8000, out int waited))
-                        {
                             mcStep.Detail += $" (Warning: GW2 mutex did not appear within {waited}ms)";
-                        }
                         else
-                        {
                             mcStep.Detail += $" (GW2 mutex observed after {waited}ms)";
-                        }
                     }
 
                     // If multiclient enabled, keep the step success but add the arg note.
@@ -740,6 +735,18 @@ namespace GWxLauncher
                         mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
                             ? "Launched with -shareArchive."
                             : mcStep.Detail + " Launched with -shareArchive.";
+                    }
+
+                    if (profile.Gw2AutoLoginEnabled)
+                    {
+                        var loginSvc = new Gw2AutoLoginService();
+
+                        // Best-effort: do not fail the entire launch if automation fails.
+                        if (!loginSvc.TryAutomateLogin(process, profile, report, out var autoLoginError))
+                        {
+                            if (!string.IsNullOrWhiteSpace(autoLoginError))
+                                report.FailureMessage = $"Auto-login failed: {autoLoginError}";
+                        }
                     }
 
                     StartGw2RunAfterPrograms(profile);
@@ -772,6 +779,7 @@ namespace GWxLauncher
                 return;
             }
         }
+
 
         private void StartGw2RunAfterPrograms(GameProfile profile)
         {
@@ -1079,7 +1087,7 @@ namespace GWxLauncher
                     UseShellExecute = false
                 };
 
-                Process.Start(startInfo);
+                var process = Process.Start(startInfo);
 
                 if (lblStatus != null)
                     lblStatus.Text = $"{gameName} launched.";
