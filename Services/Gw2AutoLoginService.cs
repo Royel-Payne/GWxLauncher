@@ -32,6 +32,18 @@ namespace GWxLauncher.Services
         private const double PassClickX = 0.180;
         private const double PassClickY = 0.520;
 
+        // --- Pre-login UI probe ratios (for "Launcher UI Rendered" gate) ---
+        // We avoid sampling the textbox fill (white); instead we probe reliable non-white anchors.
+        private const double LoginButtonProbeX = 0.115;
+        private const double LoginButtonProbeY = 0.665;
+
+        private const double ProgressBarProbeX = 0.300;
+        private const double ProgressBarProbeY = 0.935;
+
+        private const double ArtProbeX = 0.830;
+        private const double ArtProbeY = 0.300;
+
+
         // --- PLAY button ratios inside the GW2 client area ---
         // Derived from your provided screenshots / testing.
         private const double PlayClickX = 0.725;
@@ -48,22 +60,41 @@ namespace GWxLauncher.Services
 
 
         // --- Public entry point ---
-        public bool TryAutomateLogin(Process? gw2Process, GameProfile profile, LaunchReport report, out string error)
+        public bool TryAutomateLogin(Process? gw2Process, GameProfile profile, LaunchReport report, bool bulkMode, out string error)
         {
             error = "";
 
             var stepLogin = new LaunchStep { Label = "Auto-Login" };
             report.Steps.Add(stepLogin);
 
+            var stepUiReady = new LaunchStep { Label = "Launcher UI Rendered" };
+            report.Steps.Add(stepUiReady);
+
+            var stepPostLoginStable = new LaunchStep { Label = "Post-Login Stable" };
+            report.Steps.Add(stepPostLoginStable);
+
+            var stepDxWindow = new LaunchStep { Label = "DX Window Created" };
+            report.Steps.Add(stepDxWindow);
+
             var stepPlay = new LaunchStep { Label = "Auto-Play" };
             report.Steps.Add(stepPlay);
-
             if (!profile.Gw2AutoLoginEnabled)
             {
                 stepLogin.Outcome = StepOutcome.Skipped;
                 stepLogin.Detail = "Disabled";
+
+                stepUiReady.Outcome = StepOutcome.Skipped;
+                stepUiReady.Detail = "Disabled";
+
+                stepPostLoginStable.Outcome = StepOutcome.Skipped;
+                stepPostLoginStable.Detail = "Disabled";
+
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Disabled";
+
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Disabled";
+
                 return true;
             }
 
@@ -74,6 +105,24 @@ namespace GWxLauncher.Services
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (login failed).";
                 error = "GW2 process was null.";
+                stepPostLoginStable.Outcome = StepOutcome.Skipped;
+                stepPostLoginStable.Detail = "Skipped (login failed).";
+                stepUiReady.Outcome = StepOutcome.Skipped;
+                stepUiReady.Detail = "Skipped (login failed).";
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Skipped (login failed).";
+                stepUiReady.Outcome = StepOutcome.Skipped;
+                stepUiReady.Detail = "Skipped (login failed).";
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Skipped (login failed).";
+                stepUiReady.Outcome = StepOutcome.Skipped;
+                stepUiReady.Detail = "Skipped (login failed).";
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Skipped (login failed).";
+                stepUiReady.Outcome = StepOutcome.Skipped;
+                stepUiReady.Detail = "Skipped (login failed).";
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Skipped (login failed).";
                 return false;
             }
 
@@ -84,6 +133,8 @@ namespace GWxLauncher.Services
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (login failed).";
                 error = "GW2 email/password not configured for this profile.";
+                stepPostLoginStable.Outcome = StepOutcome.Skipped;
+                stepPostLoginStable.Detail = "Skipped (login failed).";
                 return false;
             }
 
@@ -99,6 +150,8 @@ namespace GWxLauncher.Services
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (login failed).";
                 error = $"DPAPI decrypt failed: {ex.Message}";
+                stepPostLoginStable.Outcome = StepOutcome.Skipped;
+                stepPostLoginStable.Detail = "Skipped (login failed).";
                 return false;
             }
 
@@ -109,6 +162,8 @@ namespace GWxLauncher.Services
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (login failed).";
                 error = "GW2 decrypted password was empty.";
+                stepPostLoginStable.Outcome = StepOutcome.Skipped;
+                stepPostLoginStable.Detail = "Skipped (login failed).";
                 return false;
             }
 
@@ -118,6 +173,10 @@ namespace GWxLauncher.Services
                 stepLogin.Detail = $"GW2 window not detected within {waitedMs}ms (best-effort).";
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (no window).";
+                stepUiReady.Outcome = StepOutcome.Skipped;
+                stepUiReady.Detail = "Skipped (no window).";
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Skipped (no window).";
                 return true;
             }
 
@@ -147,12 +206,25 @@ namespace GWxLauncher.Services
                 int passX = clientTL.X + (int)(clientWH.X * PassClickX);
                 int passY = clientTL.Y + (int)(clientWH.Y * PassClickY);
 
+                // Gate: ensure the launcher page has actually rendered before we start clicking/typing (important for multi-launch).
+                // NOTE: The login textboxes themselves are white even when rendered, so we probe "anchor" UI pixels (borders/button/progress/art).
+                if (!WaitForLauncherUiRendered(clientTL, clientWH, emailX, emailY, passX, passY,
+                        timeoutMs: 5000, requiredStableMs: 600, out string uiDiag))
+                {
+                    stepUiReady.Outcome = StepOutcome.Pending;
+                    stepUiReady.Detail = $"Launcher UI not yet rendered (best-effort). {uiDiag}";
+                }
+                else
+                {
+                    stepUiReady.Outcome = StepOutcome.Success;
+                    stepUiReady.Detail = $"Launcher UI rendered. {uiDiag}";
+                }
+
                 // --- Email ---
                 MouseClickScreen(emailX, emailY);
                 Thread.Sleep(AfterClickMs);
 
-                if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 200, timeoutMs: 2500))
-                    throw new Exception("Foreground changed after email click.");
+                _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "email click");
 
                 SendCtrlA_Clear();
                 Thread.Sleep(AfterClearMs);
@@ -164,8 +236,7 @@ namespace GWxLauncher.Services
                 MouseClickScreen(passX, passY);
                 Thread.Sleep(AfterClickMs);
 
-                if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 200, timeoutMs: 2500))
-                    throw new Exception("Foreground changed after password click.");
+                _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "password click");
 
                 SendCtrlA_Clear();
                 Thread.Sleep(AfterClearMs);
@@ -192,13 +263,61 @@ namespace GWxLauncher.Services
                 if (blocked)
                     BlockInput(false);
             }
+            // In Launch All (bulk mode), do not start the next GW2 instance until the launcher has transitioned
+            // out of the immediate post-login churn (white window / auth / render).
+            if (!bulkMode)
+            {
+                stepPostLoginStable.Outcome = StepOutcome.Skipped;
+                stepPostLoginStable.Detail = "Not in bulk mode.";
+            }
+            else
+            {
+                try
+                {
+                    // Re-stabilize client rect (screen coords) post-login transition
+                    if (!WaitForClientRectStable(gw2Hwnd, requiredStableMs: StabilizeRequiredStableMs, timeoutMs: 20000, out var clientTL2, out var clientWH2))
+                    {
+                        stepPostLoginStable.Outcome = StepOutcome.Pending;
+                        stepPostLoginStable.Detail = "Client area did not stabilize post-login (best-effort).";
+                    }
+                    else
+                    {
+                        int playX = clientTL2.X + (int)(clientWH2.X * PlayClickX);
+                        int playY = clientTL2.Y + (int)(clientWH2.Y * PlayClickY);
+
+                        if (!WaitForPlayScreen(playX, playY, PlayWaitTimeoutMs, out string gateDiag))
+                        {
+                            stepPostLoginStable.Outcome = StepOutcome.Pending;
+                            stepPostLoginStable.Detail = $"Post-login UI gate not detected: {gateDiag}";
+                        }
+                        else
+                        {
+                            stepPostLoginStable.Outcome = StepOutcome.Success;
+                            stepPostLoginStable.Detail = $"Post-login UI stabilized. {gateDiag}";
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    stepPostLoginStable.Outcome = StepOutcome.Pending;
+                    stepPostLoginStable.Detail = $"Post-login stable gate error (best-effort): {ex.Message}";
+                }
+            }
 
             if (!profile.Gw2AutoPlayEnabled)
             {
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Disabled";
+
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Not attempted (Auto-Play disabled).";
+
                 return true;
             }
+
+            bool playClicked = false;
+            string lastGateDiag = "";
+            string lastHandDiag = "";
 
             try
             {
@@ -207,6 +326,18 @@ namespace GWxLauncher.Services
                 {
                     stepPlay.Outcome = StepOutcome.Pending;
                     stepPlay.Detail = "PLAY wait skipped: client area did not stabilize post-login.";
+
+                    if (bulkMode)
+                    {
+                        stepDxWindow.Outcome = StepOutcome.Skipped;
+                        stepDxWindow.Detail = "Not attempted (PLAY not clicked).";
+                    }
+                    else
+                    {
+                        stepDxWindow.Outcome = StepOutcome.Skipped;
+                        stepDxWindow.Detail = "Not in bulk mode.";
+                    }
+
                     return true; // best-effort
                 }
 
@@ -217,29 +348,47 @@ namespace GWxLauncher.Services
                 {
                     stepPlay.Outcome = StepOutcome.Pending;
                     stepPlay.Detail = $"PLAY not detected: {gateDiag}";
+
+                    if (bulkMode)
+                    {
+                        stepDxWindow.Outcome = StepOutcome.Skipped;
+                        stepDxWindow.Detail = "Not attempted (PLAY not clicked).";
+                    }
+                    else
+                    {
+                        stepDxWindow.Outcome = StepOutcome.Skipped;
+                        stepDxWindow.Detail = "Not in bulk mode.";
+                    }
+
                     return true; // best-effort
                 }
+
+                lastGateDiag = gateDiag;
 
                 if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 250, timeoutMs: 5000))
                     throw new Exception("Failed to keep GW2 foreground before PLAY click.");
 
-                // --- NEW: hand-cursor hunt around the PLAY target ---
-                // If GW2 uses the standard system hand cursor, this confirms we are on a clickable hotspot.
-                // If not, this will just fail and we will fall back to clicking the target anyway.
-                string handDiag;
-                if (TryFindHandCursorHotspot(playX, playY, HandHuntTotalTimeoutMs, out int hx, out int hy, out handDiag))
+                // --- Hand-cursor hunt around the PLAY target (best-effort) ---
+                if (TryFindHandCursorHotspot(playX, playY, HandHuntTotalTimeoutMs, out int hx, out int hy, out string handDiag))
                 {
+                    lastHandDiag = handDiag;
                     MouseClickScreen(hx, hy);
+                    playClicked = true;
+
                     stepPlay.Outcome = StepOutcome.Success;
                     stepPlay.Detail = $"Clicked PLAY (hand cursor). {gateDiag} {handDiag}";
-                    return true;
                 }
+                else
+                {
+                    lastHandDiag = handDiag;
 
-                // Fallback: click the computed target
-                MouseClickScreen(playX, playY);
-                stepPlay.Outcome = StepOutcome.Success;
-                stepPlay.Detail = $"Clicked PLAY. {gateDiag} {handDiag}";
-                return true;
+                    // Fallback: click the computed target
+                    MouseClickScreen(playX, playY);
+                    playClicked = true;
+
+                    stepPlay.Outcome = StepOutcome.Success;
+                    stepPlay.Detail = $"Clicked PLAY. {gateDiag} {handDiag}";
+                }
             }
             catch (Exception ex)
             {
@@ -248,6 +397,42 @@ namespace GWxLauncher.Services
                 error = ex.Message;
                 return false;
             }
+
+            // NEW: In bulk mode, do not release the coordinator gate until the 3D window exists and is drawing (best-effort).
+            if (!bulkMode)
+            {
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Not in bulk mode.";
+                return true;
+            }
+
+            if (!playClicked)
+            {
+                stepDxWindow.Outcome = StepOutcome.Skipped;
+                stepDxWindow.Detail = "Not attempted (PLAY not clicked).";
+                return true;
+            }
+
+            if (WaitForDxWindowCreated(gw2Process.Id, timeoutMs: 60000, out var dxHwnd, out var dxClass, out var dxWaitedMs))
+            {
+                stepDxWindow.Outcome = StepOutcome.Success;
+                stepDxWindow.Detail = $"DX window created: {dxClass} after {dxWaitedMs}ms.";
+
+                if (WaitForDxNonWhite(dxHwnd, timeoutMs: 60000, out string dxDiag))
+                    stepDxWindow.Detail += $" DX ready. {dxDiag}";
+                else
+                {
+                    stepDxWindow.Outcome = StepOutcome.Pending;
+                    stepDxWindow.Detail += " DX window stayed white (best-effort).";
+                }
+            }
+            else
+            {
+                stepDxWindow.Outcome = StepOutcome.Pending;
+                stepDxWindow.Detail = "DX window not observed (best-effort).";
+            }
+
+            return true;
         }
 
         // -----------------------------
@@ -419,6 +604,63 @@ namespace GWxLauncher.Services
 
             return false;
         }
+        private static bool WaitForDxNonWhite(IntPtr dxHwnd, int timeoutMs, out string diag)
+        {
+            diag = "";
+
+            // Find center-ish point of the DX window client area in screen coords
+            if (!GetClientRect(dxHwnd, out RECT cr))
+            {
+                diag = "GetClientRect failed.";
+                return false;
+            }
+
+            var pt = new POINT { X = (cr.Right - cr.Left) / 2, Y = (cr.Bottom - cr.Top) / 2 };
+            if (!ClientToScreen(dxHwnd, ref pt))
+            {
+                diag = "ClientToScreen failed.";
+                return false;
+            }
+
+            // Sample a tiny cross around center
+            var samples = new (int dx, int dy)[] { (0, 0), (-12, 0), (12, 0), (0, -12), (0, 12) };
+
+            long stableFor = 0;
+            var sw = Stopwatch.StartNew();
+
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                int nonWhite = 0;
+
+                foreach (var (dx, dy) in samples)
+                {
+                    if (!TryGetScreenPixel(pt.X + dx, pt.Y + dy, out var r, out var g, out var b))
+                        continue;
+
+                    if (!IsNearWhite(r, g, b))
+                        nonWhite++;
+                }
+
+                if (nonWhite >= 3)
+                {
+                    stableFor += 200;
+                    if (stableFor >= 800)
+                    {
+                        diag = $"Ready after {sw.ElapsedMilliseconds}ms (nonWhite={nonWhite}/5)";
+                        return true;
+                    }
+                }
+                else
+                {
+                    stableFor = 0;
+                }
+
+                Thread.Sleep(200);
+            }
+
+            diag = $"Timed out after {sw.ElapsedMilliseconds}ms waiting for DX non-white.";
+            return false;
+        }
 
         private static IntPtr FindTopLevelWindowByPidAndClass(int pid, string className)
         {
@@ -454,7 +696,7 @@ namespace GWxLauncher.Services
             while (sw.ElapsedMilliseconds < timeoutMs)
             {
                 ForceForeground(hwnd);
-
+                Thread.Sleep(60);
                 if (IsForegroundStable(hwnd, holdStableMs))
                     return true;
 
@@ -636,6 +878,71 @@ namespace GWxLauncher.Services
         // -----------------------------
         // Misc helpers
         // -----------------------------
+        private static bool EnsureForegroundOrWarn(IntPtr hwnd, int holdStableMs, int timeoutMs, LaunchStep step, string context)
+        {
+            if (ForceAndHoldForeground(hwnd, holdStableMs, timeoutMs))
+                return true;
+
+            // Do not hard-fail: in practice GW2 can steal focus briefly during render/churn.
+            step.Detail += $" (warn: foreground not stable after {context})";
+            return false;
+        }
+
+        private static bool WaitForDxWindowCreated(int pid, int timeoutMs, out IntPtr dxHwnd, out string dxClass, out int waitedMs)
+        {
+            dxHwnd = IntPtr.Zero;
+            dxClass = "";
+            waitedMs = 0;
+
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                var found = FindTopLevelWindowByPidAndClassPrefix(pid, out dxHwnd, out dxClass);
+                if (found)
+                {
+                    waitedMs = (int)sw.ElapsedMilliseconds;
+                    return true;
+                }
+
+                Thread.Sleep(200);
+            }
+
+            waitedMs = (int)sw.ElapsedMilliseconds;
+            return false;
+        }
+        private static bool FindTopLevelWindowByPidAndClassPrefix(int pid, out IntPtr hwnd, out string cls)
+        {
+            IntPtr foundHwnd = IntPtr.Zero;
+            string foundCls = "";
+
+            EnumWindows((h, l) =>
+            {
+                if (!IsWindowVisible(h))
+                    return true;
+
+                GetWindowThreadProcessId(h, out uint winPid);
+                if (winPid != (uint)pid)
+                    return true;
+
+                var sb = new StringBuilder(256);
+                GetClassName(h, sb, sb.Capacity);
+                var c = sb.ToString();
+
+                // GW2 3D window classes (per insight doc)
+                if (c == "ArenaNet_Dx_Window_Class" || c == "ArenaNet_Gr_Window_Class")
+                {
+                    foundHwnd = h;
+                    foundCls = c;
+                    return false; // stop enumeration
+                }
+
+                return true;
+            }, IntPtr.Zero);
+
+            hwnd = foundHwnd;
+            cls = foundCls;
+            return hwnd != IntPtr.Zero;
+        }
 
         private static string GetClassNameSafe(IntPtr hwnd)
         {
@@ -669,6 +976,126 @@ namespace GWxLauncher.Services
         private static bool IsNearWhite(byte r, byte g, byte b)
         {
             return r >= 240 && g >= 240 && b >= 240;
+        }
+
+
+        private static bool WaitForLauncherUiRendered(POINT clientTL, POINT clientWH,
+            int emailX, int emailY, int passX, int passY,
+            int timeoutMs, int requiredStableMs, out string diag)
+        {
+            diag = "";
+
+            // Probe points in screen coords. We try to hit non-white "anchors" that only appear after the page is rendered.
+            // (1) Borders/labels near the input fields (offsets relative to the click points, not inside the white fill)
+            // (2) Log In button region (dark)
+            // (3) Progress bar region (orange)
+            // (4) Artwork area (non-white)
+            var probes = new (int x, int y, string tag)[]
+            {
+        // Email field: left border / label area
+        (emailX - 120, emailY, "email-left"),
+        (emailX - 120, emailY - 26, "email-label"),
+
+        // Password field: left border / label area
+        (passX - 120, passY, "pass-left"),
+        (passX - 120, passY - 26, "pass-label"),
+
+        // Log In button (dark)
+        (clientTL.X + (int)(clientWH.X * LoginButtonProbeX), clientTL.Y + (int)(clientWH.Y * LoginButtonProbeY), "login-btn"),
+
+        // Progress bar (orange)
+        (clientTL.X + (int)(clientWH.X * ProgressBarProbeX), clientTL.Y + (int)(clientWH.Y * ProgressBarProbeY), "progress"),
+
+        // Artwork area (usually non-white)
+        (clientTL.X + (int)(clientWH.X * ArtProbeX), clientTL.Y + (int)(clientWH.Y * ArtProbeY), "art"),
+            };
+
+            int neededNonWhite = 3; // of total probes
+            long stableFor = 0;
+            int samplesTaken = 0;
+            var sw = Stopwatch.StartNew();
+
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                samplesTaken++;
+
+                int nonWhite = 0;
+                int total = 0;
+
+                foreach (var (x, y, _) in probes)
+                {
+                    total++;
+                    if (!TryGetScreenPixel(x, y, out var r, out var g, out var b))
+                        continue;
+
+                    if (!IsNearWhite(r, g, b))
+                        nonWhite++;
+                }
+
+                if (nonWhite >= neededNonWhite)
+                {
+                    stableFor += StabilizeCheckMs;
+                    if (stableFor >= requiredStableMs)
+                    {
+                        diag = $"Ready after {sw.ElapsedMilliseconds}ms (nonWhite={nonWhite}/{probes.Length}, samples={samplesTaken})";
+                        return true;
+                    }
+                }
+                else
+                {
+                    stableFor = 0;
+                }
+
+                Thread.Sleep(StabilizeCheckMs);
+            }
+
+            diag = $"Timed out after {sw.ElapsedMilliseconds}ms (nonWhite < {neededNonWhite}/{probes.Length}, samples={samplesTaken})";
+            return false;
+        }
+
+        private static bool WaitForNonWhiteStable(int x, int y, int timeoutMs, int requiredStableMs, out string diag)
+        {
+            diag = "";
+            long stableFor = 0;
+            int samplesTaken = 0;
+
+            // Sample a small cross around the point to avoid a single unlucky pixel.
+            var points = new (int dx, int dy)[] { (0, 0), (-10, 0), (10, 0), (0, -10), (0, 10) };
+
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                samplesTaken++;
+                int nonWhite = 0;
+
+                foreach (var (dx, dy) in points)
+                {
+                    if (!TryGetScreenPixel(x + dx, y + dy, out var r, out var g, out var b))
+                        continue;
+
+                    if (!IsNearWhite(r, g, b))
+                        nonWhite++;
+                }
+
+                if (nonWhite >= 3)
+                {
+                    stableFor += StabilizeCheckMs;
+                    if (stableFor >= requiredStableMs)
+                    {
+                        diag = $"Ready after {sw.ElapsedMilliseconds}ms (nonWhite={nonWhite}/5, samples={samplesTaken})";
+                        return true;
+                    }
+                }
+                else
+                {
+                    stableFor = 0;
+                }
+
+                Thread.Sleep(StabilizeCheckMs);
+            }
+
+            diag = $"Timed out after {sw.ElapsedMilliseconds}ms (samples={samplesTaken})";
+            return false;
         }
 
         private static bool WaitForPlayScreen(int playX, int playY, int timeoutMs, out string diag)

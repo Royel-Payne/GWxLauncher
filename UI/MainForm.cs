@@ -31,6 +31,8 @@ namespace GWxLauncher
         private LaunchReport? _lastLaunchReport;
         private readonly List<LaunchReport> _lastLaunchReports = new();
 
+        private readonly Gw2AutomationCoordinator _gw2Automation = new Gw2AutomationCoordinator();
+
         private readonly ViewStateStore _views = new();
         private bool _showCheckedOnly = false;
 
@@ -1197,15 +1199,15 @@ namespace GWxLauncher
 
                     if (profile.Gw2AutoLoginEnabled)
                     {
-                        var loginSvc = new Gw2AutoLoginService();
-
                         // Best-effort: do not fail the entire launch if automation fails.
-                        if (!loginSvc.TryAutomateLogin(process, profile, report, out var autoLoginError))
+                        // Coordinator serializes GW2 automation across accounts and applies the "post-login stable" gate in bulk mode.
+                        if (!_gw2Automation.TryAutomateLogin(process, profile, report, bulkMode: bulkMode, out var autoLoginError))
                         {
                             if (!string.IsNullOrWhiteSpace(autoLoginError))
                                 report.FailureMessage = $"Auto-login failed: {autoLoginError}";
                         }
                     }
+
 
                     StartGw2RunAfterPrograms(profile);
 
