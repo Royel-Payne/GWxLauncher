@@ -1,5 +1,4 @@
 # GWxLauncher
-# GWxLauncher
 
 A from-scratch, lightweight **Guild Wars 1 & Guild Wars 2 unified launcher** for Windows.
 
