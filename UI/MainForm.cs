@@ -11,6 +11,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
@@ -226,6 +227,9 @@ namespace GWxLauncher
 
         private void UpdateBulkArmingUi()
         {
+            // Ensure we always evaluate the latest persisted settings (e.g., after ProfileSettingsForm saves).
+            _config = LauncherConfig.Load();
+
             // Always allow toggling this checkbox. It is a visibility control (UI-only).
             chkArmBulk.Enabled = true;
 
@@ -237,11 +241,46 @@ namespace GWxLauncher
             btnLaunchAll.Enabled = armed;
 
             if (armed)
-                lblStatus.Text = $"Launch All ready · View: {_views.ActiveViewName}";
+            {
+                if (IsMulticlientEnabledForEligible(out string missing))
+                    lblStatus.Text = $"Launch All ready · View: {_views.ActiveViewName}";
+                else
+                    lblStatus.Text = $"Launch All requires multiclient: {missing} · View: {_views.ActiveViewName}";
+            }
             if (!armed)
                 lblStatus.Text = $"Launch All not ready · View: {_views.ActiveViewName}";
             else if (_showCheckedOnly && !anyEligible)
                 lblStatus.Text = $"No checked profiles in view · View: {_views.ActiveViewName}";
+        }
+
+
+        private void GetEligibleGameTypes(out bool hasGw1, out bool hasGw2)
+        {
+            var eligible = _profileManager.Profiles
+                .Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
+
+            hasGw1 = eligible.Any(p => p.GameType == GameType.GuildWars1);
+            hasGw2 = eligible.Any(p => p.GameType == GameType.GuildWars2);
+        }
+
+        private bool IsMulticlientEnabledForEligible(out string missingDetail)
+        {
+            GetEligibleGameTypes(out bool hasGw1, out bool hasGw2);
+
+            var missing = new List<string>();
+            if (hasGw1 && !_config.Gw1MulticlientEnabled)
+                missing.Add("Guild Wars 1");
+            if (hasGw2 && !_config.Gw2MulticlientEnabled)
+                missing.Add("Guild Wars 2");
+
+            if (missing.Count == 0)
+            {
+                missingDetail = "";
+                return true;
+            }
+
+            missingDetail = string.Join(", ", missing);
+            return false;
         }
 
         private void ApplyViewScopedUiState()
@@ -807,8 +846,11 @@ namespace GWxLauncher
             LaunchGame(_config.Gw2Path, "Guild Wars 2");
         }
 
-        private void btnLaunchAll_Click(object sender, EventArgs e)
+        private async void btnLaunchAll_Click(object sender, EventArgs e)
         {
+            // Always evaluate the latest persisted settings (the settings form saves its own config instance).
+            _config = LauncherConfig.Load();
+
             // Guard: bulk launch must be explicitly armed.
             bool anyEligible = _views.AnyEligibleInActiveView(_profileManager.Profiles);
             bool armed = anyEligible && _showCheckedOnly;
@@ -825,6 +867,35 @@ namespace GWxLauncher
                 .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
 
+            // Guard: multiclient must be enabled for the eligible game type(s) or bulk launch won't work.
+            // Reload config first so this reflects changes made in ProfileSettingsForm without restarting MainForm.
+            if (!IsMulticlientEnabledForEligible(out string missing))
+            {
+                string msg =
+                    "Multiclient not enabled.\n\n" +
+                    $"Not enabled for: {missing}\n\n" +
+                    "Enable it now and continue?";
+
+                var result = MessageBox.Show(this, msg, "Multiclient not enabled", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+                if (result != DialogResult.OK)
+                {
+                    lblStatus.Text = $"Bulk launch canceled · Multiclient missing: {missing}";
+                    return;
+                }
+
+                // Enable required flags and persist.
+                GetEligibleGameTypes(out bool hasGw1, out bool hasGw2);
+                if (hasGw1) _config.Gw1MulticlientEnabled = true;
+                if (hasGw2) _config.Gw2MulticlientEnabled = true;
+
+                _config.Save();
+
+                // Refresh state after saving so any subsequent checks see the latest values.
+                _config = LauncherConfig.Load();
+                RefreshProfileList();
+                UpdateBulkArmingUi();
+            }
+
             if (targets.Count == 0)
             {
                 lblStatus.Text = $"No checked profiles in view · View: {_views.ActiveViewName}";
@@ -833,8 +904,31 @@ namespace GWxLauncher
 
             _lastLaunchReports.Clear();
 
-            foreach (var profile in targets)
-                LaunchProfile(profile, bulkMode: true);
+            // Prevent re-entrancy while bulk launch is running.
+            btnLaunchAll.Enabled = false;
+            try
+            {
+                // Run GW2 launches off the UI thread to avoid paint starvation (GW2 automation contains sleeps/polling).
+                // GW1 launches remain on UI thread (fast, minimal waiting), but can be moved later if needed.
+                foreach (var profile in targets)
+                {
+                    if (profile.GameType == GameType.GuildWars2)
+                    {
+                        await Task.Run(() => LaunchProfileGw2BulkWorker(profile));
+                    }
+                    else
+                    {
+                        LaunchProfile(profile, bulkMode: true);
+                    }
+
+                    // Give WinForms a chance to repaint between profiles.
+                    await Task.Yield();
+                }
+            }
+            finally
+            {
+                UpdateBulkArmingUi();
+            }
         }
 
         private void btnSetGw1Path_Click(object sender, EventArgs e)
@@ -1237,6 +1331,231 @@ namespace GWxLauncher
                 }
 
                 return;
+            }
+        }
+
+        private void SafeUi(Action action)
+        {
+            if (IsDisposed) return;
+
+            try
+            {
+                if (IsHandleCreated && InvokeRequired)
+                    BeginInvoke(action);
+                else
+                    action();
+            }
+            catch
+            {
+                // ignore UI marshal failures during shutdown
+            }
+        }
+
+        private void ApplyLaunchReportToUi(LaunchReport report)
+        {
+            _lastLaunchReport = report;
+            _lastLaunchReports.Add(report);
+            lblStatus.Text = report.BuildSummary();
+        }
+
+        /// <summary>
+        /// Bulk-launch worker for GW2 that runs off the UI thread so the listbox/cards can repaint
+        /// while GW2 mutex handling + automation (polling/sleeps/pixel checks) are running.
+        /// UI updates are marshaled back via SafeUi().
+        /// </summary>
+        private void LaunchProfileGw2BulkWorker(GameProfile profile)
+        {
+            if (profile == null)
+                return;
+
+            // Use a fresh config snapshot (ProfileSettingsForm writes and saves its own config instance).
+            var cfg = LauncherConfig.Load();
+
+            string exePath = profile.ExecutablePath;
+            if (string.IsNullOrWhiteSpace(exePath))
+                exePath = cfg.Gw2Path;
+
+            if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+            {
+                SafeUi(() =>
+                {
+                    MessageBox.Show(
+                        this,
+                        "No valid executable path is configured for this profile.\n\n" +
+                        "Edit the profile or configure the game path in settings.",
+                        "Missing executable",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                });
+                return;
+            }
+
+            var report = new LaunchReport
+            {
+                GameName = "Guild Wars 2",
+                ExecutablePath = exePath
+            };
+
+            bool mcEnabled = cfg.Gw2MulticlientEnabled;
+
+            var mcStep = new LaunchStep { Label = "Multiclient" };
+            report.Steps.Add(mcStep);
+
+            const string Gw2MutexName = GWxLauncher.Services.Gw2MutexKiller.Gw2MutexLeafName;
+
+            bool mutexOpen;
+            try
+            {
+                using var _ = Mutex.OpenExisting(Gw2MutexName);
+                mutexOpen = true;
+            }
+            catch (WaitHandleCannotBeOpenedException)
+            {
+                mutexOpen = false;
+            }
+            catch (Exception ex)
+            {
+                report.Succeeded = false;
+                report.FailureMessage = $"Failed to check GW2 mutex: {ex.Message}";
+                mcStep.Outcome = StepOutcome.Failed;
+                mcStep.Detail = "Mutex check failed.";
+
+                SafeUi(() =>
+                {
+                    ApplyLaunchReportToUi(report);
+                    MessageBox.Show(this, report.FailureMessage, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                });
+                return;
+            }
+
+            if (!mcEnabled)
+            {
+                mcStep.Outcome = StepOutcome.Skipped;
+                mcStep.Detail = "Multiclient disabled.";
+            }
+            else
+            {
+                // If GW2 is already running (mutex open), we must clear the mutex or abort.
+                if (mutexOpen)
+                {
+                    int attempts = 4;  // bulk: retry a few times
+                    int delayMs = 350; // bulk: tiny backoff
+
+                    bool cleared = false;
+                    int clearedPid = 0;
+                    string killDetail = "";
+                    bool usedElevated = false;
+
+                    for (int i = 0; i < attempts; i++)
+                    {
+                        if (GWxLauncher.Services.Gw2MutexKiller.TryKillGw2Mutex(
+                                out clearedPid,
+                                out killDetail,
+                                allowElevatedFallback: true,
+                                out usedElevated))
+                        {
+                            cleared = true;
+                            break;
+                        }
+
+                        if (i < attempts - 1 && delayMs > 0)
+                            Thread.Sleep(delayMs);
+                    }
+
+                    if (!cleared)
+                    {
+                        string msg =
+                            "Guild Wars 2 is already running.\n\n" +
+                            "Close it or launch all instances via GWxLauncher.";
+
+                        report.Succeeded = false;
+                        report.FailureMessage = msg;
+                        mcStep.Outcome = StepOutcome.Failed;
+                        mcStep.Detail = $"GW2 mutex exists and could not be cleared. {killDetail}";
+
+                        SafeUi(() =>
+                        {
+                            ApplyLaunchReportToUi(report);
+                            MessageBox.Show(this, msg, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        });
+                        return;
+                    }
+
+                    mcStep.Outcome = StepOutcome.Success;
+                    mcStep.Detail = usedElevated
+                        ? $"Cleared GW2 mutex in PID {clearedPid} (elevated retry)."
+                        : $"Cleared GW2 mutex in PID {clearedPid}.";
+                }
+            }
+
+            // Launch GW2 (add -shareArchive only when multiclient enabled)
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
+                    Arguments = mcEnabled ? "-shareArchive" : ""
+                };
+
+                // Safety: if we got this far and mc is enabled, the step must not remain "NotAttempted".
+                if (mcEnabled && mcStep.Outcome == StepOutcome.NotAttempted)
+                {
+                    mcStep.Outcome = StepOutcome.Success;
+                    if (string.IsNullOrWhiteSpace(mcStep.Detail))
+                        mcStep.Detail = "Multiclient enabled.";
+                }
+
+                var process = Process.Start(startInfo);
+
+                if (mcEnabled)
+                {
+                    // Wait until GW2 recreates its mutex, so the next bulk launch can reliably clear it again.
+                    if (!WaitForGw2MutexToExist(timeoutMs: 8000, out int waited))
+                        mcStep.Detail += $" (Warning: GW2 mutex did not appear within {waited}ms)";
+                    else
+                        mcStep.Detail += $" (GW2 mutex observed after {waited}ms)";
+
+                    // Keep the step success but add the arg note.
+                    mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
+                        ? "Launched with -shareArchive."
+                        : mcStep.Detail + " Launched with -shareArchive.";
+                }
+
+                if (process != null && profile.Gw2AutoLoginEnabled)
+                {
+                    // Best-effort: do not fail the entire launch if automation fails.
+                    // Coordinator serializes GW2 automation across accounts and applies the "post-login stable" gate in bulk mode.
+                    if (!_gw2Automation.TryAutomateLogin(process, profile, report, bulkMode: true, out var autoLoginError))
+                    {
+                        if (!string.IsNullOrWhiteSpace(autoLoginError))
+                            report.FailureMessage = $"Auto-login failed: {autoLoginError}";
+                    }
+                }
+
+                StartGw2RunAfterPrograms(profile);
+
+                report.Succeeded = true;
+
+                SafeUi(() => ApplyLaunchReportToUi(report));
+            }
+            catch (Exception ex)
+            {
+                report.Succeeded = false;
+                report.FailureMessage = ex.Message;
+                mcStep.Outcome = StepOutcome.Failed;
+                mcStep.Detail = "Process.Start failed.";
+
+                SafeUi(() =>
+                {
+                    ApplyLaunchReportToUi(report);
+                    MessageBox.Show(
+                        this,
+                        $"Failed to launch Guild Wars 2:\n\n{ex.Message}",
+                        "Launch failed",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                });
             }
         }
 

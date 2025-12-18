@@ -34,19 +34,22 @@ Profiles (not games, accounts, or global configs) are the core unit of configura
 
 ---
 
-### From‑scratch launcher (not a Gw2Launcher fork)
+### GW2 launcher responsibility boundary
 
 **Decision**  
-GWxLauncher is implemented from scratch and does not reuse Gw2Launcher code.
+GWxLauncher’s responsibility for Guild Wars 2 ends once the DX game window is created and rendering.
+
+Entering the world, character selection, and gameplay are explicitly user-controlled and out of scope.
 
 **Rationale**  
-- Learning‑focused project
-- Avoid inheriting complexity, assumptions, or architectural constraints
-- Full control over injection boundaries and UI behavior
+- The launcher’s role is to automate **launch and login**, not gameplay
+- DX window creation is the first reliable, observable signal that the game client is running
+- Waiting beyond this point introduces ambiguity, instability, and user-specific behavior
 
 **Consequences**  
-- Some features appear later than in mature launchers
-- Architecture stays small, readable, and purpose‑built
+- Bulk launch serialization gates on **DX window creation**, not “in-world” state
+- Launch reports stop at DX readiness
+- No automation is attempted beyond the launcher → game transition
 
 ---
 

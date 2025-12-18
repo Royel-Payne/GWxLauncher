@@ -22,6 +22,7 @@ namespace GWxLauncher.UI
 
         private bool _restoredFromSavedPlacement;
         private bool _gw1GmodPluginsInteractive = true;
+        private bool _gw2RunAfterInteractive = true;
 
         // -----------------------------
         // Ctor / Form lifecycle
@@ -43,11 +44,16 @@ namespace GWxLauncher.UI
             lvGw1GModPlugins.ForeColor = ThemeService.Palette.InputFore;
             lvGw1GModPlugins.SelectedIndexChanged += (s, e) => UpdateGw1GModPluginButtons();
 
-            // When "disabled", prevent selection so it *feels* disabled (without breaking theme bg)
-            lvGw1GModPlugins.ItemSelectionChanged += (s, e) =>
+            // When "disabled", prevent selection/checking so it *feels* disabled (without breaking theme bg)
+            lvGw2RunAfter.ItemSelectionChanged += (s, e) =>
             {
-                if (!_gw1GmodPluginsInteractive && e.IsSelected)
+                if (!_gw2RunAfterInteractive && e.IsSelected)
                     e.Item.Selected = false;
+            };
+            lvGw2RunAfter.ItemCheck += (s, e) =>
+            {
+                if (!_gw2RunAfterInteractive)
+                    e.NewValue = e.CurrentValue;
             };
 
             // Explicit button handlers
@@ -197,6 +203,7 @@ namespace GWxLauncher.UI
             };
 
             chkGw2AutoLogin.CheckedChanged += (s, e) => UpdateGw2LoginUiState();
+            chkGw2RunAfterEnabled.CheckedChanged += (s, e) => UpdateGw2RunAfterUiState();
             chkGw1AutoSelectCharacter.CheckedChanged += (s, e) => UpdateGw1LoginUiState();
 
             chkToolbox.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
@@ -241,6 +248,7 @@ namespace GWxLauncher.UI
 
                 chkGw2RunAfterEnabled.Checked = _profile.Gw2RunAfterEnabled;
 
+                UpdateGw2RunAfterUiState();
                 chkGw2AutoLogin.Checked = _profile.Gw2AutoLoginEnabled;
                 txtGw2Email.Text = _profile.Gw2Email ?? "";
                 txtGw2Password.Text = "";
@@ -249,6 +257,13 @@ namespace GWxLauncher.UI
                 lblGw2PasswordSaved.Visible = !string.IsNullOrWhiteSpace(_profile.Gw2PasswordProtected);
                 lblGw2PasswordSaved.ForeColor = Color.Goldenrod;
                 lblGw2LoginInfo.ForeColor = Color.Goldenrod;
+                lblGw2Warning.ForeColor = Color.Red;
+                chkGw2AutoLogin.CheckedChanged += (s, e) =>
+                {
+                    lblGw2LoginInfo.Visible = chkGw2AutoLogin.Checked;
+                    lblGw2Warning.Visible = chkGw2AutoLogin.Checked;
+                    UpdateGw2LoginUiState();
+                };
 
                 RefreshGw2RunAfterList();
             }
@@ -345,6 +360,24 @@ namespace GWxLauncher.UI
             // Status label stays visible if password is stored, but “greys out” when auto-login disabled
             lblGw1PasswordSaved.Enabled = enabled;
         }
+        private void UpdateGw2RunAfterUiState()
+        {
+            // Only meaningful on GW2 profiles, but safe to call always
+            bool enabled = chkGw2RunAfterEnabled.Checked;
+
+            _gw2RunAfterInteractive = enabled;
+
+            // Keep theme background ALWAYS; just grey out text and block actions.
+            lvGw2RunAfter.Enabled = true;
+            lvGw2RunAfter.BackColor = ThemeService.Palette.InputBack;
+            lvGw2RunAfter.ForeColor = enabled ? ThemeService.Palette.InputFore : ThemeService.Palette.DisabledFore;
+
+            btnGw2AddProgram.Enabled = enabled;
+            btnGw2RemoveProgram.Enabled = enabled && (lvGw2RunAfter.SelectedItems.Count > 0);
+
+            if (!enabled && lvGw2RunAfter.SelectedItems.Count > 0)
+                lvGw2RunAfter.SelectedItems.Clear();
+        }
 
         private void UpdateGw2LoginUiState()
         {
@@ -419,7 +452,8 @@ namespace GWxLauncher.UI
         private void UpdateGw2RunAfterButtons()
         {
             // Only meaningful on GW2 profiles, but safe to call always
-            btnGw2RemoveProgram.Enabled = lvGw2RunAfter.SelectedItems.Count > 0;
+            bool enabled = chkGw2RunAfterEnabled.Checked;
+            btnGw2RemoveProgram.Enabled = enabled && (lvGw2RunAfter.SelectedItems.Count > 0);
         }
 
         private void lvGw2RunAfter_ItemChecked(object sender, ItemCheckedEventArgs e)

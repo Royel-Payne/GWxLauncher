@@ -14,34 +14,40 @@ namespace GWxLauncher.Services
         private const int WindowPollMs = 200;
 
         private const int StabilizeCheckMs = 150;
-        private const int StabilizeRequiredStableMs = 900;
+        private const int StabilizeRequiredStableMs = 1200;
 
-        private const int PostForegroundSettleMs = 400;
-        private const int PostStableExtraSettleMs = 1400;
+        private const int PostForegroundSettleMs = 900;
+        private const int PostStableExtraSettleMs = 4100;
 
         private const int AfterClickMs = 180;
         private const int AfterClearMs = 120;
-        private const int CharDelayMs = 6;
+        private const int CharDelayMs = 12;
 
         // --- Click target ratios inside the GW2 client area (0..1 of client W/H) ---
         // These are for the login fields in the launcher window.
         // Your logs show these were close; do not “tab navigate” here.
-        private const double EmailClickX = 0.180;
-        private const double EmailClickY = 0.425;
+        private const double EmailClickX = 0.270;
+        private const double EmailClickY = 0.430;
 
-        private const double PassClickX = 0.180;
-        private const double PassClickY = 0.520;
+        private const double PassClickX = 0.270;
+        private const double PassClickY = 0.500;
 
         // --- Pre-login UI probe ratios (for "Launcher UI Rendered" gate) ---
         // We avoid sampling the textbox fill (white); instead we probe reliable non-white anchors.
-        private const double LoginButtonProbeX = 0.115;
-        private const double LoginButtonProbeY = 0.665;
+        private const double LoginButtonProbeX = 0.074;
+        private const double LoginButtonProbeY = 0.585;
 
-        private const double ProgressBarProbeX = 0.300;
-        private const double ProgressBarProbeY = 0.935;
+        private const double ProgressBarProbeX = 0.653;
+        private const double ProgressBarProbeY = 0.711;
 
         private const double ArtProbeX = 0.830;
         private const double ArtProbeY = 0.300;
+
+        private const double ReadyButtonProbeX = 0.760;
+        private const double ReadyButtonProbeY = 0.705;
+
+        private const double AnetLogoProbeX = 0.552;
+        private const double AnetLogoProbeY = 0.290;
 
 
         // --- PLAY button ratios inside the GW2 client area ---
@@ -64,20 +70,18 @@ namespace GWxLauncher.Services
         {
             error = "";
 
-            var stepLogin = new LaunchStep { Label = "Auto-Login" };
-            report.Steps.Add(stepLogin);
-
             var stepUiReady = new LaunchStep { Label = "Launcher UI Rendered" };
-            report.Steps.Add(stepUiReady);
-
-            var stepPostLoginStable = new LaunchStep { Label = "Post-Login Stable" };
-            report.Steps.Add(stepPostLoginStable);
-
+            var stepLogin = new LaunchStep { Label = "Auto-Login" };
+            var stepLauncherReady = new LaunchStep { Label = "Launcher Ready (Play Enabled)" };
+            var stepPlay = new LaunchStep { Label = "Auto-Play" };
             var stepDxWindow = new LaunchStep { Label = "DX Window Created" };
+
+            report.Steps.Add(stepUiReady);
+            report.Steps.Add(stepLogin);
+            report.Steps.Add(stepLauncherReady);
+            report.Steps.Add(stepPlay);
             report.Steps.Add(stepDxWindow);
 
-            var stepPlay = new LaunchStep { Label = "Auto-Play" };
-            report.Steps.Add(stepPlay);
             if (!profile.Gw2AutoLoginEnabled)
             {
                 stepLogin.Outcome = StepOutcome.Skipped;
@@ -86,8 +90,8 @@ namespace GWxLauncher.Services
                 stepUiReady.Outcome = StepOutcome.Skipped;
                 stepUiReady.Detail = "Disabled";
 
-                stepPostLoginStable.Outcome = StepOutcome.Skipped;
-                stepPostLoginStable.Detail = "Disabled";
+                stepLauncherReady.Outcome = StepOutcome.Skipped;
+                stepLauncherReady.Detail = "Disabled";
 
                 stepDxWindow.Outcome = StepOutcome.Skipped;
                 stepDxWindow.Detail = "Disabled";
@@ -105,8 +109,8 @@ namespace GWxLauncher.Services
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (login failed).";
                 error = "GW2 process was null.";
-                stepPostLoginStable.Outcome = StepOutcome.Skipped;
-                stepPostLoginStable.Detail = "Skipped (login failed).";
+                stepLauncherReady.Outcome = StepOutcome.Skipped;
+                stepLauncherReady.Detail = "Skipped (login failed).";
                 stepUiReady.Outcome = StepOutcome.Skipped;
                 stepUiReady.Detail = "Skipped (login failed).";
                 stepDxWindow.Outcome = StepOutcome.Skipped;
@@ -133,8 +137,8 @@ namespace GWxLauncher.Services
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (login failed).";
                 error = "GW2 email/password not configured for this profile.";
-                stepPostLoginStable.Outcome = StepOutcome.Skipped;
-                stepPostLoginStable.Detail = "Skipped (login failed).";
+                stepLauncherReady.Outcome = StepOutcome.Skipped;
+                stepLauncherReady.Detail = "Skipped (login failed).";
                 return false;
             }
 
@@ -150,8 +154,8 @@ namespace GWxLauncher.Services
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (login failed).";
                 error = $"DPAPI decrypt failed: {ex.Message}";
-                stepPostLoginStable.Outcome = StepOutcome.Skipped;
-                stepPostLoginStable.Detail = "Skipped (login failed).";
+                stepLauncherReady.Outcome = StepOutcome.Skipped;
+                stepLauncherReady.Detail = "Skipped (login failed).";
                 return false;
             }
 
@@ -162,8 +166,8 @@ namespace GWxLauncher.Services
                 stepPlay.Outcome = StepOutcome.Skipped;
                 stepPlay.Detail = "Skipped (login failed).";
                 error = "GW2 decrypted password was empty.";
-                stepPostLoginStable.Outcome = StepOutcome.Skipped;
-                stepPostLoginStable.Detail = "Skipped (login failed).";
+                stepLauncherReady.Outcome = StepOutcome.Skipped;
+                stepLauncherReady.Detail = "Skipped (login failed).";
                 return false;
             }
 
@@ -209,7 +213,7 @@ namespace GWxLauncher.Services
                 // Gate: ensure the launcher page has actually rendered before we start clicking/typing (important for multi-launch).
                 // NOTE: The login textboxes themselves are white even when rendered, so we probe "anchor" UI pixels (borders/button/progress/art).
                 if (!WaitForLauncherUiRendered(clientTL, clientWH, emailX, emailY, passX, passY,
-                        timeoutMs: 5000, requiredStableMs: 600, out string uiDiag))
+                        timeoutMs: 7500, requiredStableMs: 600, out string uiDiag))
                 {
                     stepUiReady.Outcome = StepOutcome.Pending;
                     stepUiReady.Detail = $"Launcher UI not yet rendered (best-effort). {uiDiag}";
@@ -267,8 +271,8 @@ namespace GWxLauncher.Services
             // out of the immediate post-login churn (white window / auth / render).
             if (!bulkMode)
             {
-                stepPostLoginStable.Outcome = StepOutcome.Skipped;
-                stepPostLoginStable.Detail = "Not in bulk mode.";
+                stepLauncherReady.Outcome = StepOutcome.Skipped;
+                stepLauncherReady.Detail = "Not in bulk mode.";
             }
             else
             {
@@ -277,8 +281,8 @@ namespace GWxLauncher.Services
                     // Re-stabilize client rect (screen coords) post-login transition
                     if (!WaitForClientRectStable(gw2Hwnd, requiredStableMs: StabilizeRequiredStableMs, timeoutMs: 20000, out var clientTL2, out var clientWH2))
                     {
-                        stepPostLoginStable.Outcome = StepOutcome.Pending;
-                        stepPostLoginStable.Detail = "Client area did not stabilize post-login (best-effort).";
+                        stepLauncherReady.Outcome = StepOutcome.Pending;
+                        stepLauncherReady.Detail = "Client area did not stabilize post-login (best-effort).";
                     }
                     else
                     {
@@ -287,20 +291,20 @@ namespace GWxLauncher.Services
 
                         if (!WaitForPlayScreen(playX, playY, PlayWaitTimeoutMs, out string gateDiag))
                         {
-                            stepPostLoginStable.Outcome = StepOutcome.Pending;
-                            stepPostLoginStable.Detail = $"Post-login UI gate not detected: {gateDiag}";
+                            stepLauncherReady.Outcome = StepOutcome.Pending;
+                            stepLauncherReady.Detail = $"Post-login UI gate not detected: {gateDiag}";
                         }
                         else
                         {
-                            stepPostLoginStable.Outcome = StepOutcome.Success;
-                            stepPostLoginStable.Detail = $"Post-login UI stabilized. {gateDiag}";
+                            stepLauncherReady.Outcome = StepOutcome.Success;
+                            stepLauncherReady.Detail = $"Post-login UI stabilized. {gateDiag}";
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    stepPostLoginStable.Outcome = StepOutcome.Pending;
-                    stepPostLoginStable.Detail = $"Post-login stable gate error (best-effort): {ex.Message}";
+                    stepLauncherReady.Outcome = StepOutcome.Pending;
+                    stepLauncherReady.Detail = $"Post-login stable gate error (best-effort): {ex.Message}";
                 }
             }
 
@@ -623,7 +627,7 @@ namespace GWxLauncher.Services
             }
 
             // Sample a tiny cross around center
-            var samples = new (int dx, int dy)[] { (0, 0), (-12, 0), (12, 0), (0, -12), (0, 12) };
+            var samples = new (int dx, int dy)[] { (0, 0), (-12, 0), (12, 0), (0, -3), (0, 3) };
 
             long stableFor = 0;
             var sw = Stopwatch.StartNew();
@@ -990,24 +994,28 @@ namespace GWxLauncher.Services
             // (2) Log In button region (dark)
             // (3) Progress bar region (orange)
             // (4) Artwork area (non-white)
-            var probes = new (int x, int y, string tag)[]
+            var probes = new (int x, int y, string label)[]
             {
-        // Email field: left border / label area
-        (emailX - 120, emailY, "email-left"),
-        (emailX - 120, emailY - 26, "email-label"),
+                // Known non-white anchors only
+                (clientTL.X + (int)(clientWH.X * LoginButtonProbeX),
+                 clientTL.Y + (int)(clientWH.Y * LoginButtonProbeY),
+                 "login-btn"),
 
-        // Password field: left border / label area
-        (passX - 120, passY, "pass-left"),
-        (passX - 120, passY - 26, "pass-label"),
+                (clientTL.X + (int)(clientWH.X * ProgressBarProbeX),
+                 clientTL.Y + (int)(clientWH.Y * ProgressBarProbeY),
+                 "progress"),
 
-        // Log In button (dark)
-        (clientTL.X + (int)(clientWH.X * LoginButtonProbeX), clientTL.Y + (int)(clientWH.Y * LoginButtonProbeY), "login-btn"),
+                (clientTL.X + (int)(clientWH.X * ArtProbeX),
+                 clientTL.Y + (int)(clientWH.Y * ArtProbeY),
+                 "art"),
 
-        // Progress bar (orange)
-        (clientTL.X + (int)(clientWH.X * ProgressBarProbeX), clientTL.Y + (int)(clientWH.Y * ProgressBarProbeY), "progress"),
+                (clientTL.X + (int)(clientWH.X * ReadyButtonProbeX),
+                 clientTL.Y + (int)(clientWH.Y * ReadyButtonProbeY),
+                 "ready"),
 
-        // Artwork area (usually non-white)
-        (clientTL.X + (int)(clientWH.X * ArtProbeX), clientTL.Y + (int)(clientWH.Y * ArtProbeY), "art"),
+                (clientTL.X + (int)(clientWH.X * AnetLogoProbeX),
+                 clientTL.Y + (int)(clientWH.Y * AnetLogoProbeY),
+                 "anet"),
             };
 
             int neededNonWhite = 3; // of total probes

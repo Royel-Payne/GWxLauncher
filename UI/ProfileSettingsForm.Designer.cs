@@ -72,6 +72,7 @@ namespace GWxLauncher.UI
             btnOk = new Button();
             btnCancel = new Button();
             grpGw2Login = new GroupBox();
+            lblGw2Warning = new Label();
             chkGw2AutoLogin = new CheckBox();
             lblGw2LoginInfo = new Label();
             lblGw2Email = new Label();
@@ -483,6 +484,7 @@ namespace GWxLauncher.UI
             // 
             // grpGw2Login
             // 
+            grpGw2Login.Controls.Add(lblGw2Warning);
             grpGw2Login.Controls.Add(chkGw2AutoLogin);
             grpGw2Login.Controls.Add(lblGw2LoginInfo);
             grpGw2Login.Controls.Add(lblGw2Email);
@@ -499,6 +501,17 @@ namespace GWxLauncher.UI
             grpGw2Login.Text = "GW2 Login";
             grpGw2Login.Visible = false;
             // 
+            // lblGw2Warning
+            // 
+            lblGw2Warning.AutoSize = true;
+            lblGw2Warning.Font = new System.Drawing.Font("Segoe UI", 10F);
+            lblGw2Warning.ForeColor = Color.Crimson;
+            lblGw2Warning.Location = new Point(16, 226);
+            lblGw2Warning.Name = "lblGw2Warning";
+            lblGw2Warning.Size = new Size(212, 19);
+            lblGw2Warning.TabIndex = 8;
+            lblGw2Warning.Text = "Experimental Feature (best effort)";
+            // 
             // chkGw2AutoLogin
             // 
             chkGw2AutoLogin.AutoSize = true;
@@ -514,9 +527,9 @@ namespace GWxLauncher.UI
             lblGw2LoginInfo.AutoSize = true;
             lblGw2LoginInfo.Location = new Point(16, 45);
             lblGw2LoginInfo.Name = "lblGw2LoginInfo";
-            lblGw2LoginInfo.Size = new Size(227, 15);
+            lblGw2LoginInfo.Size = new Size(205, 15);
             lblGw2LoginInfo.TabIndex = 1;
-            lblGw2LoginInfo.Text = "Uses launcher UI automation (best effort).";
+            lblGw2LoginInfo.Text = "Auto-login stores credentials (DPAPI).";
             // 
             // lblGw2Email
             // 
@@ -586,8 +599,8 @@ namespace GWxLauncher.UI
             Controls.Add(label2);
             Controls.Add(label1);
             Controls.Add(txtProfileName);
-            Controls.Add(grpGw1Login);
             Controls.Add(grpGw2Login);
+            Controls.Add(grpGw1Login);
             Name = "ProfileSettingsForm";
             Text = "ProfileSettingsForm";
             grpGw1Mods.ResumeLayout(false);
@@ -656,7 +669,6 @@ namespace GWxLauncher.UI
         private Label lblGw1CharacterName;
         private TextBox txtGw1CharacterName;
         private Label lblGw1LoginWarning;
-
-
+        private Label lblGw2Warning;
     }
 }
