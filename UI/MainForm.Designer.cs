@@ -105,7 +105,7 @@
             // 
             menuEditProfile.Name = "menuEditProfile";
             menuEditProfile.Size = new Size(216, 22);
-            menuEditProfile.Text = "Edit Profile...";
+            menuEditProfile.Text = "Edit Account Info...";
             menuEditProfile.Click += menuEditProfile_Click;
             // 
             // menuShowLastLaunchDetails
