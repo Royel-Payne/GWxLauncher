@@ -457,15 +457,26 @@ namespace GWxLauncher.Services
                 ExecutablePath = exePath
             };
 
-            // Steps in real-world order (gMod -> Toolbox -> Py4GW)
+            // Steps in real-world order (Multiclient -> gMod -> Toolbox -> Py4GW -> Auto-Login)
+            var stepMulticlient = new LaunchStep { Label = "Multiclient" };
+            var stepLaunch = new LaunchStep { Label = "GW1 Launch" };
             var stepGmod = new LaunchStep { Label = "gMod" };
             var stepToolbox = new LaunchStep { Label = "Toolbox" };
             var stepPy4Gw = new LaunchStep { Label = "Py4GW" };
 
+            report.Steps.Add(stepMulticlient);
+            report.Steps.Add(stepLaunch);
             report.Steps.Add(stepGmod);
             report.Steps.Add(stepToolbox);
             report.Steps.Add(stepPy4Gw);
 
+            // Note: This step is intentionally about the *flag state* (enabled/disabled),
+            // not a definitive validation that the patch succeeded.
+            stepMulticlient.Outcome = gw1MulticlientEnabled ? StepOutcome.Success : StepOutcome.Skipped;
+            stepMulticlient.Detail = gw1MulticlientEnabled ? "Enabled" : "Disabled";
+
+            stepLaunch.Outcome = StepOutcome.Pending;
+            stepLaunch.Detail = "Launching Guild Wars 1";
             string gwArgs = BuildGw1AutoLoginArgs(profile, report);
 
             if (profile.GameType != GameType.GuildWars1)
@@ -528,6 +539,12 @@ namespace GWxLauncher.Services
                     return false;
                 }
 
+                report.UsedSuspendedLaunch = true;
+                stepLaunch.Outcome = StepOutcome.Pending;
+                stepLaunch.Detail = gw1MulticlientEnabled
+                    ? "Starting (suspended CreateProcessW + multiclient patch + gMod injection)"
+                    : "Starting (suspended CreateProcessW + gMod injection)";
+
                 if (!TryLaunchGw1WithGMod(
                         exePath,
                         gmodToInject,
@@ -538,6 +555,8 @@ namespace GWxLauncher.Services
                 {
                     errorMessage = gmodError;
 
+                    stepLaunch.Outcome = StepOutcome.Failed;
+                    stepLaunch.Detail = errorMessage;
                     stepGmod.Outcome = StepOutcome.Failed;
                     stepGmod.Detail = gmodError;
 
@@ -553,6 +572,11 @@ namespace GWxLauncher.Services
 
                 stepGmod.Outcome = StepOutcome.Success;
                 stepGmod.Detail = "Injected";
+                stepLaunch.Outcome = StepOutcome.Success;
+                stepLaunch.Detail = gw1MulticlientEnabled
+                    ? "Created suspended, patched for multiclient, injected gMod, resumed"
+                    : "Created suspended, injected gMod, resumed";
+
                 report.UsedSuspendedLaunch = true;
             }
             else
@@ -566,9 +590,12 @@ namespace GWxLauncher.Services
                 // 2) Normal launch (with or without multiclient patch)
                 if (gw1MulticlientEnabled)
                 {
+                    report.UsedSuspendedLaunch = true; // <-- MOVE THIS UP
+                    stepLaunch.Outcome = StepOutcome.Pending;
+                    stepLaunch.Detail = "Starting (suspended CreateProcessW + multiclient patch)";
+
                     var startupInfo = new STARTUPINFO { cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO)) };
                     PROCESS_INFORMATION procInfo = default;
-
 
                     string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
                     string cmdLine = BuildCreateProcessCommandLine(exePath, gwArgs);
@@ -591,6 +618,9 @@ namespace GWxLauncher.Services
                             "Failed to create Guild Wars 1 process in suspended mode.\n" +
                             $"Win32 error: {Marshal.GetLastWin32Error()}";
 
+
+                        stepLaunch.Outcome = StepOutcome.Failed;
+                        stepLaunch.Detail = errorMessage;
                         report.Succeeded = false;
                         report.FailureMessage = errorMessage;
 
@@ -605,6 +635,9 @@ namespace GWxLauncher.Services
                         {
                             errorMessage = $"GW1 multiclient patch failed:\n{patchError}";
 
+
+                            stepLaunch.Outcome = StepOutcome.Failed;
+                            stepLaunch.Detail = errorMessage;
                             report.UsedSuspendedLaunch = true;
                             report.Succeeded = false;
                             report.FailureMessage = errorMessage;
@@ -626,14 +659,27 @@ namespace GWxLauncher.Services
                             if (process != null && process.HasExited)
                             {
                                 errorMessage = $"GW exited immediately after resume. ExitCode={process.ExitCode}";
-                                return false;
+                                stepLaunch.Outcome = StepOutcome.Failed;
+                                stepLaunch.Detail = errorMessage;
+                                report.Succeeded = false;
+                                report.FailureMessage = errorMessage;
+                                return false;                                
                             }
                         }
                         catch
                         {
                             errorMessage = "GW exited immediately after resume (process vanished).";
+                            stepLaunch.Outcome = StepOutcome.Failed;
+                            stepLaunch.Detail = errorMessage;
+                            report.Succeeded = false;
+                            report.FailureMessage = errorMessage;
                             return false;
                         }
+
+                        stepLaunch.Outcome = StepOutcome.Success;
+
+
+                        stepLaunch.Detail = "Created suspended, patched for multiclient, resumed";
 
                         report.UsedSuspendedLaunch = true;
                     }
@@ -645,6 +691,9 @@ namespace GWxLauncher.Services
                 }
                 else
                 {
+                    stepLaunch.Outcome = StepOutcome.Pending;
+                    stepLaunch.Detail = "Starting (normal CreateProcessW)";
+
                     var startupInfo = new STARTUPINFO { cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO)) };
                     PROCESS_INFORMATION procInfo = default;
 
@@ -671,6 +720,9 @@ namespace GWxLauncher.Services
                                 "Failed to create Guild Wars 1 process.\n" +
                                 $"Win32 error: {Marshal.GetLastWin32Error()}";
 
+                            stepLaunch.Outcome = StepOutcome.Failed;
+                            stepLaunch.Detail = errorMessage;
+
                             report.Succeeded = false;
                             report.FailureMessage = errorMessage;
                             return false;
@@ -678,12 +730,17 @@ namespace GWxLauncher.Services
 
                         process = Process.GetProcessById(procInfo.dwProcessId);
 
-                        // Not suspended, so no ResumeThread.
+
+                        stepLaunch.Outcome = StepOutcome.Success;
+                        stepLaunch.Detail = "CreateProcessW (normal)";
+
                         report.UsedSuspendedLaunch = false;
                     }
                     catch (Exception ex)
                     {
                         errorMessage = $"Failed to start Guild Wars 1:\n{ex.Message}";
+                        stepLaunch.Outcome = StepOutcome.Failed;
+                        stepLaunch.Detail = errorMessage;
                         report.Succeeded = false;
                         report.FailureMessage = errorMessage;
                         return false;

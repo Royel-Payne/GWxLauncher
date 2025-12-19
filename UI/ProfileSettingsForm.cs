@@ -691,6 +691,24 @@ namespace GWxLauncher.UI
             Close();
         }
 
+
+        private bool IsDuplicateGw1Executable(string selectedExePath)
+        {
+            if (_profile.GameType != GameType.GuildWars1)
+                return false;
+
+            string selectedFull = Path.GetFullPath(selectedExePath);
+
+            var pm = new GWxLauncher.Services.ProfileManager();
+            pm.Load();
+
+            return pm.Profiles.Any(p =>
+                p.Id != _profile.Id &&
+                p.GameType == GameType.GuildWars1 &&
+                !string.IsNullOrWhiteSpace(p.ExecutablePath) &&
+                string.Equals(Path.GetFullPath(p.ExecutablePath), selectedFull, StringComparison.OrdinalIgnoreCase));
+        }
+
         // -----------------------------
         // Browse helpers
         // -----------------------------
@@ -710,6 +728,19 @@ namespace GWxLauncher.UI
 
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
+                if (IsDuplicateGw1Executable(dlg.FileName))
+                {
+                    MessageBox.Show(
+                        this,
+                        "This Guild Wars executable is already used by another profile.\n\n" +
+                        "Multiple GW1 instances require separate game folders.\n\n" +
+                        "Please select a different Gw.exe.",
+                        "Duplicate GW1 executable",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
                 txtExecutablePath.Text = dlg.FileName;
             }
         }

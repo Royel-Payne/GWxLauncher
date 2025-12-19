@@ -253,24 +253,26 @@ namespace GWxLauncher
                 lblStatus.Text = $"No checked profiles in view · View: {_views.ActiveViewName}";
         }
 
-
-        private void GetEligibleGameTypes(out bool hasGw1, out bool hasGw2)
+        private void GetEligibleGameTypeCounts(out int gw1Count, out int gw2Count)
         {
             var eligible = _profileManager.Profiles
                 .Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
 
-            hasGw1 = eligible.Any(p => p.GameType == GameType.GuildWars1);
-            hasGw2 = eligible.Any(p => p.GameType == GameType.GuildWars2);
+            gw1Count = eligible.Count(p => p.GameType == GameType.GuildWars1);
+            gw2Count = eligible.Count(p => p.GameType == GameType.GuildWars2);
         }
 
         private bool IsMulticlientEnabledForEligible(out string missingDetail)
         {
-            GetEligibleGameTypes(out bool hasGw1, out bool hasGw2);
+            GetEligibleGameTypeCounts(out int gw1Count, out int gw2Count);
 
             var missing = new List<string>();
-            if (hasGw1 && !_config.Gw1MulticlientEnabled)
+
+            // Multiclient is only REQUIRED when launching 2+ instances of the same game type.
+            if (gw1Count > 1 && !_config.Gw1MulticlientEnabled)
                 missing.Add("Guild Wars 1");
-            if (hasGw2 && !_config.Gw2MulticlientEnabled)
+
+            if (gw2Count > 1 && !_config.Gw2MulticlientEnabled)
                 missing.Add("Guild Wars 2");
 
             if (missing.Count == 0)
@@ -884,9 +886,10 @@ namespace GWxLauncher
                 }
 
                 // Enable required flags and persist.
-                GetEligibleGameTypes(out bool hasGw1, out bool hasGw2);
-                if (hasGw1) _config.Gw1MulticlientEnabled = true;
-                if (hasGw2) _config.Gw2MulticlientEnabled = true;
+                GetEligibleGameTypeCounts(out int gw1Count, out int gw2Count);
+
+                if (gw1Count > 1) _config.Gw1MulticlientEnabled = true;
+                if (gw2Count > 1) _config.Gw2MulticlientEnabled = true;
 
                 _config.Save();
 
