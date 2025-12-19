@@ -721,9 +721,42 @@ namespace GWxLauncher.UI
                 Title = "Select game executable"
             };
 
-            if (File.Exists(txtExecutablePath.Text))
+            var current = txtExecutablePath.Text?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(current) && File.Exists(current))
             {
-                dlg.FileName = txtExecutablePath.Text;
+                dlg.FileName = current;
+
+                try
+                {
+                    var dir = Path.GetDirectoryName(current);
+                    if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                        dlg.InitialDirectory = dir;
+                }
+                catch { /* best-effort */ }
+            }
+            else
+            {
+                var cfgPath = _profile.GameType == GameType.GuildWars1 ? _cfg.Gw1Path : _cfg.Gw2Path;
+                cfgPath = cfgPath?.Trim();
+
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(cfgPath) && File.Exists(cfgPath))
+                    {
+                        var dir = Path.GetDirectoryName(cfgPath);
+                        if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                            dlg.InitialDirectory = dir;
+                    }
+                    else
+                    {
+                        dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                    }
+                }
+                catch
+                {
+                    dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                }
             }
 
             if (dlg.ShowDialog(this) == DialogResult.OK)
@@ -744,7 +777,6 @@ namespace GWxLauncher.UI
                 txtExecutablePath.Text = dlg.FileName;
             }
         }
-
         private void BrowseDllInto(TextBox textBox)
         {
             using var dlg = new OpenFileDialog
@@ -753,9 +785,43 @@ namespace GWxLauncher.UI
                 Title = "Select DLL"
             };
 
-            if (File.Exists(textBox.Text))
+            var current = textBox.Text?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(current) && File.Exists(current))
             {
-                dlg.FileName = textBox.Text;
+                dlg.FileName = current;
+
+                try
+                {
+                    var dir = Path.GetDirectoryName(current);
+                    if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                        dlg.InitialDirectory = dir;
+                }
+                catch { /* best-effort */ }
+            }
+            else
+            {
+                var exe = txtExecutablePath.Text?.Trim();
+
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
+                    {
+                        var dir = Path.GetDirectoryName(exe);
+                        if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                            dlg.InitialDirectory = dir;
+                        else
+                            dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                    }
+                    else
+                    {
+                        dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                    }
+                }
+                catch
+                {
+                    dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                }
             }
 
             if (dlg.ShowDialog(this) == DialogResult.OK)
