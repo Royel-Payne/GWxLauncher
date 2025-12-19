@@ -601,6 +601,8 @@ namespace GWxLauncher.UI
             Controls.Add(txtProfileName);
             Controls.Add(grpGw2Login);
             Controls.Add(grpGw1Login);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
             Name = "ProfileSettingsForm";
             Text = "ProfileSettingsForm";
             grpGw1Mods.ResumeLayout(false);
