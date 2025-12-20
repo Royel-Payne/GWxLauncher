@@ -8,6 +8,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
 
 namespace GWxLauncher.UI
 {
@@ -34,6 +35,8 @@ namespace GWxLauncher.UI
 
             InitializeComponent();
             ThemeService.ApplyToForm(this);
+
+            InitGw2RunAfterContextMenu();
 
             // ListView theming + selection handlers
             lvGw2RunAfter.BackColor = ThemeService.Palette.InputBack;
@@ -96,6 +99,97 @@ namespace GWxLauncher.UI
             CancelButton = btnCancel;
 
             LoadFromProfile();
+        }
+        private void lvGw2RunAfter_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            e.DrawDefault = true;
+        }
+        private void lvGw2RunAfter_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
+        {
+            // Column 0: let WinForms draw checkbox + default visuals
+            if (e.ColumnIndex == 0)
+            {
+                e.DrawDefault = true;
+                return;
+            }
+
+            // We only customize the Name column (column 1)
+            if (e.ColumnIndex != 1)
+            {
+                e.DrawDefault = true;
+                return;
+            }
+
+            // --- Paint background (selection-aware) ---
+            Color back = lvGw2RunAfter.BackColor;
+            Color fore = lvGw2RunAfter.ForeColor;
+
+            if (e.Item.Selected)
+            {
+                back = ThemeService.Palette.ButtonBack;
+                fore = ThemeService.Palette.ButtonFore;
+            }
+
+            using (var bg = new SolidBrush(back))
+                e.Graphics.FillRectangle(bg, e.Bounds);
+
+            var p = e.Item.Tag as RunAfterProgram;
+
+            // --- Compute badge rect (right-aligned) ---
+            bool showBadge = (p != null && p.PassMumbleLinkName);
+            string badgeText = "M";
+
+            // tighter ListView badge sizing (not the big card metrics)
+            const int badgePadX = 10;
+            const int badgePadY = 3;
+            const int badgeRightPad = 8;
+
+            using var badgeFont = new Font(ThemeService.Typography.BadgeFont.FontFamily, 7.5f, FontStyle.Bold);
+
+            int badgeW = 0;
+            int badgeH = 0;
+
+            if (showBadge)
+            {
+                var sz = e.Graphics.MeasureString(badgeText, badgeFont);
+                badgeW = (int)sz.Width + badgePadX;
+                badgeH = (int)sz.Height + badgePadY;
+            }
+
+            // --- Text rect is the cell minus the badge area ---
+            var textRect = e.Bounds;
+            if (showBadge)
+                textRect = Rectangle.FromLTRB(e.Bounds.Left, e.Bounds.Top, e.Bounds.Right - (badgeW + badgeRightPad), e.Bounds.Bottom);
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                e.SubItem.Text,
+                lvGw2RunAfter.Font,
+                textRect,
+                fore,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+            // --- Draw badge pill (like MainForm badges) ---
+            if (showBadge)
+            {
+                int x = e.Bounds.Right - badgeRightPad - badgeW;
+                int y = e.Bounds.Top + (e.Bounds.Height - badgeH) / 2;
+                var rect = new Rectangle(x, y, badgeW, badgeH);
+
+                using var badgeBg = new SolidBrush(ThemeService.CardPalette.BadgeBack);
+                using var badgePen = new Pen(ThemeService.CardPalette.BadgeBorder);
+
+                e.Graphics.FillRectangle(badgeBg, rect);
+                e.Graphics.DrawRectangle(badgePen, rect);
+
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    badgeText,
+                    badgeFont,
+                    rect,
+                    ThemeService.CardPalette.BadgeFore,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
         }
 
         private void ProfileSettingsForm_Shown(object? sender, EventArgs e)
@@ -433,16 +527,76 @@ namespace GWxLauncher.UI
         // GW2 Run-After list
         // -----------------------------
 
+        private readonly ContextMenuStrip _gw2RunAfterMenu = new();
+        private readonly ToolStripMenuItem _miPassMumble = new("Pass MumbleLink name") { CheckOnClick = true };
+
+        private void InitGw2RunAfterContextMenu()
+        {
+            _gw2RunAfterMenu.Items.Add(_miPassMumble);
+
+            _gw2RunAfterMenu.Opening += (s, e) =>
+            {
+                var p = GetSelectedGw2RunAfterProgram();
+                if (p == null)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+
+                _miPassMumble.Checked = p.PassMumbleLinkName;
+            };
+
+            _miPassMumble.Click += (s, e) =>
+            {
+                var p = GetSelectedGw2RunAfterProgram();
+                if (p == null) return;
+
+                p.PassMumbleLinkName = _miPassMumble.Checked;
+                RefreshGw2RunAfterList(); // refresh badge + tooltip
+            };
+        }
+
+        private RunAfterProgram? GetSelectedGw2RunAfterProgram()
+        {
+            if (lvGw2RunAfter.SelectedItems.Count == 0)
+                return null;
+
+            return lvGw2RunAfter.SelectedItems[0].Tag as RunAfterProgram;
+        }
+
+        private void lvGw2RunAfter_MouseUp(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Right)
+                return;
+
+            var hit = lvGw2RunAfter.HitTest(e.Location);
+            if (hit.Item == null)
+                return;
+
+            hit.Item.Selected = true;
+            _gw2RunAfterMenu.Show(lvGw2RunAfter, e.Location);
+        }
+
         private void RefreshGw2RunAfterList()
         {
             lvGw2RunAfter.Items.Clear();
 
             foreach (var p in _profile.Gw2RunAfterPrograms ?? new List<RunAfterProgram>())
             {
-                var item = new ListViewItem(p.Name);
-                item.SubItems.Add(p.ExePath);
+                var item = new ListViewItem("");     // Column 0: empty text (checkbox lives here)
+                item.SubItems.Add(p.Name);           // Column 1: name (we will draw badge inside this cell)
+
                 item.Checked = p.Enabled;
                 item.Tag = p;
+
+                // Put the path in the tooltip now that we hid the path column
+                item.ToolTipText =
+                    (p.PassMumbleLinkName
+                        ? "M = This program receives the GW2 MumbleLink name.\nUsed to pair overlays (e.g. Blish HUD) with this GW2 instance."
+                        : "This program launches normally.\nRight-click to enable MumbleLink pairing (M).")
+                    + $"\n\nPath:\n{p.ExePath}";
+
+
                 lvGw2RunAfter.Items.Add(item);
             }
 
@@ -493,7 +647,8 @@ namespace GWxLauncher.UI
             {
                 Name = name,
                 ExePath = exe,
-                Enabled = true
+                Enabled = true,
+                PassMumbleLinkName = ShouldDefaultPassMumble(exe)
             });
 
             RefreshGw2RunAfterList();
@@ -712,6 +867,14 @@ namespace GWxLauncher.UI
         // -----------------------------
         // Browse helpers
         // -----------------------------
+        private static bool ShouldDefaultPassMumble(string exePath)
+        {
+            string file = Path.GetFileName(exePath);
+
+            return
+                file.Contains("blish", StringComparison.OrdinalIgnoreCase) ||
+                file.Contains("taco", StringComparison.OrdinalIgnoreCase);
+        }
 
         private void btnBrowseExe_Click(object? sender, EventArgs e)
         {
@@ -833,5 +996,10 @@ namespace GWxLauncher.UI
         private void btnBrowseToolboxDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtToolboxDll);
         private void btnBrowsePy4GwDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtPy4GwDll);
         private void btnBrowseGModDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtGModDll);
+
+        private void lblGw2Warning_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

@@ -68,6 +68,8 @@ namespace GWxLauncher.Domain
 
         public bool Gw2RunAfterEnabled { get; set; } = false;
         public List<RunAfterProgram> Gw2RunAfterPrograms { get; set; } = new();
+        public int Gw2MumbleSlot { get; set; } = 0;
+        public string Gw2MumbleNameSuffix { get; set; } = "";
 
         // -----------------------------
         // GW2 – Auto-login / play
@@ -104,7 +106,7 @@ namespace GWxLauncher.Domain
         public string Name { get; set; } = "";
         public string ExePath { get; set; } = "";
         public bool Enabled { get; set; } = true;
-
+        public bool PassMumbleLinkName { get; set; } = false;
         public override string ToString()
             => $"{(Enabled ? "✓" : "✗")} {Name}";
     }

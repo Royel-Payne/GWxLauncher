@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
+
 namespace GWxLauncher
 {
     public partial class MainForm : Form
@@ -1260,11 +1261,21 @@ namespace GWxLauncher
                 // Launch GW2 (add -shareArchive only when multiclient enabled)
                 try
                 {
+                    string mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(profile);
+
+                    var args = new List<string>();
+
+                    if (mcEnabled)
+                        args.Add("-shareArchive");
+
+                    if (!string.IsNullOrWhiteSpace(mumbleName))
+                        args.Add($"-mumble \"{mumbleName}\"");
+
                     var startInfo = new ProcessStartInfo
                     {
                         FileName = exePath,
                         WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
-                        Arguments = mcEnabled ? "-shareArchive" : ""
+                        Arguments = string.Join(" ", args)
                     };
 
                     // Safety: if we got this far and mc is enabled, the step must not remain "NotAttempted".
@@ -1494,11 +1505,21 @@ namespace GWxLauncher
             // Launch GW2 (add -shareArchive only when multiclient enabled)
             try
             {
+                string mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(profile);
+
+                var args = new List<string>();
+
+                if (mcEnabled)
+                    args.Add("-shareArchive");
+
+                if (!string.IsNullOrWhiteSpace(mumbleName))
+                    args.Add($"-mumble \"{mumbleName}\"");
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = exePath,
                     WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
-                    Arguments = mcEnabled ? "-shareArchive" : ""
+                    Arguments = string.Join(" ", args)
                 };
 
                 // Safety: if we got this far and mc is enabled, the step must not remain "NotAttempted".
@@ -1583,7 +1604,22 @@ namespace GWxLauncher
 
                 try
                 {
-                    Process.Start(p.ExePath);
+                    string mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(profile);
+
+                    if (p.PassMumbleLinkName && !string.IsNullOrWhiteSpace(mumbleName))
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = p.ExePath,
+                            WorkingDirectory = Path.GetDirectoryName(p.ExePath) ?? "",
+                            Arguments = $"--mumble \"{mumbleName}\""
+                        };
+                        Process.Start(psi);
+                    }
+                    else
+                    {
+                        Process.Start(p.ExePath);
+                    }
                 }
                 catch
                 {
@@ -1648,7 +1684,7 @@ namespace GWxLauncher
         // -----------------------------
         // Misc helpers
         // -----------------------------
-
+        
         private static bool WaitForGw2MutexToExist(int timeoutMs, out int waitedMs)
         {
             waitedMs = 0;

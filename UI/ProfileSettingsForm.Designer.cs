@@ -52,12 +52,14 @@ namespace GWxLauncher.UI
             btnGw1RemovePlugin = new Button();
             chkGw1Multiclient = new CheckBox();
             grpGw2RunAfter = new GroupBox();
+            label3 = new Label();
             chkGw2RunAfterEnabled = new CheckBox();
             lvGw2RunAfter = new ListView();
+            colGw2RunAfterMumble = new ColumnHeader();
             colGw2RunAfterName = new ColumnHeader();
-            colGw2RunAfterPath = new ColumnHeader();
             btnGw2AddProgram = new Button();
             btnGw2RemoveProgram = new Button();
+            colGw2RunAfterPath = new ColumnHeader();
             grpGw1Login = new GroupBox();
             lblGw1LoginWarning = new Label();
             lblGw1PasswordSaved = new Label();
@@ -286,17 +288,28 @@ namespace GWxLauncher.UI
             // 
             // grpGw2RunAfter
             // 
+            grpGw2RunAfter.Controls.Add(label3);
             grpGw2RunAfter.Controls.Add(chkGw2RunAfterEnabled);
             grpGw2RunAfter.Controls.Add(lvGw2RunAfter);
             grpGw2RunAfter.Controls.Add(btnGw2AddProgram);
             grpGw2RunAfter.Controls.Add(btnGw2RemoveProgram);
             grpGw2RunAfter.Location = new Point(309, 86);
             grpGw2RunAfter.Name = "grpGw2RunAfter";
-            grpGw2RunAfter.Size = new Size(400, 143);
+            grpGw2RunAfter.Size = new Size(400, 257);
             grpGw2RunAfter.TabIndex = 5;
             grpGw2RunAfter.TabStop = false;
             grpGw2RunAfter.Text = "Run after launching";
             grpGw2RunAfter.Visible = false;
+            // 
+            // label3
+            // 
+            label3.Font = new System.Drawing.Font("Segoe UI", 9F);
+            label3.ForeColor = Color.DarkGoldenrod;
+            label3.Location = new Point(16, 218);
+            label3.Name = "label3";
+            label3.Size = new Size(307, 36);
+            label3.TabIndex = 9;
+            label3.Text = "Tip: Right-click a program to toggle MumbleLink pairing (badge “M”) for overlays (Blish, TacO).\r\n";
             // 
             // chkGw2RunAfterEnabled
             // 
@@ -311,27 +324,33 @@ namespace GWxLauncher.UI
             // lvGw2RunAfter
             // 
             lvGw2RunAfter.CheckBoxes = true;
-            lvGw2RunAfter.Columns.AddRange(new ColumnHeader[] { colGw2RunAfterName, colGw2RunAfterPath });
+            lvGw2RunAfter.Columns.AddRange(new ColumnHeader[] { colGw2RunAfterMumble, colGw2RunAfterName });
             lvGw2RunAfter.FullRowSelect = true;
             lvGw2RunAfter.HeaderStyle = ColumnHeaderStyle.None;
             lvGw2RunAfter.Location = new Point(16, 52);
             lvGw2RunAfter.MultiSelect = false;
             lvGw2RunAfter.Name = "lvGw2RunAfter";
-            lvGw2RunAfter.Size = new Size(280, 78);
+            lvGw2RunAfter.OwnerDraw = true;
+            lvGw2RunAfter.ShowItemToolTips = true;
+            lvGw2RunAfter.Size = new Size(280, 143);
             lvGw2RunAfter.TabIndex = 1;
             lvGw2RunAfter.UseCompatibleStateImageBehavior = false;
             lvGw2RunAfter.View = View.Details;
+            lvGw2RunAfter.DrawColumnHeader += lvGw2RunAfter_DrawColumnHeader;
+            lvGw2RunAfter.DrawSubItem += lvGw2RunAfter_DrawSubItem;
             lvGw2RunAfter.ItemChecked += lvGw2RunAfter_ItemChecked;
+            lvGw2RunAfter.MouseUp += lvGw2RunAfter_MouseUp;
+            // 
+            // colGw2RunAfterMumble
+            // 
+            colGw2RunAfterMumble.Text = "";
+            colGw2RunAfterMumble.TextAlign = HorizontalAlignment.Center;
+            colGw2RunAfterMumble.Width = 30;
             // 
             // colGw2RunAfterName
             // 
             colGw2RunAfterName.Text = "Name";
-            colGw2RunAfterName.Width = 90;
-            // 
-            // colGw2RunAfterPath
-            // 
-            colGw2RunAfterPath.Text = "Path";
-            colGw2RunAfterPath.Width = 170;
+            colGw2RunAfterName.Width = 245;
             // 
             // btnGw2AddProgram
             // 
@@ -353,6 +372,11 @@ namespace GWxLauncher.UI
             btnGw2RemoveProgram.Text = "Remove";
             btnGw2RemoveProgram.UseVisualStyleBackColor = true;
             btnGw2RemoveProgram.Click += btnGw2RemoveProgram_Click;
+            // 
+            // colGw2RunAfterPath
+            // 
+            colGw2RunAfterPath.Text = "Path";
+            colGw2RunAfterPath.Width = 170;
             // 
             // grpGw1Login
             // 
@@ -511,6 +535,7 @@ namespace GWxLauncher.UI
             lblGw2Warning.Size = new Size(212, 19);
             lblGw2Warning.TabIndex = 8;
             lblGw2Warning.Text = "Experimental Feature (best effort)";
+            lblGw2Warning.Click += lblGw2Warning_Click;
             // 
             // chkGw2AutoLogin
             // 
@@ -643,6 +668,7 @@ namespace GWxLauncher.UI
         private ListView lvGw2RunAfter;
         private Button btnGw2AddProgram;
         private Button btnGw2RemoveProgram;
+        private ColumnHeader colGw2RunAfterMumble;
         private ColumnHeader colGw2RunAfterName;
         private ColumnHeader colGw2RunAfterPath;
         private GroupBox grpGw2Login;
@@ -672,5 +698,6 @@ namespace GWxLauncher.UI
         private TextBox txtGw1CharacterName;
         private Label lblGw1LoginWarning;
         private Label lblGw2Warning;
+        private Label label3;
     }
 }

@@ -62,7 +62,10 @@ namespace GWxLauncher.Services
                         }
                     }
 
-                    // Persist the newly assigned Ids so view eligibility can match across restarts
+                    // Ensure GW2 profiles have deterministic Mumble identity (slot + default suffix)
+                    changed |= EnsureGw2MumbleIdentityForAllProfiles();
+
+                    // Persist any migrations so identity remains stable across restarts
                     if (changed)
                         Save();
                 }
@@ -87,6 +90,127 @@ namespace GWxLauncher.Services
             {
                 // Later we can surface this via status label or logging.
             }
+        }
+        private void EnsureGw2MumbleIdentity(GameProfile profile)
+        {
+            if (profile.GameType != GameType.GuildWars2)
+                return;
+
+            // Slot: assign if missing/invalid or colliding
+            if (profile.Gw2MumbleSlot <= 0 || _profiles.Any(p =>
+                    p != profile &&
+                    p.GameType == GameType.GuildWars2 &&
+                    p.Gw2MumbleSlot == profile.Gw2MumbleSlot))
+            {
+                profile.Gw2MumbleSlot = FindNextAvailableGw2MumbleSlot();
+            }
+
+            // Suffix: default to sanitized profile name if empty
+            if (string.IsNullOrWhiteSpace(profile.Gw2MumbleNameSuffix))
+            {
+                profile.Gw2MumbleNameSuffix = SanitizeMumbleSuffix(profile.Name);
+            }
+        }
+
+        private bool EnsureGw2MumbleIdentityForAllProfiles()
+        {
+            bool changed = false;
+
+            // Track used slots; preserve first-come slots, fix missing/duplicates deterministically.
+            var used = new HashSet<int>();
+
+            foreach (var p in _profiles.Where(p => p.GameType == GameType.GuildWars2))
+            {
+                // Fix missing/invalid slot
+                if (p.Gw2MumbleSlot <= 0)
+                {
+                    p.Gw2MumbleSlot = FindNextAvailableGw2MumbleSlot(used);
+                    changed = true;
+                }
+                else if (used.Contains(p.Gw2MumbleSlot))
+                {
+                    // Duplicate: reassign deterministically
+                    p.Gw2MumbleSlot = FindNextAvailableGw2MumbleSlot(used);
+                    changed = true;
+                }
+
+                used.Add(p.Gw2MumbleSlot);
+
+                // Default suffix if missing
+                if (string.IsNullOrWhiteSpace(p.Gw2MumbleNameSuffix))
+                {
+                    p.Gw2MumbleNameSuffix = SanitizeMumbleSuffix(p.Name);
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
+        private int FindNextAvailableGw2MumbleSlot()
+        {
+            var used = new HashSet<int>(
+                _profiles
+                    .Where(p => p.GameType == GameType.GuildWars2 && p.Gw2MumbleSlot > 0)
+                    .Select(p => p.Gw2MumbleSlot));
+
+            return FindNextAvailableGw2MumbleSlot(used);
+        }
+
+        private static int FindNextAvailableGw2MumbleSlot(HashSet<int> used)
+        {
+            int slot = 1;
+            while (used.Contains(slot))
+                slot++;
+
+            return slot;
+        }
+
+        private static string SanitizeMumbleSuffix(string? raw)
+        {
+            raw ??= "";
+            raw = raw.Trim();
+
+            if (raw.Length == 0)
+                return "Profile";
+
+            // Keep [A-Za-z0-9_] only; convert whitespace and punctuation to underscores.
+            var sb = new System.Text.StringBuilder(raw.Length);
+            bool lastUnderscore = false;
+
+            foreach (char c in raw)
+            {
+                bool ok =
+                    (c >= 'a' && c <= 'z') ||
+                    (c >= 'A' && c <= 'Z') ||
+                    (c >= '0' && c <= '9') ||
+                    c == '_';
+
+                if (ok)
+                {
+                    sb.Append(c);
+                    lastUnderscore = false;
+                }
+                else
+                {
+                    if (!lastUnderscore)
+                    {
+                        sb.Append('_');
+                        lastUnderscore = true;
+                    }
+                }
+            }
+
+            var s = sb.ToString().Trim('_');
+            if (s.Length == 0)
+                s = "Profile";
+
+            // Optional: keep it readable in tray titles etc.
+            const int maxLen = 24;
+            if (s.Length > maxLen)
+                s = s.Substring(0, maxLen);
+
+            return s;
         }
 
         private static string GetProfilesPath()
