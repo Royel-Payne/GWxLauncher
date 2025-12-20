@@ -345,12 +345,12 @@ namespace GWxLauncher.UI
             // 
             colGw2RunAfterMumble.Text = "";
             colGw2RunAfterMumble.TextAlign = HorizontalAlignment.Center;
-            colGw2RunAfterMumble.Width = 30;
+            colGw2RunAfterMumble.Width = 22;
             // 
             // colGw2RunAfterName
             // 
             colGw2RunAfterName.Text = "Name";
-            colGw2RunAfterName.Width = 245;
+            colGw2RunAfterName.Width = 248;
             // 
             // btnGw2AddProgram
             // 
@@ -376,7 +376,7 @@ namespace GWxLauncher.UI
             // colGw2RunAfterPath
             // 
             colGw2RunAfterPath.Text = "Path";
-            colGw2RunAfterPath.Width = 170;
+            colGw2RunAfterPath.Width = 180;
             // 
             // grpGw1Login
             // 
