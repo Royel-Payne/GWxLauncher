@@ -1,4 +1,5 @@
-﻿using GWxLauncher.Config;
+﻿// SYNC_MARKER: Pass3-Edited 2025-12-20 23:24 PST
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
@@ -30,6 +31,8 @@ namespace GWxLauncher
         private readonly LaunchSessionPresenter _launchSession = new();
         private readonly Gw2RunAfterLauncher _gw2RunAfterLauncher = new();
         private readonly Gw2AutomationCoordinator _gw2Automation = new Gw2AutomationCoordinator();
+        private readonly Gw2LaunchOrchestrator _gw2Orchestrator = new Gw2LaunchOrchestrator();
+
 
         private readonly Image _gw1Image = Properties.Resources.Gw1;
         private readonly Image _gw2Image = Properties.Resources.Gw2;
@@ -345,23 +348,18 @@ namespace GWxLauncher
 
         private void ReenableListScrollbarAndFillPanel()
         {
-            // Stop using the "hide scrollbar by widening listbox" trick while iterating.
-            // Keep listbox exactly sized to the panel.
             lstProfiles.Dock = DockStyle.Fill;
             lstProfiles.IntegralHeight = false;
 
-            // Remove any previous "widened listbox" sizing effects
             lstProfiles.Width = panelProfiles.ClientSize.Width;
             lstProfiles.Height = panelProfiles.ClientSize.Height;
 
-            // Keep it correct on resize
             panelProfiles.Resize -= PanelProfiles_Resize_FillList;
             panelProfiles.Resize += PanelProfiles_Resize_FillList;
         }
 
         private void PanelProfiles_Resize_FillList(object? sender, EventArgs e)
         {
-            // Ensure fill stays accurate even if Dock is changed later
             if (lstProfiles.Dock == DockStyle.None)
             {
                 lstProfiles.SetBounds(0, 0, panelProfiles.ClientSize.Width, panelProfiles.ClientSize.Height);
@@ -572,11 +570,7 @@ namespace GWxLauncher
 
             menuLaunchProfile.Enabled = hasProfile;
             menuEditProfile.Enabled = hasProfile;
-
-            // This is the real "Delete" menu item name in your Designer
             deleteToolStripMenuItem.Enabled = hasProfile;
-
-            // Enable if we have any attempts recorded
             menuShowLastLaunchDetails.Enabled = _launchSession.HasAnyReports;
         }
 
@@ -652,7 +646,6 @@ namespace GWxLauncher
                 return;
             }
 
-            // profile.Gw1ToolboxEnabled = menuGw1ToolboxToggle.Checked;
             _profileManager.Save();
 
             SetStatus(
@@ -883,7 +876,6 @@ namespace GWxLauncher
                     return;
                 }
 
-                // Enable required flags and persist.
                 GetEligibleGameTypeCounts(out int gw1Count, out int gw2Count);
 
                 if (gw1Count > 1) _config.Gw1MulticlientEnabled = true;
@@ -1148,184 +1140,29 @@ namespace GWxLauncher
                 return;
             }
 
-            // GW2: multiclient is mutex + args (no patching)
             if (profile.GameType == GameType.GuildWars2)
             {
-                var report = new LaunchReport
-                {
-                    GameName = "Guild Wars 2",
-                    ExecutablePath = exePath
-                };
-
                 bool mcEnabled = _config.Gw2MulticlientEnabled;
 
-                var mcStep = new LaunchStep { Label = "Multiclient" };
-                report.Steps.Add(mcStep);
+                var result = _gw2Orchestrator.Launch(
+                    profile: profile,
+                    exePath: exePath,
+                    mcEnabled: mcEnabled,
+                    bulkMode: bulkMode,
+                    automationCoordinator: _gw2Automation,
+                    runAfterInvoker: _gw2RunAfterLauncher.Start);
 
-                const string Gw2MutexName = GWxLauncher.Services.Gw2MutexKiller.Gw2MutexLeafName;
+                if (result.Report != null)
+                    ApplyLaunchReportToUi(result.Report);
 
-                bool mutexOpen;
-                try
+                if (result.HasMessageBox)
                 {
-                    using var _ = Mutex.OpenExisting(Gw2MutexName);
-                    mutexOpen = true;
-                }
-                catch (WaitHandleCannotBeOpenedException)
-                {
-                    mutexOpen = false;
-                }
-                catch (Exception ex)
-                {
-                    report.Succeeded = false;
-                    report.FailureMessage = $"Failed to check GW2 mutex: {ex.Message}";
-                    mcStep.Outcome = StepOutcome.Failed;
-                    mcStep.Detail = "Mutex check failed.";
-
-                    ApplyLaunchReportToUi(report);
-
-                    MessageBox.Show(this, report.FailureMessage, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                if (!mcEnabled)
-                {
-                    mcStep.Outcome = StepOutcome.Skipped;
-                    mcStep.Detail = "Multiclient disabled.";
-                }
-                else
-                {
-                    // If GW2 is already running (mutex open), we must clear the mutex or abort.
-                    if (mutexOpen)
-                    {
-                        int attempts = bulkMode ? 4 : 1;  // bulk: retry a few times
-                        int delayMs = bulkMode ? 350 : 0; // bulk: tiny backoff
-
-                        bool cleared = false;
-                        int clearedPid = 0;
-                        string killDetail = "";
-                        bool usedElevated = false;
-
-                        for (int i = 0; i < attempts; i++)
-                        {
-                            if (GWxLauncher.Services.Gw2MutexKiller.TryKillGw2Mutex(
-                                    out clearedPid,
-                                    out killDetail,
-                                    allowElevatedFallback: true,
-                                    out usedElevated))
-                            {
-                                cleared = true;
-                                break;
-                            }
-
-                            if (i < attempts - 1 && delayMs > 0)
-                                Thread.Sleep(delayMs);
-                        }
-
-                        if (!cleared)
-                        {
-                            string msg =
-                                "Guild Wars 2 is already running.\n\n" +
-                                "Close it or launch all instances via GWxLauncher.";
-
-                            report.Succeeded = false;
-                            report.FailureMessage = msg;
-                            mcStep.Outcome = StepOutcome.Failed;
-                            mcStep.Detail = $"GW2 mutex exists and could not be cleared. {killDetail}";
-
-                            ApplyLaunchReportToUi(report);
-
-                            MessageBox.Show(this, msg, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                            return;
-                        }
-
-                        mcStep.Outcome = StepOutcome.Success;
-                        mcStep.Detail = usedElevated
-                            ? $"Cleared GW2 mutex in PID {clearedPid} (elevated retry)."
-                            : $"Cleared GW2 mutex in PID {clearedPid}.";
-                    }
-                }
-
-                // Launch GW2 (add -shareArchive only when multiclient enabled)
-                try
-                {
-                    string mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(profile);
-
-                    var args = new List<string>();
-
-                    if (mcEnabled)
-                        args.Add("-shareArchive");
-
-                    if (!string.IsNullOrWhiteSpace(mumbleName))
-                        args.Add($"-mumble \"{mumbleName}\"");
-
-                    var startInfo = new ProcessStartInfo
-                    {
-                        FileName = exePath,
-                        WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
-                        Arguments = string.Join(" ", args)
-                    };
-
-                    // Safety: if we got this far and mc is enabled, the step must not remain "NotAttempted".
-                    if (mcEnabled && mcStep.Outcome == StepOutcome.NotAttempted)
-                    {
-                        mcStep.Outcome = StepOutcome.Success;
-                        if (string.IsNullOrWhiteSpace(mcStep.Detail))
-                            mcStep.Detail = "Multiclient enabled.";
-                    }
-
-                    var process = Process.Start(startInfo);
-
-                    if (bulkMode && mcEnabled)
-                    {
-                        // Wait until GW2 recreates its mutex, so the next bulk launch can reliably clear it again.
-                        if (!WaitForGw2MutexToExist(timeoutMs: 8000, out int waited))
-                            mcStep.Detail += $" (Warning: GW2 mutex did not appear within {waited}ms)";
-                        else
-                            mcStep.Detail += $" (GW2 mutex observed after {waited}ms)";
-                    }
-
-                    // If multiclient enabled, keep the step success but add the arg note.
-                    if (mcEnabled)
-                    {
-                        mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
-                            ? "Launched with -shareArchive."
-                            : mcStep.Detail + " Launched with -shareArchive.";
-                    }
-
-                    if (profile.Gw2AutoLoginEnabled)
-                    {
-                        // Best-effort: do not fail the entire launch if automation fails.
-                        // Coordinator serializes GW2 automation across accounts and applies the "post-login stable" gate in bulk mode.
-                        if (!_gw2Automation.TryAutomateLogin(process, profile, report, bulkMode: bulkMode, out var autoLoginError))
-                        {
-                            if (!string.IsNullOrWhiteSpace(autoLoginError))
-                                report.FailureMessage = $"Auto-login failed: {autoLoginError}";
-                        }
-                    }
-
-
-                    _gw2RunAfterLauncher.Start(profile);
-
-                    report.Succeeded = true;
-
-                    ApplyLaunchReportToUi(report);
-
-                }
-                catch (Exception ex)
-                {
-                    report.Succeeded = false;
-                    report.FailureMessage = ex.Message;
-                    mcStep.Outcome = StepOutcome.Failed;
-                    mcStep.Detail = "Process.Start failed.";
-
-                    ApplyLaunchReportToUi(report);
-
                     MessageBox.Show(
                         this,
-                        $"Failed to launch Guild Wars 2:\n\n{ex.Message}",
-                        "Launch failed",
+                        result.MessageBoxText,
+                        result.MessageBoxTitle,
                         MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
+                        result.MessageBoxIsError ? MessageBoxIcon.Error : MessageBoxIcon.Warning);
                 }
 
                 return;
@@ -1399,177 +1236,31 @@ namespace GWxLauncher
 
             bool mcEnabled = cfg.Gw2MulticlientEnabled;
 
-            var mcStep = new LaunchStep { Label = "Multiclient" };
-            report.Steps.Add(mcStep);
+            var result = _gw2Orchestrator.Launch(
+                profile: profile,
+                exePath: exePath,
+                mcEnabled: mcEnabled,
+                bulkMode: true,
+                automationCoordinator: _gw2Automation,
+                runAfterInvoker: _gw2RunAfterLauncher.Start);
 
-            const string Gw2MutexName = GWxLauncher.Services.Gw2MutexKiller.Gw2MutexLeafName;
-
-            bool mutexOpen;
-            try
+            SafeUi(() =>
             {
-                using var _ = Mutex.OpenExisting(Gw2MutexName);
-                mutexOpen = true;
-            }
-            catch (WaitHandleCannotBeOpenedException)
-            {
-                mutexOpen = false;
-            }
-            catch (Exception ex)
-            {
-                report.Succeeded = false;
-                report.FailureMessage = $"Failed to check GW2 mutex: {ex.Message}";
-                mcStep.Outcome = StepOutcome.Failed;
-                mcStep.Detail = "Mutex check failed.";
+                if (result.Report != null)
+                    ApplyLaunchReportToUi(result.Report);
 
-                SafeUi(() =>
+                if (result.HasMessageBox)
                 {
-                    ApplyLaunchReportToUi(report);
-                    MessageBox.Show(this, report.FailureMessage, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                });
-                return;
-            }
-
-            if (!mcEnabled)
-            {
-                mcStep.Outcome = StepOutcome.Skipped;
-                mcStep.Detail = "Multiclient disabled.";
-            }
-            else
-            {
-                // If GW2 is already running (mutex open), we must clear the mutex or abort.
-                if (mutexOpen)
-                {
-                    int attempts = 4;  // bulk: retry a few times
-                    int delayMs = 350; // bulk: tiny backoff
-
-                    bool cleared = false;
-                    int clearedPid = 0;
-                    string killDetail = "";
-                    bool usedElevated = false;
-
-                    for (int i = 0; i < attempts; i++)
-                    {
-                        if (GWxLauncher.Services.Gw2MutexKiller.TryKillGw2Mutex(
-                                out clearedPid,
-                                out killDetail,
-                                allowElevatedFallback: true,
-                                out usedElevated))
-                        {
-                            cleared = true;
-                            break;
-                        }
-
-                        if (i < attempts - 1 && delayMs > 0)
-                            Thread.Sleep(delayMs);
-                    }
-
-                    if (!cleared)
-                    {
-                        string msg =
-                            "Guild Wars 2 is already running.\n\n" +
-                            "Close it or launch all instances via GWxLauncher.";
-
-                        report.Succeeded = false;
-                        report.FailureMessage = msg;
-                        mcStep.Outcome = StepOutcome.Failed;
-                        mcStep.Detail = $"GW2 mutex exists and could not be cleared. {killDetail}";
-
-                        SafeUi(() =>
-                        {
-                            ApplyLaunchReportToUi(report);
-                            MessageBox.Show(this, msg, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        });
-                        return;
-                    }
-
-                    mcStep.Outcome = StepOutcome.Success;
-                    mcStep.Detail = usedElevated
-                        ? $"Cleared GW2 mutex in PID {clearedPid} (elevated retry)."
-                        : $"Cleared GW2 mutex in PID {clearedPid}.";
-                }
-            }
-
-            // Launch GW2 (add -shareArchive only when multiclient enabled)
-            try
-            {
-                string mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(profile);
-
-                var args = new List<string>();
-
-                if (mcEnabled)
-                    args.Add("-shareArchive");
-
-                if (!string.IsNullOrWhiteSpace(mumbleName))
-                    args.Add($"-mumble \"{mumbleName}\"");
-
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = exePath,
-                    WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
-                    Arguments = string.Join(" ", args)
-                };
-
-                // Safety: if we got this far and mc is enabled, the step must not remain "NotAttempted".
-                if (mcEnabled && mcStep.Outcome == StepOutcome.NotAttempted)
-                {
-                    mcStep.Outcome = StepOutcome.Success;
-                    if (string.IsNullOrWhiteSpace(mcStep.Detail))
-                        mcStep.Detail = "Multiclient enabled.";
-                }
-
-                var process = Process.Start(startInfo);
-
-                if (mcEnabled)
-                {
-                    // Wait until GW2 recreates its mutex, so the next bulk launch can reliably clear it again.
-                    if (!WaitForGw2MutexToExist(timeoutMs: 8000, out int waited))
-                        mcStep.Detail += $" (Warning: GW2 mutex did not appear within {waited}ms)";
-                    else
-                        mcStep.Detail += $" (GW2 mutex observed after {waited}ms)";
-
-                    // Keep the step success but add the arg note.
-                    mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
-                        ? "Launched with -shareArchive."
-                        : mcStep.Detail + " Launched with -shareArchive.";
-                }
-
-                if (process != null && profile.Gw2AutoLoginEnabled)
-                {
-                    // Best-effort: do not fail the entire launch if automation fails.
-                    // Coordinator serializes GW2 automation across accounts and applies the "post-login stable" gate in bulk mode.
-                    if (!_gw2Automation.TryAutomateLogin(process, profile, report, bulkMode: true, out var autoLoginError))
-                    {
-                        if (!string.IsNullOrWhiteSpace(autoLoginError))
-                            report.FailureMessage = $"Auto-login failed: {autoLoginError}";
-                    }
-                }
-
-                _gw2RunAfterLauncher.Start(profile);
-
-                report.Succeeded = true;
-
-                SafeUi(() => ApplyLaunchReportToUi(report));
-            }
-            catch (Exception ex)
-            {
-                report.Succeeded = false;
-                report.FailureMessage = ex.Message;
-                mcStep.Outcome = StepOutcome.Failed;
-                mcStep.Detail = "Process.Start failed.";
-
-                SafeUi(() =>
-                {
-                    ApplyLaunchReportToUi(report);
                     MessageBox.Show(
                         this,
-                        $"Failed to launch Guild Wars 2:\n\n{ex.Message}",
-                        "Launch failed",
+                        result.MessageBoxText,
+                        result.MessageBoxTitle,
                         MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                });
-            }
+                        result.MessageBoxIsError ? MessageBoxIcon.Error : MessageBoxIcon.Warning);
+                }
+            });
         }
-
+        
         private void LaunchGame(string exePath, string gameName)
         {
             try
@@ -1627,33 +1318,33 @@ namespace GWxLauncher
         // Misc helpers
         // -----------------------------
         
-        private static bool WaitForGw2MutexToExist(int timeoutMs, out int waitedMs)
-        {
-            waitedMs = 0;
-            const int stepMs = 50;
+        //private static bool WaitForGw2MutexToExist(int timeoutMs, out int waitedMs)
+        //{
+        //    waitedMs = 0;
+        //    const int stepMs = 50;
 
-            while (waitedMs < timeoutMs)
-            {
-                try
-                {
-                    // If this succeeds, GW2 has created its mutex again.
-                    using var _ = Mutex.OpenExisting(Gw2MutexKiller.Gw2MutexLeafName);
-                    return true;
-                }
-                catch (WaitHandleCannotBeOpenedException)
-                {
-                    // Not created yet, keep waiting.
-                }
-                catch
-                {
-                    // Any other failure: keep waiting a bit (don’t hard-fail over transient issues).
-                }
+        //    while (waitedMs < timeoutMs)
+        //    {
+        //        try
+        //        {
+        //            // If this succeeds, GW2 has created its mutex again.
+        //            using var _ = Mutex.OpenExisting(Gw2MutexKiller.Gw2MutexLeafName);
+        //            return true;
+        //        }
+        //        catch (WaitHandleCannotBeOpenedException)
+        //        {
+        //            // Not created yet, keep waiting.
+        //        }
+        //        catch
+        //        {
+        //            // Any other failure: keep waiting a bit (don’t hard-fail over transient issues).
+        //        }
 
-                Thread.Sleep(stepMs);
-                waitedMs += stepMs;
-            }
+        //        Thread.Sleep(stepMs);
+        //        waitedMs += stepMs;
+        //    }
 
-            return false;
-        }
+        //    return false;
+        //}
     }
 }
