@@ -1,6 +1,4 @@
-﻿using System.IO;
-using System.Text.Json;
-using System;
+﻿using System.Text.Json;
 
 namespace GWxLauncher.Config
 {

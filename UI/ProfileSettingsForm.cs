@@ -1,14 +1,7 @@
 ﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Properties;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 
 namespace GWxLauncher.UI
 {

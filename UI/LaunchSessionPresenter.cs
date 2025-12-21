@@ -1,6 +1,4 @@
 ﻿using GWxLauncher.Services;
-using System;
-using System.Collections.Generic;
 
 namespace GWxLauncher.UI
 {

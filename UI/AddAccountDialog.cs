@@ -1,6 +1,4 @@
 ﻿using GWxLauncher.Domain;
-using System;
-using System.Windows.Forms;
 using GWxLauncher.UI;
 
 namespace GWxLauncher

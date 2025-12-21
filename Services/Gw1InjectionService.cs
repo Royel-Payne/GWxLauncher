@@ -1,14 +1,7 @@
 ﻿using GWxLauncher.Domain;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace GWxLauncher.Services
 {
@@ -663,7 +656,7 @@ namespace GWxLauncher.Services
                                 stepLaunch.Detail = errorMessage;
                                 report.Succeeded = false;
                                 report.FailureMessage = errorMessage;
-                                return false;                                
+                                return false;
                             }
                         }
                         catch

@@ -1,6 +1,5 @@
 ﻿using GWxLauncher.Domain;
 using System.Diagnostics;
-using System.Threading;
 
 namespace GWxLauncher.Services
 {

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace GWxLauncher.Domain
+﻿namespace GWxLauncher.Domain
 {
     // ------------------------------------------------------------
     // GW1 injected DLL descriptor

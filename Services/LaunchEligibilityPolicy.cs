@@ -1,8 +1,5 @@
 ﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace GWxLauncher.Services
 {

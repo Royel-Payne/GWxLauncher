@@ -1,7 +1,4 @@
-﻿using System;
-using System.Windows.Forms;
-
-namespace GWxLauncher.UI
+﻿namespace GWxLauncher.UI
 {
     /// <summary>
     /// Central UI-thread marshaling helper for WinForms.
