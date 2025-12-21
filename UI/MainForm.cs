@@ -25,18 +25,16 @@ namespace GWxLauncher
         // -----------------------------
 
         private LauncherConfig _config;
+        private readonly ViewStateStore _views = new();
         private readonly ProfileManager _profileManager = new();
+        private readonly LaunchSessionPresenter _launchSession = new();
+        private readonly Gw2RunAfterLauncher _gw2RunAfterLauncher = new();
+        private readonly Gw2AutomationCoordinator _gw2Automation = new Gw2AutomationCoordinator();
 
         private readonly Image _gw1Image = Properties.Resources.Gw1;
         private readonly Image _gw2Image = Properties.Resources.Gw2;
 
-        private readonly LaunchSessionPresenter _launchSession = new();
-
-        private readonly Gw2AutomationCoordinator _gw2Automation = new Gw2AutomationCoordinator();
-
-        private readonly ViewStateStore _views = new();
         private bool _showCheckedOnly = false;
-
         private string _viewNameBeforeEdit = "";
         private bool _viewNameDirty = false;
         private bool _suppressViewTextEvents = false;
@@ -1306,7 +1304,7 @@ namespace GWxLauncher
                     }
 
 
-                    StartGw2RunAfterPrograms(profile);
+                    _gw2RunAfterLauncher.Start(profile);
 
                     report.Succeeded = true;
 
@@ -1546,7 +1544,7 @@ namespace GWxLauncher
                     }
                 }
 
-                StartGw2RunAfterPrograms(profile);
+                _gw2RunAfterLauncher.Start(profile);
 
                 report.Succeeded = true;
 
@@ -1569,51 +1567,6 @@ namespace GWxLauncher
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                 });
-            }
-        }
-
-        private void StartGw2RunAfterPrograms(GameProfile profile)
-        {
-            if (profile.GameType != GameType.GuildWars2)
-                return;
-
-            if (!profile.Gw2RunAfterEnabled)
-                return;
-
-            if (profile.Gw2RunAfterPrograms == null || profile.Gw2RunAfterPrograms.Count == 0)
-                return;
-
-            foreach (var p in profile.Gw2RunAfterPrograms)
-            {
-                if (!p.Enabled)
-                    continue;
-
-                if (string.IsNullOrWhiteSpace(p.ExePath) || !File.Exists(p.ExePath))
-                    continue;
-
-                try
-                {
-                    string mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(profile);
-
-                    if (p.PassMumbleLinkName && !string.IsNullOrWhiteSpace(mumbleName))
-                    {
-                        var psi = new ProcessStartInfo
-                        {
-                            FileName = p.ExePath,
-                            WorkingDirectory = Path.GetDirectoryName(p.ExePath) ?? "",
-                            Arguments = $"--mumble \"{mumbleName}\""
-                        };
-                        Process.Start(psi);
-                    }
-                    else
-                    {
-                        Process.Start(p.ExePath);
-                    }
-                }
-                catch
-                {
-                    // swallow for now; later we can surface this in LaunchReport-like UI
-                }
             }
         }
 
