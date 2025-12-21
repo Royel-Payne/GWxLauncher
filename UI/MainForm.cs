@@ -1,4 +1,4 @@
-﻿// SYNC_MARKER: Pass3-Edited 2025-12-20 23:24 PST
+﻿// SYNC_MARKER: Pass4-Done 2025-12-20 23:58 PST
 using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
@@ -32,7 +32,7 @@ namespace GWxLauncher
         private readonly Gw2RunAfterLauncher _gw2RunAfterLauncher = new();
         private readonly Gw2AutomationCoordinator _gw2Automation = new Gw2AutomationCoordinator();
         private readonly Gw2LaunchOrchestrator _gw2Orchestrator = new Gw2LaunchOrchestrator();
-
+        private readonly LaunchEligibilityPolicy _launchPolicy;
 
         private readonly Image _gw1Image = Properties.Resources.Gw1;
         private readonly Image _gw2Image = Properties.Resources.Gw2;
@@ -131,6 +131,7 @@ namespace GWxLauncher
             // Data load
             _profileManager.Load();
             _views.Load();
+            _launchPolicy = new LaunchEligibilityPolicy(_views);
 
             // View -> UI sync
             _suppressViewTextEvents = true;
@@ -234,56 +235,16 @@ namespace GWxLauncher
             // Always allow toggling this checkbox. It is a visibility control (UI-only).
             chkArmBulk.Enabled = true;
 
-            bool anyEligible = _views.AnyEligibleInActiveView(_profileManager.Profiles);
+            var eval = _launchPolicy.EvaluateBulkArming(
+                allProfiles: _profileManager.Profiles,
+                activeViewName: _views.ActiveViewName,
+                showCheckedOnly: _showCheckedOnly,
+                config: _config);
 
-            // Bulk armed (future) is a derived state: (any eligible) + (show checked only)
-            bool armed = anyEligible && _showCheckedOnly;
+            btnLaunchAll.Enabled = eval.Armed;
 
-            btnLaunchAll.Enabled = armed;
-
-            if (armed)
-            {
-                if (IsMulticlientEnabledForEligible(out string missing))
-                    SetStatus($"Launch All ready · View: {_views.ActiveViewName}");
-                else
-                    SetStatus($"Launch All requires multiclient: {missing} · View: {_views.ActiveViewName}");
-            }
-            if (!armed)
-                SetStatus($"Launch All not ready · View: {_views.ActiveViewName}");
-            else if (_showCheckedOnly && !anyEligible)
-                SetStatus($"No checked profiles in view · View: {_views.ActiveViewName}");
-        }
-
-        private void GetEligibleGameTypeCounts(out int gw1Count, out int gw2Count)
-        {
-            var eligible = _profileManager.Profiles
-                .Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
-
-            gw1Count = eligible.Count(p => p.GameType == GameType.GuildWars1);
-            gw2Count = eligible.Count(p => p.GameType == GameType.GuildWars2);
-        }
-
-        private bool IsMulticlientEnabledForEligible(out string missingDetail)
-        {
-            GetEligibleGameTypeCounts(out int gw1Count, out int gw2Count);
-
-            var missing = new List<string>();
-
-            // Multiclient is only REQUIRED when launching 2+ instances of the same game type.
-            if (gw1Count > 1 && !_config.Gw1MulticlientEnabled)
-                missing.Add("Guild Wars 1");
-
-            if (gw2Count > 1 && !_config.Gw2MulticlientEnabled)
-                missing.Add("Guild Wars 2");
-
-            if (missing.Count == 0)
-            {
-                missingDetail = "";
-                return true;
-            }
-
-            missingDetail = string.Join(", ", missing);
-            return false;
+            if (!string.IsNullOrWhiteSpace(eval.StatusText))
+                SetStatus(eval.StatusText);
         }
 
         private void ApplyViewScopedUiState()
@@ -844,9 +805,13 @@ namespace GWxLauncher
             // Always evaluate the latest persisted settings (the settings form saves its own config instance).
             _config = LauncherConfig.Load();
 
-            // Guard: bulk launch must be explicitly armed.
-            bool anyEligible = _views.AnyEligibleInActiveView(_profileManager.Profiles);
-            bool armed = anyEligible && _showCheckedOnly;
+            var eval = _launchPolicy.EvaluateBulkArming(
+                allProfiles: _profileManager.Profiles,
+                activeViewName: _views.ActiveViewName,
+                showCheckedOnly: _showCheckedOnly,
+                config: _config);
+
+            bool armed = eval.Armed;
 
             if (!armed)
             {
@@ -854,15 +819,11 @@ namespace GWxLauncher
                 return;
             }
 
-            var targets = _profileManager.Profiles
-                .Where(p => _views.IsEligible(_views.ActiveViewName, p.Id))
-                .OrderBy(p => p.GameType)
-                .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-                .ToList();
+            var targets = _launchPolicy.BuildBulkTargets(_profileManager.Profiles, _views.ActiveViewName);
 
             // Guard: multiclient must be enabled for the eligible game type(s) or bulk launch won't work.
             // Reload config first so this reflects changes made in ProfileSettingsForm without restarting MainForm.
-            if (!IsMulticlientEnabledForEligible(out string missing))
+            if (!_launchPolicy.IsMulticlientEnabledForEligible(_profileManager.Profiles, _views.ActiveViewName, _config, out string missing))
             {
                 string msg =
                     "Multiclient not enabled.\n\n" +
@@ -876,10 +837,7 @@ namespace GWxLauncher
                     return;
                 }
 
-                GetEligibleGameTypeCounts(out int gw1Count, out int gw2Count);
-
-                if (gw1Count > 1) _config.Gw1MulticlientEnabled = true;
-                if (gw2Count > 1) _config.Gw2MulticlientEnabled = true;
+                _launchPolicy.EnableRequiredMulticlientFlagsForEligible(_profileManager.Profiles, _views.ActiveViewName, _config);
 
                 _config.Save();
 
@@ -1313,38 +1271,5 @@ namespace GWxLauncher
                     SetStatus($"Error launching {gameName}.");
             }
         }
-
-        // -----------------------------
-        // Misc helpers
-        // -----------------------------
-        
-        //private static bool WaitForGw2MutexToExist(int timeoutMs, out int waitedMs)
-        //{
-        //    waitedMs = 0;
-        //    const int stepMs = 50;
-
-        //    while (waitedMs < timeoutMs)
-        //    {
-        //        try
-        //        {
-        //            // If this succeeds, GW2 has created its mutex again.
-        //            using var _ = Mutex.OpenExisting(Gw2MutexKiller.Gw2MutexLeafName);
-        //            return true;
-        //        }
-        //        catch (WaitHandleCannotBeOpenedException)
-        //        {
-        //            // Not created yet, keep waiting.
-        //        }
-        //        catch
-        //        {
-        //            // Any other failure: keep waiting a bit (don’t hard-fail over transient issues).
-        //        }
-
-        //        Thread.Sleep(stepMs);
-        //        waitedMs += stepMs;
-        //    }
-
-        //    return false;
-        //}
     }
 }
