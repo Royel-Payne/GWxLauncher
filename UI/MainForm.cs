@@ -30,8 +30,7 @@ namespace GWxLauncher
         private readonly Image _gw1Image = Properties.Resources.Gw1;
         private readonly Image _gw2Image = Properties.Resources.Gw2;
 
-        private LaunchReport? _lastLaunchReport;
-        private readonly List<LaunchReport> _lastLaunchReports = new();
+        private readonly LaunchSessionPresenter _launchSession = new();
 
         private readonly Gw2AutomationCoordinator _gw2Automation = new Gw2AutomationCoordinator();
 
@@ -244,14 +243,14 @@ namespace GWxLauncher
             if (armed)
             {
                 if (IsMulticlientEnabledForEligible(out string missing))
-                    lblStatus.Text = $"Launch All ready · View: {_views.ActiveViewName}";
+                    SetStatus($"Launch All ready · View: {_views.ActiveViewName}");
                 else
-                    lblStatus.Text = $"Launch All requires multiclient: {missing} · View: {_views.ActiveViewName}";
+                    SetStatus($"Launch All requires multiclient: {missing} · View: {_views.ActiveViewName}");
             }
             if (!armed)
-                lblStatus.Text = $"Launch All not ready · View: {_views.ActiveViewName}";
+                SetStatus($"Launch All not ready · View: {_views.ActiveViewName}");
             else if (_showCheckedOnly && !anyEligible)
-                lblStatus.Text = $"No checked profiles in view · View: {_views.ActiveViewName}";
+                SetStatus($"No checked profiles in view · View: {_views.ActiveViewName}");
         }
 
         private void GetEligibleGameTypeCounts(out int gw1Count, out int gw2Count)
@@ -334,7 +333,7 @@ namespace GWxLauncher
                 txtView.Text = _views.ActiveViewName;
                 _suppressViewTextEvents = false;
 
-                lblStatus.Text = "View rename failed (name already exists).";
+                SetStatus("View rename failed (name already exists).");
                 return;
             }
 
@@ -580,15 +579,15 @@ namespace GWxLauncher
             deleteToolStripMenuItem.Enabled = hasProfile;
 
             // Enable if we have any attempts recorded
-            menuShowLastLaunchDetails.Enabled = _lastLaunchReports.Count > 0;
+            menuShowLastLaunchDetails.Enabled = _launchSession.HasAnyReports;
         }
 
         private void menuShowLastLaunchDetails_Click(object sender, EventArgs e)
         {
-            if (_lastLaunchReports.Count == 0)
+            if (!_launchSession.HasAnyReports)
                 return;
 
-            using var dlg = new LastLaunchDetailsForm(_lastLaunchReports);
+            using var dlg = new LastLaunchDetailsForm(_launchSession.AllReports);
             dlg.ShowDialog(this);
         }
 
@@ -641,7 +640,7 @@ namespace GWxLauncher
                 _profileManager.RemoveProfile(profile);
                 _profileManager.Save();
                 RefreshProfileList();
-                lblStatus.Text = $"Deleted account: {profile.Name}.";
+                SetStatus($"Deleted account: {profile.Name}.");
             }
         }
 
@@ -658,10 +657,10 @@ namespace GWxLauncher
             // profile.Gw1ToolboxEnabled = menuGw1ToolboxToggle.Checked;
             _profileManager.Save();
 
-            lblStatus.Text =
+            SetStatus(
                 $"GW1 Toolbox injection " +
                 (profile.Gw1ToolboxEnabled ? "enabled" : "disabled") +
-                $" for {profile.Name}.";
+                $" for {profile.Name}.");
         }
 
         private void menuGw1ToolboxPath_Click(object sender, EventArgs e)
@@ -860,7 +859,7 @@ namespace GWxLauncher
 
             if (!armed)
             {
-                lblStatus.Text = $"Bulk launch not armed · View: {_views.ActiveViewName}";
+                SetStatus($"Bulk launch not armed · View: {_views.ActiveViewName}");
                 return;
             }
 
@@ -882,7 +881,7 @@ namespace GWxLauncher
                 var result = MessageBox.Show(this, msg, "Multiclient not enabled", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
                 if (result != DialogResult.OK)
                 {
-                    lblStatus.Text = $"Bulk launch canceled · Multiclient missing: {missing}";
+                    SetStatus($"Bulk launch canceled · Multiclient missing: {missing}");
                     return;
                 }
 
@@ -902,11 +901,11 @@ namespace GWxLauncher
 
             if (targets.Count == 0)
             {
-                lblStatus.Text = $"No checked profiles in view · View: {_views.ActiveViewName}";
+                SetStatus($"No checked profiles in view · View: {_views.ActiveViewName}");
                 return;
             }
 
-            _lastLaunchReports.Clear();
+            _launchSession.BeginSession(bulkMode: false);
 
             // Prevent re-entrancy while bulk launch is running.
             btnLaunchAll.Enabled = false;
@@ -959,7 +958,7 @@ namespace GWxLauncher
                 {
                     _config.Gw1Path = dialog.FileName;
                     _config.Save();
-                    lblStatus.Text = "GW1 path updated.";
+                    SetStatus("GW1 path updated.");
                 }
             }
         }
@@ -987,7 +986,7 @@ namespace GWxLauncher
                 {
                     _config.Gw2Path = dialog.FileName;
                     _config.Save();
-                    lblStatus.Text = "GW2 path updated.";
+                    SetStatus("GW2 path updated.");
                 }
             }
         }
@@ -1004,7 +1003,7 @@ namespace GWxLauncher
 
                     RefreshProfileList();
                     UpdateBulkArmingUi();
-                    lblStatus.Text = $"Added account: {dialog.CreatedProfile.Name}";
+                    SetStatus($"Added account: {dialog.CreatedProfile.Name}");
                 }
             }
         }
@@ -1050,12 +1049,12 @@ namespace GWxLauncher
                     profile.ExecutablePath = dialog.FileName;
                     _profileManager.Save();
                     RefreshProfileList();
-                    lblStatus.Text = $"Updated path for {profile.Name}.";
+                    SetStatus($"Updated path for {profile.Name}.");
 
                     return true;
                 }
 
-                lblStatus.Text = $"No path selected for {profile.Name}.";
+                SetStatus($"No path selected for {profile.Name}.");
                 return false;
             }
         }
@@ -1083,11 +1082,11 @@ namespace GWxLauncher
                 {
                     profile.Gw1ToolboxDllPath = dialog.FileName;
                     _profileManager.Save();
-                    lblStatus.Text = $"Set GW1 Toolbox DLL for {profile.Name}.";
+                    SetStatus($"Set GW1 Toolbox DLL for {profile.Name}.");
                     return true;
                 }
 
-                lblStatus.Text = $"No Toolbox DLL selected for {profile.Name}.";
+                SetStatus($"No Toolbox DLL selected for {profile.Name}.");
                 return false;
             }
         }
@@ -1102,8 +1101,7 @@ namespace GWxLauncher
                 return;
 
             // Single launch = new "session". Bulk launch = append attempts to the same session.
-            if (!bulkMode)
-                _lastLaunchReports.Clear();
+            _launchSession.BeginSession(bulkMode);
 
             _config = LauncherConfig.Load();
 
@@ -1135,15 +1133,10 @@ namespace GWxLauncher
 
                 if (gw1Service.TryLaunchGw1(profile, exePath, mcEnabled, this, out var gw1Error, out var report))
                 {
-                    _lastLaunchReport = report;
-                    _lastLaunchReports.Add(report);
-                    lblStatus.Text = report.BuildSummary();
+                    ApplyLaunchReportToUi(report);
                 }
                 else
                 {
-                    _lastLaunchReport = report;
-                    _lastLaunchReports.Add(report);
-
                     MessageBox.Show(
                         this,
                         gw1Error,
@@ -1151,7 +1144,7 @@ namespace GWxLauncher
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
 
-                    lblStatus.Text = report.BuildSummary();
+                    ApplyLaunchReportToUi(report);
                 }
 
                 return;
@@ -1190,9 +1183,7 @@ namespace GWxLauncher
                     mcStep.Outcome = StepOutcome.Failed;
                     mcStep.Detail = "Mutex check failed.";
 
-                    _lastLaunchReport = report;
-                    _lastLaunchReports.Add(report);
-                    lblStatus.Text = report.BuildSummary();
+                    ApplyLaunchReportToUi(report);
 
                     MessageBox.Show(this, report.FailureMessage, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
@@ -1243,9 +1234,7 @@ namespace GWxLauncher
                             mcStep.Outcome = StepOutcome.Failed;
                             mcStep.Detail = $"GW2 mutex exists and could not be cleared. {killDetail}";
 
-                            _lastLaunchReport = report;
-                            _lastLaunchReports.Add(report);
-                            lblStatus.Text = report.BuildSummary();
+                            ApplyLaunchReportToUi(report);
 
                             MessageBox.Show(this, msg, "Guild Wars 2 launch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             return;
@@ -1321,9 +1310,8 @@ namespace GWxLauncher
 
                     report.Succeeded = true;
 
-                    _lastLaunchReport = report;
-                    _lastLaunchReports.Add(report);
-                    lblStatus.Text = report.BuildSummary();
+                    ApplyLaunchReportToUi(report);
+
                 }
                 catch (Exception ex)
                 {
@@ -1332,9 +1320,7 @@ namespace GWxLauncher
                     mcStep.Outcome = StepOutcome.Failed;
                     mcStep.Detail = "Process.Start failed.";
 
-                    _lastLaunchReport = report;
-                    _lastLaunchReports.Add(report);
-                    lblStatus.Text = report.BuildSummary();
+                    ApplyLaunchReportToUi(report);
 
                     MessageBox.Show(
                         this,
@@ -1346,6 +1332,11 @@ namespace GWxLauncher
 
                 return;
             }
+        }
+
+        private void SetStatus(string text)
+        {
+            SafeUi(() => lblStatus.Text = text ?? "");
         }
 
         private void SafeUi(Action action)
@@ -1364,12 +1355,10 @@ namespace GWxLauncher
                 // ignore UI marshal failures during shutdown
             }
         }
-
         private void ApplyLaunchReportToUi(LaunchReport report)
         {
-            _lastLaunchReport = report;
-            _lastLaunchReports.Add(report);
-            lblStatus.Text = report.BuildSummary();
+            _launchSession.Record(report);
+            SetStatus(_launchSession.BuildStatusText());
         }
 
         /// <summary>
@@ -1666,7 +1655,7 @@ namespace GWxLauncher
                 _ = Process.Start(startInfo);
 
                 if (lblStatus != null)
-                    lblStatus.Text = $"{gameName} launched.";
+                    SetStatus($"{gameName} launched.");
             }
             catch (Exception ex)
             {
@@ -1677,7 +1666,7 @@ namespace GWxLauncher
                     MessageBoxIcon.Error);
 
                 if (lblStatus != null)
-                    lblStatus.Text = $"Error launching {gameName}.";
+                    SetStatus($"Error launching {gameName}.");
             }
         }
 
