@@ -1,5 +1,4 @@
-﻿// SYNC_MARKER: Pass4-Done 2025-12-20 23:58 PST
-using GWxLauncher.Config;
+﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
@@ -33,6 +32,7 @@ namespace GWxLauncher
         private readonly Gw2AutomationCoordinator _gw2Automation = new Gw2AutomationCoordinator();
         private readonly Gw2LaunchOrchestrator _gw2Orchestrator = new Gw2LaunchOrchestrator();
         private readonly LaunchEligibilityPolicy _launchPolicy;
+        private readonly WinFormsUiDispatcher _ui;
 
         private readonly Image _gw1Image = Properties.Resources.Gw1;
         private readonly Image _gw2Image = Properties.Resources.Gw2;
@@ -57,8 +57,8 @@ namespace GWxLauncher
         public MainForm()
         {
             InitializeComponent();
+            _ui = new WinFormsUiDispatcher(this);
 
-            // Fonts (fallback safe)
             var baseFont = Font;
             try
             {
@@ -1134,20 +1134,9 @@ namespace GWxLauncher
 
         private void SafeUi(Action action)
         {
-            if (IsDisposed) return;
-
-            try
-            {
-                if (IsHandleCreated && InvokeRequired)
-                    BeginInvoke(action);
-                else
-                    action();
-            }
-            catch
-            {
-                // ignore UI marshal failures during shutdown
-            }
+            _ui.Post(action);
         }
+
         private void ApplyLaunchReportToUi(LaunchReport report)
         {
             _launchSession.Record(report);
