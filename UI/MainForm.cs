@@ -42,6 +42,7 @@ namespace GWxLauncher
         private bool _viewNameDirty = false;
         private bool _suppressViewTextEvents = false;
         private bool _suppressArmBulkEvents = false;
+        private bool _bulkLaunchInProgress = false;
 
         private readonly Font _nameFont;
         private readonly Font _subFont;
@@ -243,8 +244,12 @@ namespace GWxLauncher
 
             btnLaunchAll.Enabled = eval.Armed;
 
-            if (!string.IsNullOrWhiteSpace(eval.StatusText))
+            // Only update status when we're idle.
+            // During bulk launch, throttling + LaunchReport own the status line.
+            if (!_bulkLaunchInProgress && !string.IsNullOrWhiteSpace(eval.StatusText))
+            {
                 SetStatus(eval.StatusText);
+            }
         }
 
         private void ApplyViewScopedUiState()
@@ -856,6 +861,7 @@ namespace GWxLauncher
             _launchSession.BeginSession(bulkMode: true);
 
             // Prevent re-entrancy while bulk launch is running.
+            _bulkLaunchInProgress = true;
             btnLaunchAll.Enabled = false;
             try
             {
@@ -906,6 +912,7 @@ namespace GWxLauncher
             }
             finally
             {
+                _bulkLaunchInProgress = false;
                 UpdateBulkArmingUi();
             }
         }

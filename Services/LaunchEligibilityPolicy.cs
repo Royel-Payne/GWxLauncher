@@ -40,22 +40,24 @@ namespace GWxLauncher.Services
 
             bool mcOk = IsMulticlientEnabledForEligible(gw1Count, gw2Count, config, out string missing);
 
-            // IMPORTANT: preserve MainForm’s current status selection behavior exactly.
-            // (Even if some branches are redundant/unreachable, do not change behavior.)
             string statusText;
-            if (armed)
+
+            if (!showCheckedOnly)
             {
-                if (mcOk)
-                    statusText = $"Launch All ready · View: {_views.ActiveViewName}";
-                else
-                    statusText = $"Launch All requires multiclient: {missing} · View: {_views.ActiveViewName}";
+                statusText = $"Launch All not armed · Enable \"Show Checked Accounts Only\" · View: {_views.ActiveViewName}";
             }
-            if (!armed)
-                statusText = $"Launch All not ready · View: {_views.ActiveViewName}";
-            else if (showCheckedOnly && !anyEligible)
+            else if (!anyEligible)
+            {
                 statusText = $"No checked profiles in view · View: {_views.ActiveViewName}";
+            }
+            else if (!mcOk)
+            {
+                statusText = $"Launch All requires multiclient: {missing} · View: {_views.ActiveViewName}";
+            }
             else
-                statusText = ""; // will never be used because armed implies anyEligible in current logic
+            {
+                statusText = $"Launch All ready · View: {_views.ActiveViewName}";
+            }
 
             return new BulkArmingEvaluation
             {

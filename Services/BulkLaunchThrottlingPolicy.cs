@@ -9,12 +9,12 @@ namespace GWxLauncher.Services
     internal static class BulkLaunchThrottlingPolicy
     {
         // Locked clamp range from BulkLaunchThrottling.md
-        private const int MinDelaySeconds = 0;
-        private const int MaxDelaySeconds = 60;
+        private const int MinDelaySeconds = 5;
+        private const int MaxDelaySeconds = 90;
 
         // Hard-coded internal timeout (not user-configurable).
         // This prevents deadlock when readiness never arrives (e.g., wrong credentials).
-        private const int InternalTimeoutMs = 30_000;
+        private const int InternalTimeoutMs = 15_000;
 
         // Grace period before showing readiness UI (allows game window + login to appear)
         private const int ReadinessStatusGraceMs = 7000;

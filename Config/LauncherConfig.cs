@@ -13,7 +13,7 @@ namespace GWxLauncher.Config
         // 🔹 Bulk throttling (advanced-only)
         // NOTE: Do not clamp here. Clamp is applied in BulkLaunchThrottlingPolicy (0–60 seconds).
         public int Gw1BulkLaunchDelaySeconds { get; set; } = 15;
-        public int Gw2BulkLaunchDelaySeconds { get; set; } = 5;
+        public int Gw2BulkLaunchDelaySeconds { get; set; } = 15;
 
         // 🔹 New: window placement
         public int WindowX { get; set; } = -1;
