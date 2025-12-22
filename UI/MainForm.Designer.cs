@@ -203,9 +203,9 @@
             txtView.BackColor = Color.FromArgb(18, 18, 22);
             txtView.BorderStyle = BorderStyle.FixedSingle;
             txtView.ForeColor = Color.Gainsboro;
-            txtView.Location = new Point(156, 5);
+            txtView.Location = new Point(157, 6);
             txtView.Name = "txtView";
-            txtView.Size = new Size(171, 23);
+            txtView.Size = new Size(139, 23);
             txtView.TabIndex = 2;
             txtView.TextAlign = HorizontalAlignment.Center;
             txtView.TextChanged += txtView_TextChanged;
@@ -219,7 +219,7 @@
             btnViewNext.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
             btnViewNext.FlatStyle = FlatStyle.Flat;
             btnViewNext.ForeColor = Color.White;
-            btnViewNext.Location = new Point(332, 5);
+            btnViewNext.Location = new Point(302, 5);
             btnViewNext.Name = "btnViewNext";
             btnViewNext.Size = new Size(24, 24);
             btnViewNext.TabIndex = 3;

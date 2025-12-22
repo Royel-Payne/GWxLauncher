@@ -7,6 +7,10 @@ namespace GWxLauncher.Config
         public string Gw1Path { get; set; } = "";
         public string Gw2Path { get; set; } = "";
 
+        // 🔹 Theme (restart required)
+        // Allowed values: "Dark" or "Light"
+        public string Theme { get; set; } = "Light";
+
         public bool Gw1MulticlientEnabled { get; set; } = true;
         public bool Gw2MulticlientEnabled { get; set; } = true;
 

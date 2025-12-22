@@ -1,4 +1,6 @@
+using GWxLauncher.Config;
 using GWxLauncher.Services;
+using GWxLauncher.UI;
 
 namespace GWxLauncher
 {
@@ -24,7 +26,20 @@ namespace GWxLauncher
 
             // Standard WinForms startup plumbing
             ApplicationConfiguration.Initialize();
+
+            var cfg = LauncherConfig.Load();
+            ThemeService.SetTheme(ParseTheme(cfg.Theme));
+
             Application.Run(new MainForm());
+
+        }
+        private static AppTheme ParseTheme(string? value)
+        {
+            if (string.Equals(value, "Light", StringComparison.OrdinalIgnoreCase))
+                return AppTheme.Light;
+
+            // Default + fallback
+            return AppTheme.Dark;
         }
     }
 }

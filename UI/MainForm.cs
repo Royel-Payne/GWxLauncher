@@ -44,6 +44,12 @@ namespace GWxLauncher
         private bool _suppressArmBulkEvents = false;
         private bool _bulkLaunchInProgress = false;
 
+        private Button? _btnSettings;
+        private ContextMenuStrip? _ctxAppMenu;
+        private ToolStripMenuItem? _miThemeDark;
+        private ToolStripMenuItem? _miThemeLight;
+
+
         private readonly Font _nameFont;
         private readonly Font _subFont;
 
@@ -82,6 +88,8 @@ namespace GWxLauncher
             _config = LauncherConfig.Load();
 
             ThemeService.ApplyToForm(this);
+
+            InitializeAppMenu();
 
             ReenableListScrollbarAndFillPanel();
 
@@ -141,6 +149,125 @@ namespace GWxLauncher
             _suppressViewTextEvents = false;
 
             RefreshProfileList();
+        }
+        private void InitializeAppMenu()
+        {
+            // Settings button (Unicode gear). No designer changes required.
+            _btnSettings = new Button
+            {
+                Name = "btnSettings",
+                Text = "⚙",
+                TabStop = false,
+                Size = new Size(32, 28),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            ThemeService.StyleButton(_btnSettings);
+
+            // Optional: slightly more "icon-like" alignment
+            _btnSettings.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+
+            // App menu
+            _ctxAppMenu = new ContextMenuStrip();
+
+            var themeRoot = new ToolStripMenuItem("Theme");
+
+            _miThemeDark = new ToolStripMenuItem("Dark") { CheckOnClick = true };
+            _miThemeLight = new ToolStripMenuItem("Light") { CheckOnClick = true };
+
+            // Behave like radio buttons
+            _miThemeDark.Click += (s, e) => SetThemeFromMenu("Dark");
+            _miThemeLight.Click += (s, e) => SetThemeFromMenu("Light");
+
+            themeRoot.DropDownItems.Add(_miThemeDark);
+            themeRoot.DropDownItems.Add(_miThemeLight);
+
+            _ctxAppMenu.Items.Add(themeRoot);
+
+            // (Future) global items can go here:
+            // _ctxAppMenu.Items.Add(new ToolStripSeparator());
+            // _ctxAppMenu.Items.Add(new ToolStripMenuItem("Open Config Folder", null, ...));
+
+            _btnSettings.Click += (s, e) =>
+            {
+                if (_ctxAppMenu == null) return;
+                SyncThemeMenuChecks();
+                _ctxAppMenu.Show(_btnSettings, new Point(0, _btnSettings.Height));
+            };
+
+            panelView.Controls.Add(_btnSettings);
+            _btnSettings.BringToFront();
+
+            // Position: align with Launch All row, just to the right of btnLaunchAll if possible.
+            // If layout changes later, this is easy to adjust to your preferred placement.
+            PositionSettingsButton();
+
+            // Keep it positioned correctly if the form resizes.
+            Resize += (s, e) => PositionSettingsButton();
+
+            // Initial checkmark state
+            SyncThemeMenuChecks();
+        }
+        private void PositionSettingsButton()
+        {
+            if (_btnSettings == null) return;
+
+            int gap = 6;
+
+            // Match the top-row button sizing
+            _btnSettings.Size = new Size(btnViewNext.Width, btnViewNext.Height);
+
+            // Place immediately to the right of the top-right view button
+            _btnSettings.Location = new Point(
+                btnViewNext.Right + gap,
+                btnViewNext.Top
+            );
+        }
+
+        private void SetThemeFromMenu(string theme)
+        {
+            // Persist
+            _config.Theme = theme;
+            _config.Save();
+
+            // Apply immediately (assumes ThemeService.SetTheme + AppTheme exist in your working tree)
+            ThemeService.SetTheme(ParseTheme(theme));
+
+            // Re-apply to all open forms (in case dialogs are open)
+            foreach (Form f in Application.OpenForms)
+            {
+                ThemeService.ApplyToForm(f);
+                f.Invalidate(true);
+                f.Refresh();
+            }
+
+            // Your owner-drawn list uses ThemeService palette directly; force repaint.
+            lstProfiles.Invalidate();
+
+            SyncThemeMenuChecks();
+            SetStatus($"Theme set: {theme}");
+        }
+
+        private void SyncThemeMenuChecks()
+        {
+            if (_miThemeDark == null || _miThemeLight == null) return;
+
+            var t = (_config.Theme ?? "Dark").Trim();
+
+            bool isLight = string.Equals(t, "Light", StringComparison.OrdinalIgnoreCase);
+            bool isDark = !isLight;
+
+            // radio-style behavior
+            _miThemeDark.Checked = isDark;
+            _miThemeLight.Checked = isLight;
+        }
+
+        private static AppTheme ParseTheme(string? value)
+        {
+            if (string.Equals(value, "Light", StringComparison.OrdinalIgnoreCase))
+                return AppTheme.Light;
+
+            return AppTheme.Light;
         }
 
         private void MainForm_Load(object sender, EventArgs e)

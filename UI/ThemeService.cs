@@ -19,6 +19,20 @@ namespace GWxLauncher.UI
             ref int attrValue,
             int attrSize);
 
+        private static AppTheme _currentTheme = AppTheme.Dark;
+        private static ThemePalette _currentPalette = new DarkPalette();
+
+        public static AppTheme CurrentTheme => _currentTheme;
+        public static ThemePalette CurrentPalette => _currentPalette;
+
+        public static void SetTheme(AppTheme theme)
+        {
+            _currentTheme = theme;
+            _currentPalette = theme == AppTheme.Light
+                ? new LightPalette()
+                : new DarkPalette();
+        }
+
         private static void ApplyWindowChrome(Form f)
         {
             try
@@ -29,7 +43,7 @@ namespace GWxLauncher.UI
                 // Dark title bar (Win10 1809+)
                 if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
                 {
-                    int useDark = 1;
+                    int useDark = (_currentTheme == AppTheme.Dark) ? 1 : 0;
                     DwmSetWindowAttribute(f.Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDark, sizeof(int));
                 }
 
@@ -67,63 +81,57 @@ namespace GWxLauncher.UI
 
         internal static class Palette
         {
-            // ─────────────────────────────────────
-            // Window & global text
-            // ─────────────────────────────────────
-            public static readonly Color WindowBack = Color.FromArgb(24, 24, 28);
-            public static readonly Color WindowFore = Color.Gainsboro;
+            public static Color WindowBack => CurrentPalette.WindowBack;
+            public static Color WindowFore => CurrentPalette.WindowFore;
 
-            // ─────────────────────────────────────
-            // Surfaces / containers
-            // ─────────────────────────────────────
-            public static readonly Color HeaderBack = Color.FromArgb(30, 30, 36);
-            public static readonly Color Separator = Color.FromArgb(60, 60, 70);
+            // NEW: subtle surface layer for panels/containers
+            public static Color SurfaceBack => CurrentPalette.SurfaceBack;
+            public static Color SurfaceBorder => CurrentPalette.SurfaceBorder;
 
-            // ─────────────────────────────────────
-            // Buttons
-            // ─────────────────────────────────────
-            public static readonly Color ButtonBack = Color.FromArgb(45, 45, 52);
-            public static readonly Color ButtonBorder = Color.FromArgb(80, 80, 90);
-            public static readonly Color ButtonFore = Color.White;
+            public static Color HeaderBack => CurrentPalette.HeaderBack;
+            public static Color Separator => CurrentPalette.Separator;
 
-            // ─────────────────────────────────────
-            // Inputs / fields
-            // ─────────────────────────────────────
-            public static readonly Color InputBack = Color.FromArgb(18, 18, 22);
-            public static readonly Color InputFore = Color.Gainsboro;
-            public static readonly Color InputBorder = Color.FromArgb(80, 80, 90);
+            public static Color ButtonBack => CurrentPalette.ButtonBack;
+            public static Color ButtonBorder => CurrentPalette.ButtonBorder;
+            public static Color ButtonFore => CurrentPalette.ButtonFore;
 
-            // ─────────────────────────────────────
-            // Text variants
-            // ─────────────────────────────────────
-            public static readonly Color SubtleFore = Color.FromArgb(180, 180, 190);
-            public static readonly Color DisabledFore = Color.FromArgb(140, 140, 150);
+            public static Color PrimaryButtonBack => CurrentPalette.PrimaryButtonBack;
+            public static Color PrimaryButtonBorder => CurrentPalette.PrimaryButtonBorder;
+            public static Color PrimaryButtonFore => CurrentPalette.PrimaryButtonFore;
+
+            public static Color DangerButtonBack => CurrentPalette.DangerButtonBack;
+            public static Color DangerButtonBorder => CurrentPalette.DangerButtonBorder;
+            public static Color DangerButtonFore => CurrentPalette.DangerButtonFore;
+
+            public static Color InputBack => CurrentPalette.InputBack;
+            public static Color InputFore => CurrentPalette.InputFore;
+            public static Color InputBorder => CurrentPalette.InputBorder;
+
+            public static Color SubtleFore => CurrentPalette.SubtleFore;
+            public static Color DisabledFore => CurrentPalette.DisabledFore;
         }
+
         internal static class CardPalette
         {
-            // Card background
-            public static readonly Color Back = Color.FromArgb(35, 35, 40);
-            public static readonly Color SelectedBack = Color.FromArgb(45, 45, 52);
+            public static Color Back => CurrentPalette.CardBack;
+            public static Color SelectedBack => CurrentPalette.CardSelectedBack;
 
-            // Card border
-            public static readonly Color Border = Color.FromArgb(70, 70, 80);
-            public static readonly Color SelectedBorder = Color.FromArgb(0, 120, 215);
+            public static Color Border => CurrentPalette.CardBorder;
+            public static Color SelectedBorder => CurrentPalette.CardSelectedBorder;
 
-            // Card text
-            public static readonly Color NameFore = Color.White;
-            public static readonly Color SubFore = Color.Silver;
+            public static Color NameFore => CurrentPalette.CardNameFore;
+            public static Color SubFore => CurrentPalette.CardSubFore;
 
-            // Badge pills
-            public static readonly Color BadgeBack = Color.FromArgb(60, 60, 70);
-            public static readonly Color BadgeBorder = Color.FromArgb(90, 90, 110);
-            public static readonly Color BadgeFore = Color.Gainsboro;
-            // Hover
-            public static readonly Color HoverBack = Color.FromArgb(40, 40, 46);
-            public static readonly Color HoverBorder = Color.FromArgb(95, 95, 110);
+            public static Color BadgeBack => CurrentPalette.BadgeBack;
+            public static Color BadgeBorder => CurrentPalette.BadgeBorder;
+            public static Color BadgeFore => CurrentPalette.BadgeFore;
 
-            // Accent (selection / hover indicator)
-            public static readonly Color Accent = Color.FromArgb(0, 120, 215); // same as SelectedBorder (Windows blue)
+            public static Color HoverBack => CurrentPalette.HoverBack;
+            public static Color HoverBorder => CurrentPalette.HoverBorder;
+
+            public static Color Accent => CurrentPalette.Accent;
         }
+
 
         internal static class CardMetrics
         {
@@ -194,8 +202,8 @@ namespace GWxLauncher.UI
             switch (c)
             {
                 case Panel p:
-                    // Panels usually act as “surfaces”
-                    p.BackColor = Palette.WindowBack;
+                    // Panels act as a subtle “surface” layer
+                    p.BackColor = Palette.SurfaceBack;
                     p.ForeColor = Palette.WindowFore;
                     break;
 
@@ -220,7 +228,7 @@ namespace GWxLauncher.UI
                     break;
 
                 case ListBox lb:
-                    lb.BackColor = Palette.WindowBack;
+                    lb.BackColor = Palette.SurfaceBack;
                     lb.ForeColor = Palette.WindowFore;
                     lb.BorderStyle = BorderStyle.None;
                     break;
@@ -231,19 +239,52 @@ namespace GWxLauncher.UI
 
                 case GroupBox gb:
                     gb.ForeColor = Palette.WindowFore;
-                    gb.BackColor = Palette.WindowBack;
+                    gb.BackColor = Palette.SurfaceBack;
                     break;
             }
         }
 
         public static void StyleButton(Button b)
         {
-            b.BackColor = Palette.ButtonBack;
-            b.ForeColor = Palette.ButtonFore;
+            StyleButton(b, ActionRole.Default);
+        }
+
+        public static void StyleButton(Button b, ActionRole role)
+        {
+            if (b == null) return;
+
+            Color back;
+            Color fore;
+            Color border;
+
+            switch (role)
+            {
+                case ActionRole.Primary:
+                    back = Palette.PrimaryButtonBack;
+                    fore = Palette.PrimaryButtonFore;
+                    border = Palette.PrimaryButtonBorder;
+                    break;
+
+                case ActionRole.Destructive:
+                    back = Palette.DangerButtonBack;
+                    fore = Palette.DangerButtonFore;
+                    border = Palette.DangerButtonBorder;
+                    break;
+
+                default:
+                    back = Palette.ButtonBack;
+                    fore = Palette.ButtonFore;
+                    border = Palette.ButtonBorder;
+                    break;
+            }
+
+            b.BackColor = back;
+            b.ForeColor = fore;
             b.FlatStyle = FlatStyle.Flat;
-            b.FlatAppearance.BorderColor = Palette.ButtonBorder;
+            b.FlatAppearance.BorderColor = border;
             b.FlatAppearance.BorderSize = 1;
             b.UseVisualStyleBackColor = false;
         }
+
     }
 }
