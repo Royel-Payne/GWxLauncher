@@ -266,6 +266,9 @@ namespace GWxLauncher
             // Step through saved View names (Team1/Team2/Team3), not profiles
             var newName = _views.StepActiveView(delta);
 
+            // Persist the new ActiveViewName so views.json reflects the user's selection.
+            _views.Save();
+
             _suppressViewTextEvents = true;
             txtView.Text = newName;
             ApplyViewScopedUiState();
