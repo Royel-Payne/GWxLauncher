@@ -10,6 +10,11 @@ namespace GWxLauncher.Config
         public bool Gw1MulticlientEnabled { get; set; } = true;
         public bool Gw2MulticlientEnabled { get; set; } = true;
 
+        // 🔹 Bulk throttling (advanced-only)
+        // NOTE: Do not clamp here. Clamp is applied in BulkLaunchThrottlingPolicy (0–60 seconds).
+        public int Gw1BulkLaunchDelaySeconds { get; set; } = 15;
+        public int Gw2BulkLaunchDelaySeconds { get; set; } = 5;
+
         // 🔹 New: window placement
         public int WindowX { get; set; } = -1;
         public int WindowY { get; set; } = -1;

@@ -1,4 +1,5 @@
-﻿using GWxLauncher.Config;
+﻿// SYNC_MARKER: Refactor-done 2025-12-21 09:50 PST
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
@@ -863,18 +864,42 @@ namespace GWxLauncher
                 // GW1 launches remain on UI thread (fast, minimal waiting), but can be moved later if needed.
                 foreach (var profile in targets)
                 {
+                    // For GW1 readiness probing, take a pre-launch snapshot so we can identify the new PID.
+                    var gw1Before = profile.GameType == GameType.GuildWars1
+                        ? CaptureProcessIdsForExePath(GetEffectiveExePathForProfile(profile))
+                        : null;
+
                     if (profile.GameType == GameType.GuildWars2)
                     {
-                        await Task.Run(() => LaunchProfileGw2BulkWorker(profile));
+                        // Run GW2 orchestration/automation off the UI thread; return the result so UI can apply it deterministically.
+                        var gw2Result = await Task.Run(() => LaunchProfileGw2BulkWorker(profile));
+
+                        if (gw2Result.Report != null)
+                            ApplyLaunchReportToUi(gw2Result.Report);
+
+                        if (gw2Result.HasMessageBox)
+                        {
+                            MessageBox.Show(
+                                this,
+                                gw2Result.MessageBoxText,
+                                gw2Result.MessageBoxTitle,
+                                MessageBoxButtons.OK,
+                                gw2Result.MessageBoxIsError ? MessageBoxIcon.Error : MessageBoxIcon.Warning);
+                        }
                     }
                     else
                     {
+                        // GW1 is fast and stays on the UI thread.
                         LaunchProfile(profile, bulkMode: true);
                     }
+
+                    // Throttling insertion point (Bulk-only): after launch completes, before next iteration.
+                    await ApplyBulkLaunchThrottlingAsync(profile, gw1Before);
 
                     // Give WinForms a chance to repaint between profiles.
                     await Task.Yield();
                 }
+
             }
             finally
             {
@@ -889,7 +914,6 @@ namespace GWxLauncher
                 dialog.Title = "Select Guild Wars 1 executable";
                 dialog.Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*";
 
-                // If we already have a path, use its folder as the starting point
                 if (!string.IsNullOrWhiteSpace(_config.Gw1Path))
                 {
                     try
@@ -1127,6 +1151,134 @@ namespace GWxLauncher
             }
         }
 
+        // -----------------------------
+        // Bulk launch throttling
+        // -----------------------------
+
+        private async Task ApplyBulkLaunchThrottlingAsync(GameProfile lastLaunchedProfile, HashSet<int>? gw1BeforePids)
+        {
+            if (lastLaunchedProfile == null)
+                return;
+
+            // Always use latest persisted settings.
+            _config = LauncherConfig.Load();
+
+            int requestedDelaySeconds = lastLaunchedProfile.GameType == GameType.GuildWars1
+                ? _config.Gw1BulkLaunchDelaySeconds
+                : _config.Gw2BulkLaunchDelaySeconds;
+
+            // Attach throttling step to the most recent report (LaunchProfile / ApplyLaunchReportToUi already recorded it).
+            var report = _launchSession.LastReport;
+
+            Func<bool>? readiness = null;
+
+            if (lastLaunchedProfile.GameType == GameType.GuildWars1)
+            {
+                // Step 3 probe is optional; if we cannot resolve PID or init fails, policy falls back to delay-only.
+                var exePath = GetEffectiveExePathForProfile(lastLaunchedProfile);
+
+                var gw1After = CaptureProcessIdsForExePath(exePath);
+
+                Process? gwProcess = null;
+                if (gw1BeforePids != null)
+                {
+                    var newPids = gw1After.Except(gw1BeforePids).ToList();
+                    if (newPids.Count == 1)
+                    {
+                        try
+                        {
+                            gwProcess = Process.GetProcessById(newPids[0]);
+                        }
+                        catch
+                        {
+                            gwProcess = null;
+                        }
+                    }
+                }
+
+                if (gwProcess != null)
+                {
+                    var probe = new Gw1ClientStateProbe();
+                    if (probe.TryInitialize(gwProcess) && probe.IsAvailable)
+                    {
+                        readiness = probe.IsReady;
+                    }
+                    else
+                    {
+                        probe.Dispose();
+                    }
+                }
+            }
+
+            // Status callback uses the required "Throttling" language.
+            Action<string> status = s =>
+            {
+                if (!string.IsNullOrWhiteSpace(s))
+                    SetStatus(s);
+            };
+
+            await BulkLaunchThrottlingPolicy.ApplyAsync(
+                gameType: lastLaunchedProfile.GameType,
+                requestedDelaySeconds: requestedDelaySeconds,
+                readinessCheck: readiness,
+                statusCallback: status,
+                report: report);
+
+            // After throttling completes, restore the normal status text (now includes "Throttling ✓" in the summary).
+            SetStatus(_launchSession.BuildStatusText());
+        }
+
+        private string GetEffectiveExePathForProfile(GameProfile profile)
+        {
+            if (profile == null)
+                return "";
+
+            if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
+                return profile.ExecutablePath;
+
+            // _config is already loaded in the bulk entrypoint; this reload is safe and matches existing patterns.
+            _config = LauncherConfig.Load();
+
+            return profile.GameType == GameType.GuildWars1
+                ? _config.Gw1Path
+                : _config.Gw2Path;
+        }
+
+        private static HashSet<int> CaptureProcessIdsForExePath(string exePath)
+        {
+            var set = new HashSet<int>();
+
+            if (string.IsNullOrWhiteSpace(exePath))
+                return set;
+
+            foreach (var p in Process.GetProcesses())
+            {
+                try
+                {
+                    // Accessing MainModule can throw; we treat failures as "not match".
+                    string? path = p.MainModule?.FileName;
+                    if (!string.IsNullOrWhiteSpace(path) &&
+                        string.Equals(path, exePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        set.Add(p.Id);
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+                finally
+                {
+                    try { p.Dispose(); } catch { }
+                }
+            }
+
+            return set;
+        }
+
+        // -----------------------------
+        // UI helpers
+        // -----------------------------
         private void SetStatus(string text)
         {
             SafeUi(() => lblStatus.Text = text ?? "");
@@ -1148,10 +1300,10 @@ namespace GWxLauncher
         /// while GW2 mutex handling + automation (polling/sleeps/pixel checks) are running.
         /// UI updates are marshaled back via SafeUi().
         /// </summary>
-        private void LaunchProfileGw2BulkWorker(GameProfile profile)
+        private Gw2LaunchOrchestrator.Gw2LaunchResult LaunchProfileGw2BulkWorker(GameProfile profile)
         {
             if (profile == null)
-                return;
+                return new Gw2LaunchOrchestrator.Gw2LaunchResult();
 
             // Use a fresh config snapshot (ProfileSettingsForm writes and saves its own config instance).
             var cfg = LauncherConfig.Load();
@@ -1162,52 +1314,28 @@ namespace GWxLauncher
 
             if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
             {
-                SafeUi(() =>
+                return new Gw2LaunchOrchestrator.Gw2LaunchResult
                 {
-                    MessageBox.Show(
-                        this,
+                    Report = null,
+                    MessageBoxText =
                         "No valid executable path is configured for this profile.\n\n" +
                         "Edit the profile or configure the game path in settings.",
-                        "Missing executable",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                });
-                return;
+                    MessageBoxTitle = "Missing executable",
+                    MessageBoxIsError = false
+                };
             }
-
-            var report = new LaunchReport
-            {
-                GameName = "Guild Wars 2",
-                ExecutablePath = exePath
-            };
 
             bool mcEnabled = cfg.Gw2MulticlientEnabled;
 
-            var result = _gw2Orchestrator.Launch(
+            return _gw2Orchestrator.Launch(
                 profile: profile,
                 exePath: exePath,
                 mcEnabled: mcEnabled,
                 bulkMode: true,
                 automationCoordinator: _gw2Automation,
                 runAfterInvoker: _gw2RunAfterLauncher.Start);
-
-            SafeUi(() =>
-            {
-                if (result.Report != null)
-                    ApplyLaunchReportToUi(result.Report);
-
-                if (result.HasMessageBox)
-                {
-                    MessageBox.Show(
-                        this,
-                        result.MessageBoxText,
-                        result.MessageBoxTitle,
-                        MessageBoxButtons.OK,
-                        result.MessageBoxIsError ? MessageBoxIcon.Error : MessageBoxIcon.Warning);
-                }
-            });
         }
-        
+
         private void LaunchGame(string exePath, string gameName)
         {
             try
