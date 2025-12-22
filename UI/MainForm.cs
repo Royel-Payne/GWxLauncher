@@ -1,5 +1,4 @@
-﻿// SYNC_MARKER: Refactor-done 2025-12-21 09:50 PST
-using GWxLauncher.Config;
+﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
@@ -541,7 +540,7 @@ namespace GWxLauncher
             if (!_launchSession.HasAnyReports)
                 return;
 
-            using var dlg = new LastLaunchDetailsForm(_launchSession.AllReports);
+            var dlg = new LastLaunchDetailsForm(_launchSession.AllReports);
             dlg.ShowDialog(this);
         }
 
@@ -854,7 +853,7 @@ namespace GWxLauncher
                 return;
             }
 
-            _launchSession.BeginSession(bulkMode: false);
+            _launchSession.BeginSession(bulkMode: true);
 
             // Prevent re-entrancy while bulk launch is running.
             btnLaunchAll.Enabled = false;
@@ -862,8 +861,10 @@ namespace GWxLauncher
             {
                 // Run GW2 launches off the UI thread to avoid paint starvation (GW2 automation contains sleeps/polling).
                 // GW1 launches remain on UI thread (fast, minimal waiting), but can be moved later if needed.
-                foreach (var profile in targets)
+                for (int i = 0; i < targets.Count; i++)
                 {
+                    var profile = targets[i];
+
                     // For GW1 readiness probing, take a pre-launch snapshot so we can identify the new PID.
                     var gw1Before = profile.GameType == GameType.GuildWars1
                         ? CaptureProcessIdsForExePath(GetEffectiveExePathForProfile(profile))
@@ -893,13 +894,15 @@ namespace GWxLauncher
                         LaunchProfile(profile, bulkMode: true);
                     }
 
-                    // Throttling insertion point (Bulk-only): after launch completes, before next iteration.
-                    await ApplyBulkLaunchThrottlingAsync(profile, gw1Before);
+                    bool hasNext = (i < targets.Count - 1);
+
+                    // Throttling is only meaningful when there is another account queued.
+                    if (hasNext)
+                        await ApplyBulkLaunchThrottlingAsync(profile, gw1Before);
 
                     // Give WinForms a chance to repaint between profiles.
                     await Task.Yield();
                 }
-
             }
             finally
             {
@@ -1072,8 +1075,9 @@ namespace GWxLauncher
             if (profile == null)
                 return;
 
-            // Single launch = new "session". Bulk launch = append attempts to the same session.
-            _launchSession.BeginSession(bulkMode);
+            // Single launch = new "session". Bulk launch session is started once in btnLaunchAll_Click.
+            if (!bulkMode)
+                _launchSession.BeginSession(bulkMode: false);
 
             _config = LauncherConfig.Load();
 
@@ -1167,7 +1171,7 @@ namespace GWxLauncher
                 ? _config.Gw1BulkLaunchDelaySeconds
                 : _config.Gw2BulkLaunchDelaySeconds;
 
-            // Attach throttling step to the most recent report (LaunchProfile / ApplyLaunchReportToUi already recorded it).
+            // Attach throttling step to the most recent attempt's report.
             var report = _launchSession.LastReport;
 
             Func<bool>? readiness = null;

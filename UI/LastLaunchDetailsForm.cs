@@ -30,12 +30,6 @@ namespace GWxLauncher.UI
             Controls.Add(txt);
         }
 
-        // Back-compat convenience (optional): lets old call sites compile if any remain.
-        public LastLaunchDetailsForm(LaunchReport report)
-            : this(new List<LaunchReport> { report })
-        {
-        }
-
         private static string BuildCombinedText(IReadOnlyList<LaunchReport> reports)
         {
             if (reports.Count == 0)

@@ -14,7 +14,10 @@ namespace GWxLauncher.Services
 
         // Hard-coded internal timeout (not user-configurable).
         // This prevents deadlock when readiness never arrives (e.g., wrong credentials).
-        private const int InternalTimeoutMs = 60_000;
+        private const int InternalTimeoutMs = 30_000;
+
+        // Grace period before showing readiness UI (allows game window + login to appear)
+        private const int ReadinessStatusGraceMs = 7000;
 
         public static async Task<BulkLaunchThrottlingResult> ApplyAsync(
             GameType gameType,
@@ -35,9 +38,8 @@ namespace GWxLauncher.Services
             // 1) Optional readiness wait (GW1 probe)
             if (readinessCheck != null)
             {
-                statusCallback?.Invoke("Throttling: waiting for character select…");
-
                 var waitSw = Stopwatch.StartNew();
+                int lastReportedSecond = -1;
 
                 while (true)
                 {
@@ -49,7 +51,22 @@ namespace GWxLauncher.Services
                         break;
                     }
 
-                    if (waitSw.ElapsedMilliseconds >= InternalTimeoutMs)
+                    int elapsedMs = (int)waitSw.ElapsedMilliseconds;
+
+                    // Don’t show readiness UI immediately — give the game time to create its window.
+                    if (elapsedMs >= ReadinessStatusGraceMs)
+                    {
+                        int remainingMs = Math.Max(0, InternalTimeoutMs - elapsedMs);
+                        int remainingSeconds = remainingMs / 1000;
+
+                        if (remainingSeconds != lastReportedSecond)
+                        {
+                            lastReportedSecond = remainingSeconds;
+                            statusCallback?.Invoke(
+                                $"You may enter the game world, or wait — {remainingSeconds}s remaining…");
+                        }
+                    }
+                    if (elapsedMs >= InternalTimeoutMs)
                     {
                         timedOut = true;
                         break;
@@ -60,6 +77,7 @@ namespace GWxLauncher.Services
 
                 waitSw.Stop();
                 readinessWaitMs = (int)waitSw.ElapsedMilliseconds;
+
             }
 
             // 2) Post-ready pacing delay (always applies per game delay)
@@ -130,7 +148,7 @@ namespace GWxLauncher.Services
             {
                 // No readiness check (GW2 path) or probe unavailable (GW1 fallback).
                 reason = effectiveDelaySeconds > 0
-                    ? $"Probe unavailable; using delay only. Delaying {effectiveDelaySeconds} seconds"
+                    ? $"Probe unavailable; using delay only. Delaying {effectiveDelaySeconds} {(effectiveDelaySeconds == 1 ? "second" : "seconds")}"
                     : "Probe unavailable; using delay only";
             }
             else
@@ -149,7 +167,10 @@ namespace GWxLauncher.Services
                 }
 
                 if (effectiveDelaySeconds > 0)
-                    reason += Environment.NewLine + $"Delaying {effectiveDelaySeconds} seconds";
+                {
+                    string unit = effectiveDelaySeconds == 1 ? "second" : "seconds";
+                    reason += Environment.NewLine + $"Delaying {effectiveDelaySeconds} {unit}";
+                }
             }
 
             if (requestedDelaySeconds != effectiveDelaySeconds)

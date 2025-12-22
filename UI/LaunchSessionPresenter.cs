@@ -11,8 +11,8 @@ namespace GWxLauncher.UI
 
         public void BeginSession(bool bulkMode)
         {
-            if (!bulkMode)
-                _lastLaunchReports.Clear();
+            _lastLaunchReports.Clear();
+            _lastLaunchReport = null;
         }
 
         public void Record(LaunchReport report)
@@ -23,7 +23,14 @@ namespace GWxLauncher.UI
 
         public string BuildStatusText()
         {
-            return _lastLaunchReport?.BuildSummary() ?? "";
+            if (_lastLaunchReports.Count == 0)
+                return "";
+
+            if (_lastLaunchReports.Count == 1)
+                return _lastLaunchReports[0].BuildSummary();
+
+            // Bulk session: show attempt count + last attempt summary (no dependency on a Success property).
+            return $"Bulk launch: {_lastLaunchReports.Count} attempts • Last: {_lastLaunchReport?.BuildSummary() ?? ""}";
         }
 
         public LaunchReport? LastReport => _lastLaunchReport;
