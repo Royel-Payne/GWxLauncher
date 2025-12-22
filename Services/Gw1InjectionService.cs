@@ -166,6 +166,25 @@ namespace GWxLauncher.Services
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern uint ResumeThread(IntPtr hThread);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
+
+        private static void KillProcessIfCreatedButFailed(PROCESS_INFORMATION procInfo)
+        {
+            try
+            {
+                if (procInfo.hProcess != IntPtr.Zero)
+                {
+                    // Deterministic: if we created it and we’re bailing out, kill it.
+                    TerminateProcess(procInfo.hProcess, 1);
+                }
+            }
+            catch
+            {
+                // Best-effort only. We still close handles in the caller.
+            }
+        }
+
         #endregion
 
         #region GW1 Auto-Login Args (GW.exe flags)
@@ -622,12 +641,13 @@ namespace GWxLauncher.Services
                         return false;
                     }
 
+                    bool launchedOk = false;
+
                     try
                     {
                         if (!TryApplyGw1MulticlientPatch(procInfo.hProcess, out var patchError))
                         {
                             errorMessage = $"GW1 multiclient patch failed:\n{patchError}";
-
 
                             stepLaunch.Outcome = StepOutcome.Failed;
                             stepLaunch.Detail = errorMessage;
@@ -670,14 +690,17 @@ namespace GWxLauncher.Services
                         }
 
                         stepLaunch.Outcome = StepOutcome.Success;
-
-
                         stepLaunch.Detail = "Created suspended, patched for multiclient, resumed";
-
                         report.UsedSuspendedLaunch = true;
+
+                        launchedOk = true;
                     }
                     finally
                     {
+                        // NEW: kill orphaned suspended GW if we failed after CreateProcessW
+                        if (!launchedOk)
+                            KillProcessIfCreatedButFailed(procInfo);
+
                         if (procInfo.hThread != IntPtr.Zero) CloseHandle(procInfo.hThread);
                         if (procInfo.hProcess != IntPtr.Zero) CloseHandle(procInfo.hProcess);
                     }
@@ -961,6 +984,8 @@ namespace GWxLauncher.Services
             string workingDir = Path.GetDirectoryName(exePath) ?? string.Empty;
             string cmdLine = BuildCreateProcessCommandLine(exePath, gwArgs);
 
+            bool launchedOk = false;
+
             try
             {
                 bool created = CreateProcessW(
@@ -1001,6 +1026,8 @@ namespace GWxLauncher.Services
                 }
 
                 ResumeThread(procInfo.hThread);
+
+                launchedOk = true;
                 return true;
             }
             catch (Exception ex)
@@ -1010,6 +1037,10 @@ namespace GWxLauncher.Services
             }
             finally
             {
+                // NEW: kill orphaned suspended GW if we failed after CreateProcessW
+                if (!launchedOk)
+                    KillProcessIfCreatedButFailed(procInfo);
+
                 if (procInfo.hThread != IntPtr.Zero) CloseHandle(procInfo.hThread);
                 if (procInfo.hProcess != IntPtr.Zero) CloseHandle(procInfo.hProcess);
             }
