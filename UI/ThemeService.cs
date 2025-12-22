@@ -19,8 +19,8 @@ namespace GWxLauncher.UI
             ref int attrValue,
             int attrSize);
 
-        private static AppTheme _currentTheme = AppTheme.Dark;
-        private static ThemePalette _currentPalette = new DarkPalette();
+        private static AppTheme _currentTheme = AppTheme.Light;
+        private static ThemePalette _currentPalette = new LightPalette();
 
         public static AppTheme CurrentTheme => _currentTheme;
         public static ThemePalette CurrentPalette => _currentPalette;

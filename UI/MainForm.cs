@@ -264,9 +264,12 @@ namespace GWxLauncher
 
         private static AppTheme ParseTheme(string? value)
         {
-            if (string.Equals(value, "Light", StringComparison.OrdinalIgnoreCase))
-                return AppTheme.Light;
+            var v = (value ?? "").Trim();
 
+            if (string.Equals(v, "Dark", StringComparison.OrdinalIgnoreCase))
+                return AppTheme.Dark;
+
+            // Default + fallback
             return AppTheme.Light;
         }
 
