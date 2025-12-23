@@ -273,9 +273,6 @@
         private Button btnAddAccount;
         private ContextMenuStrip ctxProfiles;
         private ToolStripMenuItem menuLaunchProfile;
-        // private ToolStripMenuItem menuGw1ToolboxToggle;
-        // private ToolStripMenuItem menuGw1ToolboxPath;
-        // private ToolStripMenuItem menuSetProfilePath;
         private ToolStripMenuItem deleteToolStripMenuItem;
         private ToolStripMenuItem menuEditProfile;
         private ToolStripMenuItem menuShowLastLaunchDetails;

@@ -35,4 +35,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="docs\tasks\" />
+  </ItemGroup>
+
 </Project>

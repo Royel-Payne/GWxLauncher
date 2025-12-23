@@ -58,6 +58,15 @@ namespace GWxLauncher
         private const bool ShowSelectionBorder = false;
 
         // -----------------------------
+        // Status marquee (for long lblStatus text)
+        // -----------------------------
+        private readonly System.Windows.Forms.Timer _statusMarqueeTimer = new System.Windows.Forms.Timer();
+        private string _statusFullText = "";
+        private int _statusMarqueeIndex = 0;
+        private const int StatusMarqueeIntervalMs = 120;
+        private const string StatusMarqueeGap = "   •   ";
+
+        // -----------------------------
         // Ctor / Form lifecycle
         // -----------------------------
 
@@ -106,7 +115,15 @@ namespace GWxLauncher
                 using var pen = new Pen(ThemeService.Palette.Separator);
                 e.Graphics.DrawLine(pen, 0, 0, lblStatus.Width - 1, 0);
             };
-            lblStatus.Resize += (s, e) => lblStatus.Invalidate();
+            lblStatus.Resize += (s, e) =>
+            {
+                lblStatus.Invalidate();
+                UpdateStatusMarquee(); // re-evaluate fit on resize
+            };
+
+            // Status marquee timer (only runs when text doesn't fit)
+            _statusMarqueeTimer.Interval = StatusMarqueeIntervalMs;
+            _statusMarqueeTimer.Tick += (s, e) => TickStatusMarquee();
 
             panelProfiles.Resize += (s, e) => panelProfiles.Invalidate();
 
@@ -302,7 +319,7 @@ namespace GWxLauncher
 
             _nameFont?.Dispose();
             _subFont?.Dispose();
-
+            _statusMarqueeTimer.Stop();
             _config.Save();
         }
 
@@ -1425,12 +1442,107 @@ namespace GWxLauncher
         // -----------------------------
         private void SetStatus(string text)
         {
-            SafeUi(() => lblStatus.Text = text ?? "");
+            SafeUi(() =>
+            {
+                _statusFullText = text ?? "";
+                _statusMarqueeIndex = 0;
+                UpdateStatusMarquee();
+            });
         }
 
         private void SafeUi(Action action)
         {
             _ui.Post(action);
+        }
+        private void UpdateStatusMarquee()
+        {
+            if (lblStatus == null)
+                return;
+
+            string full = _statusFullText ?? "";
+
+            // If it fits, show it and stop scrolling.
+            if (StatusTextFits(full))
+            {
+                StopStatusMarquee();
+                lblStatus.Text = full;
+                return;
+            }
+
+            // Doesn't fit => start scrolling.
+            StartStatusMarquee();
+
+            // Show the initial scrolled view immediately (not waiting for first tick)
+            lblStatus.Text = BuildMarqueeSlice(full, _statusMarqueeIndex);
+        }
+
+        private bool StatusTextFits(string text)
+        {
+            // Measure with current label font (approx is fine for status UX).
+            // Use a single-line measurement.
+            var size = TextRenderer.MeasureText(text, lblStatus.Font, new Size(int.MaxValue, lblStatus.Height),
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
+
+            // Available width inside the label (account for padding)
+            int padding = lblStatus.Padding.Left + lblStatus.Padding.Right;
+            int available = Math.Max(0, lblStatus.ClientSize.Width - padding);
+
+            return size.Width <= available;
+        }
+
+        private void StartStatusMarquee()
+        {
+            if (!_statusMarqueeTimer.Enabled)
+                _statusMarqueeTimer.Start();
+        }
+
+        private void StopStatusMarquee()
+        {
+            if (_statusMarqueeTimer.Enabled)
+                _statusMarqueeTimer.Stop();
+        }
+
+        private void TickStatusMarquee()
+        {
+            if (lblStatus == null)
+                return;
+
+            string full = _statusFullText ?? "";
+
+            // If text now fits (e.g., window resized), stop and show full text.
+            if (StatusTextFits(full))
+            {
+                StopStatusMarquee();
+                lblStatus.Text = full;
+                return;
+            }
+
+            _statusMarqueeIndex++;
+
+            // Prevent runaway growth; we scroll across the combined string length.
+            int loopLen = (full + StatusMarqueeGap).Length;
+            if (loopLen <= 0)
+                loopLen = 1;
+
+            if (_statusMarqueeIndex >= loopLen)
+                _statusMarqueeIndex = 0;
+
+            lblStatus.Text = BuildMarqueeSlice(full, _statusMarqueeIndex);
+        }
+
+        private static string BuildMarqueeSlice(string full, int index)
+        {
+            // Simple, stable marquee: rotate across "full + gap + full"
+            string combined = full + StatusMarqueeGap + full;
+
+            if (combined.Length == 0)
+                return "";
+
+            index %= (full + StatusMarqueeGap).Length;
+            if (index < 0) index = 0;
+
+            // Return from index to end (label will clip naturally)
+            return combined.Substring(index);
         }
 
         private void ApplyLaunchReportToUi(LaunchReport report)
