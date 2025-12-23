@@ -526,12 +526,6 @@ namespace GWxLauncher
             using (var bgBrush = new SolidBrush(backColor))
             {
                 g.FillRectangle(bgBrush, card);
-
-                if (ShowSelectionBorder)
-                {
-                    using var borderPen = new Pen(borderColor);
-                    g.DrawRectangle(borderPen, card);
-                }
             }
 
             // Ensure listbox background matches overall theme
@@ -679,7 +673,7 @@ namespace GWxLauncher
             return lstProfiles.SelectedItem as GameProfile;
         }
 
-        private void ctxProfiles_Opening(object sender, CancelEventArgs e)
+        private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
         {
             var profile = GetSelectedProfile();
             bool hasProfile = profile != null;

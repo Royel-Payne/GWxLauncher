@@ -90,13 +90,6 @@ namespace GWxLauncher.Services
                 return false;
             }
 
-            if (!CharnameRelative)
-            {
-                // Not used by this probe (locked to relative=true), but kept explicit for clarity.
-                MarkUnavailable("Charname pointer resolution is not configured for absolute pointers");
-                return false;
-            }
-
             // Resolve relative pointer:
             // absolute = (moduleBase + ptrLoc) + 4 + rel32
             int rel32 = BitConverter.ToInt32(image, ptrLocInImage);

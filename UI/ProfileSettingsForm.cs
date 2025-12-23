@@ -44,7 +44,10 @@ namespace GWxLauncher.UI
             lvGw2RunAfter.ItemSelectionChanged += (s, e) =>
             {
                 if (!_gw2RunAfterInteractive && e.IsSelected)
-                    e.Item.Selected = false;
+                {
+                    if (e.Item != null)
+                        e.Item.Selected = false;
+                }
             };
             lvGw2RunAfter.ItemCheck += (s, e) =>
             {
@@ -117,7 +120,7 @@ namespace GWxLauncher.UI
             Color back = lvGw2RunAfter.BackColor;
             Color fore = lvGw2RunAfter.ForeColor;
 
-            if (e.Item.Selected)
+            if (e.Item != null && e.Item.Selected)
             {
                 back = ThemeService.Palette.ButtonBack;
                 fore = ThemeService.Palette.ButtonFore;
@@ -126,7 +129,7 @@ namespace GWxLauncher.UI
             using (var bg = new SolidBrush(back))
                 e.Graphics.FillRectangle(bg, e.Bounds);
 
-            var p = e.Item.Tag as RunAfterProgram;
+            var p = e.Item?.Tag as RunAfterProgram;
 
             // --- Compute badge rect (right-aligned) ---
             bool showBadge = (p != null && p.PassMumbleLinkName);
@@ -154,9 +157,12 @@ namespace GWxLauncher.UI
             if (showBadge)
                 textRect = Rectangle.FromLTRB(e.Bounds.Left, e.Bounds.Top, e.Bounds.Right - (badgeW + badgeRightPad), e.Bounds.Bottom);
 
+            // Fix: Check for null before accessing e.SubItem.Text
+            string subItemText = e.SubItem?.Text ?? string.Empty;
+
             TextRenderer.DrawText(
                 e.Graphics,
-                e.SubItem.Text,
+                subItemText,
                 lvGw2RunAfter.Font,
                 textRect,
                 fore,
@@ -184,7 +190,6 @@ namespace GWxLauncher.UI
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
         }
-
         private void ProfileSettingsForm_Shown(object? sender, EventArgs e)
         {
             // If we restored from saved placement, don't override it.
