@@ -7,30 +7,44 @@ namespace GWxLauncher.Config
         public string Gw1Path { get; set; } = "";
         public string Gw2Path { get; set; } = "";
 
-        // 🔹 Theme (restart required)
+        // -----------------------------
+        // GW1 tool paths (last known good)
+        // -----------------------------
+        // These are NOT "defaults" in the UI — just remembered last working paths.
+        public string LastToolboxPath { get; set; } = "";
+        public string LastGModPath { get; set; } = "";
+        public string LastPy4GWPath { get; set; } = "";
+
         // Allowed values: "Dark" or "Light"
         public string Theme { get; set; } = "Light";
 
         public bool Gw1MulticlientEnabled { get; set; } = true;
         public bool Gw2MulticlientEnabled { get; set; } = true;
 
-        // 🔹 Bulk throttling (advanced-only)
+        // Bulk throttling (advanced-only)
         // NOTE: Do not clamp here. Clamp is applied in BulkLaunchThrottlingPolicy (0–60 seconds).
         public int Gw1BulkLaunchDelaySeconds { get; set; } = 15;
         public int Gw2BulkLaunchDelaySeconds { get; set; } = 15;
 
-        // 🔹 New: window placement
+        // New: window placement
         public int WindowX { get; set; } = -1;
         public int WindowY { get; set; } = -1;
         public int WindowWidth { get; set; } = -1;
         public int WindowHeight { get; set; } = -1;
         public bool WindowMaximized { get; set; } = false;
 
-        // 🔹 Profile Settings window placement
+        // Profile Settings window placement
         public int ProfileSettingsX { get; set; } = -1;
         public int ProfileSettingsY { get; set; } = -1;
         public int ProfileSettingsWidth { get; set; } = -1;
         public int ProfileSettingsHeight { get; set; } = -1;
+
+        // Global Settings window placement
+        public int GlobalSettingsX { get; set; } = -1;
+        public int GlobalSettingsY { get; set; } = -1;
+        public int GlobalSettingsWidth { get; set; } = -1;
+        public int GlobalSettingsHeight { get; set; } = -1;
+
 
         private static readonly string ConfigFilePath =
             Path.Combine(

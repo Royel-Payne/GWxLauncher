@@ -16,6 +16,7 @@ namespace GWxLauncher.UI
 
         private readonly GameProfile _profile;
         private readonly LauncherConfig _cfg;
+        private bool _loadingProfile;
 
         private bool _restoredFromSavedPlacement;
         private bool _gw1GmodPluginsInteractive = true;
@@ -271,6 +272,8 @@ namespace GWxLauncher.UI
 
         private void LoadFromProfile()
         {
+            _loadingProfile = true;
+
             // ---- Load values first ----
             txtProfileName.Text = _profile.Name;
             txtExecutablePath.Text = _profile.ExecutablePath;
@@ -301,9 +304,26 @@ namespace GWxLauncher.UI
             chkGw2RunAfterEnabled.CheckedChanged += (s, e) => UpdateGw2RunAfterUiState();
             chkGw1AutoSelectCharacter.CheckedChanged += (s, e) => UpdateGw1LoginUiState();
 
-            chkToolbox.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
-            chkPy4Gw.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
-            chkGMod.CheckedChanged += (s, e) => UpdateGw1ModsUiState();
+            chkToolbox.CheckedChanged += (s, e) =>
+            {
+                if (!_loadingProfile && chkToolbox.Checked)
+                    EnsureDllSelectedOrRevert(chkToolbox, txtToolboxDll, "GWToolboxdll.dll");
+                UpdateGw1ModsUiState();
+            };
+
+            chkPy4Gw.CheckedChanged += (s, e) =>
+            {
+                if (!_loadingProfile && chkPy4Gw.Checked)
+                    EnsureDllSelectedOrRevert(chkPy4Gw, txtPy4GwDll, "Py4GW DLL");
+                UpdateGw1ModsUiState();
+            };
+
+            chkGMod.CheckedChanged += (s, e) =>
+            {
+                if (!_loadingProfile && chkGMod.Checked)
+                    EnsureDllSelectedOrRevert(chkGMod, txtGModDll, "gMod.dll");
+                UpdateGw1ModsUiState();
+            };
 
             bool isGw1 = _profile.GameType == GameType.GuildWars1;
             bool isGw2 = _profile.GameType == GameType.GuildWars2;
@@ -322,14 +342,14 @@ namespace GWxLauncher.UI
                 chkGw1Multiclient.Visible = true;
                 chkGw1Multiclient.Checked = _cfg.Gw1MulticlientEnabled;
 
-                chkToolbox.Checked = _profile.Gw1ToolboxEnabled;
                 txtToolboxDll.Text = _profile.Gw1ToolboxDllPath;
+                chkToolbox.Checked = _profile.Gw1ToolboxEnabled;
 
-                chkPy4Gw.Checked = _profile.Gw1Py4GwEnabled;
                 txtPy4GwDll.Text = _profile.Gw1Py4GwDllPath;
+                chkPy4Gw.Checked = _profile.Gw1Py4GwEnabled;
 
-                chkGMod.Checked = _profile.Gw1GModEnabled;
                 txtGModDll.Text = _profile.Gw1GModDllPath;
+                chkGMod.Checked = _profile.Gw1GModEnabled;
 
                 RefreshGw1GModPluginList();
             }
@@ -370,6 +390,7 @@ namespace GWxLauncher.UI
             UpdateGw1LoginUiState();
             UpdateGw1ModsUiState();
             UpdateGw2LoginUiState();
+            _loadingProfile = false;
         }
 
         private void SaveToProfile()
@@ -400,6 +421,11 @@ namespace GWxLauncher.UI
 
                 _profile.Gw1GModEnabled = chkGMod.Checked;
                 _profile.Gw1GModDllPath = txtGModDll.Text.Trim();
+
+                // Remember last-known good tool paths (silent; no UI)
+                TryRememberLastToolPath(_profile.Gw1ToolboxDllPath, p => _cfg.LastToolboxPath = p);
+                TryRememberLastToolPath(_profile.Gw1Py4GwDllPath, p => _cfg.LastPy4GWPath = p);
+                TryRememberLastToolPath(_profile.Gw1GModDllPath, p => _cfg.LastGModPath = p);
 
                 _cfg.Gw1MulticlientEnabled = chkGw1Multiclient.Checked;
                 _cfg.Save();
@@ -948,6 +974,58 @@ namespace GWxLauncher.UI
                 txtExecutablePath.Text = dlg.FileName;
             }
         }
+        private void EnsureDllSelectedOrRevert(CheckBox toggle, TextBox pathBox, string displayName)
+        {
+            var current = (pathBox.Text ?? "").Trim();
+
+            // If we already have a valid path, we're good.
+            if (!string.IsNullOrWhiteSpace(current))
+                return;
+
+            // Prompt: user is trying to enable tool with no path.
+            var msg =
+                $"{displayName} is enabled, but no DLL path is set.\n\n" +
+                "Select the DLL now?";
+
+            var result = MessageBox.Show(
+                this,
+                msg,
+                "Missing DLL path",
+                MessageBoxButtons.OKCancel,
+                MessageBoxIcon.Warning);
+
+            if (result == DialogResult.OK)
+            {
+                BrowseDllInto(pathBox);
+                current = (pathBox.Text ?? "").Trim();
+
+                // If still empty (user cancelled picker), revert toggle.
+                if (string.IsNullOrWhiteSpace(current))
+                    toggle.Checked = false;
+            }
+            else
+            {
+                toggle.Checked = false;
+            }
+        }
+
+        private void TryRememberLastToolPath(string path, Action<string> assign)
+        {
+            path = (path ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            try
+            {
+                if (File.Exists(path))
+                    assign(path);
+            }
+            catch
+            {
+                // best-effort only
+            }
+        }
+
         private void BrowseDllInto(TextBox textBox)
         {
             using var dlg = new OpenFileDialog

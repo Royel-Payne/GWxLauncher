@@ -1,5 +1,7 @@
-﻿using GWxLauncher.Domain;
+﻿using GWxLauncher.Config;
+using GWxLauncher.Domain;
 using GWxLauncher.UI;
+using System.IO;
 
 namespace GWxLauncher
 {
@@ -65,15 +67,46 @@ namespace GWxLauncher
             else
             {
                 // Create a new profile
-                CreatedProfile = new GameProfile
+                var p = new GameProfile
                 {
                     Name = name,
                     GameType = gameType
                 };
+
+                // Auto-fill remembered tool paths (GW1 only) if profile paths are blank
+                if (p.GameType == GameType.GuildWars1)
+                {
+                    var cfg = LauncherConfig.Load();
+
+                    TryAutofillToolPath(p.Gw1ToolboxDllPath, cfg.LastToolboxPath, v => p.Gw1ToolboxDllPath = v);
+                    TryAutofillToolPath(p.Gw1GModDllPath, cfg.LastGModPath, v => p.Gw1GModDllPath = v);
+                    TryAutofillToolPath(p.Gw1Py4GwDllPath, cfg.LastPy4GWPath, v => p.Gw1Py4GwDllPath = v);
+                }
+
+                CreatedProfile = p;
             }
 
             DialogResult = DialogResult.OK;
             Close();
+        }
+        private static void TryAutofillToolPath(string currentValue, string candidatePath, Action<string> assign)
+        {
+            if (!string.IsNullOrWhiteSpace(currentValue))
+                return;
+
+            candidatePath = (candidatePath ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(candidatePath))
+                return;
+
+            try
+            {
+                if (File.Exists(candidatePath))
+                    assign(candidatePath);
+            }
+            catch
+            {
+                // best-effort only
+            }
         }
     }
 }

@@ -45,10 +45,6 @@ namespace GWxLauncher
         private bool _bulkLaunchInProgress = false;
 
         private Button? _btnSettings;
-        private ContextMenuStrip? _ctxAppMenu;
-        private ToolStripMenuItem? _miThemeDark;
-        private ToolStripMenuItem? _miThemeLight;
-
 
         private readonly Font _nameFont;
         private readonly Font _subFont;
@@ -184,47 +180,30 @@ namespace GWxLauncher
             // Optional: slightly more "icon-like" alignment
             _btnSettings.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
 
-            // App menu
-            _ctxAppMenu = new ContextMenuStrip();
-
-            var themeRoot = new ToolStripMenuItem("Theme");
-
-            _miThemeDark = new ToolStripMenuItem("Dark") { CheckOnClick = true };
-            _miThemeLight = new ToolStripMenuItem("Light") { CheckOnClick = true };
-
-            // Behave like radio buttons
-            _miThemeDark.Click += (s, e) => SetThemeFromMenu("Dark");
-            _miThemeLight.Click += (s, e) => SetThemeFromMenu("Light");
-
-            themeRoot.DropDownItems.Add(_miThemeDark);
-            themeRoot.DropDownItems.Add(_miThemeLight);
-
-            _ctxAppMenu.Items.Add(themeRoot);
-
-            // (Future) global items can go here:
-            // _ctxAppMenu.Items.Add(new ToolStripSeparator());
-            // _ctxAppMenu.Items.Add(new ToolStripMenuItem("Open Config Folder", null, ...));
+            // Tooltip / accessibility: user-facing language is "Settings..."
+            try
+            {
+                var tip = new ToolTip();
+                tip.SetToolTip(_btnSettings, "Settings...");
+            }
+            catch { /* best-effort */ }
 
             _btnSettings.Click += (s, e) =>
             {
-                if (_ctxAppMenu == null) return;
-                SyncThemeMenuChecks();
-                _ctxAppMenu.Show(_btnSettings, new Point(0, _btnSettings.Height));
+                using var dlg = new GWxLauncher.UI.GlobalSettingsForm();
+                dlg.ShowDialog(this);
+
+                // If theme was changed, the Settings form applies it immediately.
+                // (Nothing else required here for Stage 2A.)
             };
 
             panelView.Controls.Add(_btnSettings);
             _btnSettings.BringToFront();
 
-            // Position: align with Launch All row, just to the right of btnLaunchAll if possible.
-            // If layout changes later, this is easy to adjust to your preferred placement.
             PositionSettingsButton();
-
-            // Keep it positioned correctly if the form resizes.
             Resize += (s, e) => PositionSettingsButton();
-
-            // Initial checkmark state
-            SyncThemeMenuChecks();
         }
+
         private void PositionSettingsButton()
         {
             if (_btnSettings == null) return;
@@ -239,44 +218,6 @@ namespace GWxLauncher
                 btnViewNext.Right + gap,
                 btnViewNext.Top
             );
-        }
-
-        private void SetThemeFromMenu(string theme)
-        {
-            // Persist
-            _config.Theme = theme;
-            _config.Save();
-
-            // Apply immediately (assumes ThemeService.SetTheme + AppTheme exist in your working tree)
-            ThemeService.SetTheme(ParseTheme(theme));
-
-            // Re-apply to all open forms (in case dialogs are open)
-            foreach (Form f in Application.OpenForms)
-            {
-                ThemeService.ApplyToForm(f);
-                f.Invalidate(true);
-                f.Refresh();
-            }
-
-            // Your owner-drawn list uses ThemeService palette directly; force repaint.
-            lstProfiles.Invalidate();
-
-            SyncThemeMenuChecks();
-            SetStatus($"Theme set: {theme}");
-        }
-
-        private void SyncThemeMenuChecks()
-        {
-            if (_miThemeDark == null || _miThemeLight == null) return;
-
-            var t = (_config.Theme ?? "Dark").Trim();
-
-            bool isLight = string.Equals(t, "Light", StringComparison.OrdinalIgnoreCase);
-            bool isDark = !isLight;
-
-            // radio-style behavior
-            _miThemeDark.Checked = isDark;
-            _miThemeLight.Checked = isLight;
         }
 
         private static AppTheme ParseTheme(string? value)
