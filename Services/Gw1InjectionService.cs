@@ -469,6 +469,9 @@ namespace GWxLauncher.Services
                 ExecutablePath = exePath
             };
 
+            // Non-fatal diagnostic note for protected install paths (warning-only).
+            ProtectedInstallPathPolicy.TryAppendLaunchReportNote(report, exePath);
+
             // Steps in real-world order (Multiclient -> gMod -> Toolbox -> Py4GW -> Auto-Login)
             var stepMulticlient = new LaunchStep { Label = "Multiclient" };
             var stepLaunch = new LaunchStep { Label = "GW1 Launch" };

@@ -1172,8 +1172,19 @@ namespace GWxLauncher
 
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
+                    if (GWxLauncher.Services.ProtectedInstallPathPolicy.IsProtectedPath(dialog.FileName))
+                    {
+                        bool cont = GWxLauncher.UI.ProtectedInstallPathWarningDialog.ConfirmContinue(this, dialog.FileName);
+                        if (!cont)
+                        {
+                            SetStatus($"Cancelled: protected install path for {profile.Name}.");
+                            return false;
+                        }
+                    }
+
                     profile.ExecutablePath = dialog.FileName;
                     _profileManager.Save();
+
                     RefreshProfileList();
                     SetStatus($"Updated path for {profile.Name}.");
 
@@ -1252,6 +1263,17 @@ namespace GWxLauncher
                 return;
             }
 
+            // Re-warn at launch time (warn-only, no elevation, user can continue)
+            if (GWxLauncher.Services.ProtectedInstallPathPolicy.IsProtectedPath(exePath))
+            {
+                bool cont = GWxLauncher.UI.ProtectedInstallPathWarningDialog.ConfirmContinue(this, exePath);
+                if (!cont)
+                {
+                    SetStatus($"Launch cancelled: protected install path for {profile.Name}.");
+                    return;
+                }
+            }
+
             // GW1: delegate launch + injection to Gw1InjectionService
             if (profile.GameType == GameType.GuildWars1)
             {
@@ -1290,7 +1312,10 @@ namespace GWxLauncher
                     runAfterInvoker: _gw2RunAfterLauncher.Start);
 
                 if (result.Report != null)
+                {
+                    GWxLauncher.Services.ProtectedInstallPathPolicy.TryAppendLaunchReportNote(result.Report, exePath);
                     ApplyLaunchReportToUi(result.Report);
+                }
 
                 if (result.HasMessageBox)
                 {

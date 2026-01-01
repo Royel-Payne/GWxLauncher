@@ -2,6 +2,9 @@
 using GWxLauncher.Domain;
 using GWxLauncher.Properties;
 using System.Diagnostics;
+using GWxLauncher.Services;
+using GWxLauncher.UI;
+
 
 namespace GWxLauncher.UI
 {
@@ -933,6 +936,13 @@ namespace GWxLauncher.UI
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     return;
+                }
+
+                if (ProtectedInstallPathPolicy.IsProtectedPath(dlg.FileName))
+                {
+                    bool cont = ProtectedInstallPathWarningDialog.ConfirmContinue(this, dlg.FileName);
+                    if (!cont)
+                        return;
                 }
 
                 txtExecutablePath.Text = dlg.FileName;

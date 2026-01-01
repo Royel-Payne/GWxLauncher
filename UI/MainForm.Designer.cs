@@ -253,9 +253,7 @@
             Controls.Add(panelProfiles);
             Controls.Add(lblStatus);
             Controls.Add(panelView);
-            FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
-            MaximizeBox = false;
             Name = "MainForm";
             Text = "GWxLauncher";
             FormClosing += MainForm_FormClosing;

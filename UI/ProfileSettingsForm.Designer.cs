@@ -614,8 +614,8 @@ namespace GWxLauncher.UI
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(721, 406);
-            Controls.Add(grpGw2RunAfter);
             Controls.Add(grpGw1Mods);
+            Controls.Add(grpGw2RunAfter);
             Controls.Add(chkGw1Multiclient);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
