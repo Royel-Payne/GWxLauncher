@@ -41,8 +41,12 @@ namespace GWxLauncher.UI
             label4 = new Label();
             btnOk = new Button();
             btnCancel = new Button();
+            grpImport = new GroupBox();
+            btnImportAccountsJson = new Button();
+            label6 = new Label();
             grpDll.SuspendLayout();
             grpGeneral.SuspendLayout();
+            grpImport.SuspendLayout();
             SuspendLayout();
             // 
             // grpDll
@@ -214,11 +218,43 @@ namespace GWxLauncher.UI
             btnCancel.UseVisualStyleBackColor = true;
             btnCancel.Click += btnCancel_Click;
             // 
+            // grpImport
+            // 
+            grpImport.Controls.Add(label6);
+            grpImport.Controls.Add(btnImportAccountsJson);
+            grpImport.Location = new Point(12, 226);
+            grpImport.Name = "grpImport";
+            grpImport.Size = new Size(273, 117);
+            grpImport.TabIndex = 10;
+            grpImport.TabStop = false;
+            grpImport.Text = "Import";
+            // 
+            // btnImportAccountsJson
+            // 
+            btnImportAccountsJson.Location = new Point(183, 78);
+            btnImportAccountsJson.Name = "btnImportAccountsJson";
+            btnImportAccountsJson.Size = new Size(75, 23);
+            btnImportAccountsJson.TabIndex = 0;
+            btnImportAccountsJson.Text = "Import...";
+            btnImportAccountsJson.UseVisualStyleBackColor = true;
+            btnImportAccountsJson.Click += btnImportAccountsJson_Click;
+            // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.Location = new Point(6, 29);
+            label6.Name = "label6";
+            label6.Size = new Size(187, 30);
+            label6.TabIndex = 1;
+            label6.Text = "Import Py4GW Launcher accounts\r\n (accounts.json)";
+            label6.Click += label6_Click;
+            // 
             // GlobalSettingsForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(721, 406);
+            Controls.Add(grpImport);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
             Controls.Add(grpGeneral);
@@ -229,6 +265,8 @@ namespace GWxLauncher.UI
             grpDll.PerformLayout();
             grpGeneral.ResumeLayout(false);
             grpGeneral.PerformLayout();
+            grpImport.ResumeLayout(false);
+            grpImport.PerformLayout();
             ResumeLayout(false);
 
         }
@@ -250,5 +288,8 @@ namespace GWxLauncher.UI
         private Button btnOk;
         private Button btnCancel;
         private Label label5;
+        private GroupBox grpImport;
+        private Label label6;
+        private Button btnImportAccountsJson;
     }
 }

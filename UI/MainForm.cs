@@ -191,10 +191,10 @@ namespace GWxLauncher
             _btnSettings.Click += (s, e) =>
             {
                 using var dlg = new GWxLauncher.UI.GlobalSettingsForm();
+                dlg.ImportCompleted += (_, __) => ReloadProfilesAndViewsAfterImport();
                 dlg.ShowDialog(this);
 
                 // If theme was changed, the Settings form applies it immediately.
-                // (Nothing else required here for Stage 2A.)
             };
 
             panelView.Controls.Add(_btnSettings);
@@ -608,6 +608,23 @@ namespace GWxLauncher
         // -----------------------------
         // Context menu / selection helpers
         // -----------------------------
+
+        private void ReloadProfilesAndViewsAfterImport()
+        {
+            _profileManager.Load();
+            _views.Load();
+
+            // Update view UI (same idea as startup)
+            _suppressViewTextEvents = true;
+            txtView.Text = _views.ActiveViewName;
+            ApplyViewScopedUiState();
+            _suppressViewTextEvents = false;
+
+            RefreshProfileList();
+            UpdateBulkArmingUi();
+
+            SetStatus("Import complete.");
+        }
 
         private GameProfile? GetSelectedProfile()
         {
@@ -1400,6 +1417,7 @@ namespace GWxLauncher
         // -----------------------------
         // UI helpers
         // -----------------------------
+
         private void SetStatus(string text)
         {
             SafeUi(() =>

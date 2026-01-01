@@ -9,6 +9,7 @@ namespace GWxLauncher.UI
     {
         private readonly LauncherConfig _cfg;
         private bool _restoredFromSavedPlacement;
+        public event EventHandler? ImportCompleted;
 
         public GlobalSettingsForm()
         {
@@ -140,6 +141,115 @@ namespace GWxLauncher.UI
             }
         }
 
+        private void btnImportAccountsJson_Click(object sender, EventArgs e)
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Title = "Select accounts.json",
+                Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            try
+            {
+                var importer = new Services.AccountsJsonImportService();
+                var result = importer.ImportFromFile(dlg.FileName, _cfg);
+
+                if (result.ImportedCount == 0)
+                {
+                    MessageBox.Show(
+                        this,
+                        "No accounts were imported.\n\nThe file may be empty or missing required fields like gw_path.",
+                        "Import complete",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Post-import prompt: only if source wanted tools enabled but we don't know the DLLs yet.
+                bool needsAny =
+                    result.MissingToolboxPath || result.MissingGModPath || result.MissingPy4GwPath;
+
+                if (needsAny)
+                {
+                    var msg =
+                        "This accounts file indicates one or more injection tools are enabled, " +
+                        "but GWxLauncher doesn’t know where those DLLs are yet.\n\n" +
+                        "Select them now?";
+
+                    var pickNow = MessageBox.Show(
+                        this,
+                        msg,
+                        "Missing DLL paths",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning) == DialogResult.Yes;
+
+                    if (pickNow)
+                    {
+                        // Let user pick missing DLLs, update config + UI immediately
+                        if (result.MissingToolboxPath)
+                            PickDllIntoGlobalSetting(txtToolbox, "Select Toolbox DLL", v => _cfg.LastToolboxPath = v);
+
+                        if (result.MissingGModPath)
+                            PickDllIntoGlobalSetting(txtGMod, "Select gMod DLL", v => _cfg.LastGModPath = v);
+
+                        if (result.MissingPy4GwPath)
+                            PickDllIntoGlobalSetting(txtPy4GW, "Select Py4GW DLL", v => _cfg.LastPy4GWPath = v);
+
+                        _cfg.Save();
+
+                        // Re-apply tool enables for the just-imported profiles now that paths exist
+                        importer.ApplyNewlySelectedDllPathsToImportedProfiles(
+                            result.ImportedProfileIds,
+                            result.ToolWantsByProfileId,
+                            _cfg);
+                    }
+                }
+                ImportCompleted?.Invoke(this, EventArgs.Empty);
+                MessageBox.Show(
+                    this,
+                    $"Imported {result.ImportedCount} profile(s).\n\n" +
+                    "Imported profiles start unchecked in all views.",
+                    "Import complete",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Import failed:\n\n{ex.Message}",
+                    "Import error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+
+        private void PickDllIntoGlobalSetting(TextBox target, string title, Action<string> setConfigValue)
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Filter = "DLL files (*.dll)|*.dll|All files (*.*)|*.*",
+                Title = title
+            };
+
+            // best-effort starting folder
+            var current = (target.Text ?? "").Trim();
+            if (!string.IsNullOrWhiteSpace(current) && File.Exists(current))
+            {
+                dlg.FileName = current;
+            }
+
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                target.Text = dlg.FileName;
+                setConfigValue(dlg.FileName);
+            }
+        }
+
         private void btnOk_Click(object sender, EventArgs e)
         {
             SaveAndClose();
@@ -158,7 +268,7 @@ namespace GWxLauncher.UI
 
         private void btnBrowseGMod_Click(object sender, EventArgs e)
         {
-            BrowseDllInto(txtPy4GW, "Select gMod DLL");
+            BrowseDllInto(txtGMod, "Select gMod DLL");
         }
 
         private void btnBrowsePy4GW_Click(object sender, EventArgs e)
@@ -192,6 +302,11 @@ namespace GWxLauncher.UI
         }
 
         private void GlobalSettingsForm_Load_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label6_Click(object sender, EventArgs e)
         {
 
         }
