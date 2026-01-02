@@ -56,6 +56,7 @@ namespace GWxLauncher.UI
             // 
             // btnApplyGlobalFlags
             // 
+            btnApplyGlobalFlags.Font = new System.Drawing.Font("Segoe UI", 8F);
             btnApplyGlobalFlags.Location = new Point(61, 206);
             btnApplyGlobalFlags.Name = "btnApplyGlobalFlags";
             btnApplyGlobalFlags.Size = new Size(280, 23);
@@ -66,6 +67,7 @@ namespace GWxLauncher.UI
             // 
             // btnApplyGlobalPaths
             // 
+            btnApplyGlobalPaths.Font = new System.Drawing.Font("Segoe UI", 8F);
             btnApplyGlobalPaths.Location = new Point(61, 235);
             btnApplyGlobalPaths.Name = "btnApplyGlobalPaths";
             btnApplyGlobalPaths.Size = new Size(280, 23);

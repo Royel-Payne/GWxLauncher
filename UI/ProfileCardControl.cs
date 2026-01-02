@@ -47,6 +47,10 @@ namespace GWxLauncher.UI
             Cursor = Cursors.Hand;
             BackColor = ThemeService.Palette.WindowBack;
 
+            // Prevent WinForms focus/ScrollControlIntoView behavior from fighting scrolling.
+            SetStyle(ControlStyles.Selectable, false);
+            TabStop = false;
+
             // This size is your “card” size. Wrapping is handled by FlowLayoutPanel.
             Size = new Size(320, 64);
             Margin = new Padding(0);

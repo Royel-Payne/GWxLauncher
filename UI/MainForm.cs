@@ -317,8 +317,7 @@ namespace GWxLauncher
 
         private void RefreshProfileList()
         {
-            // Preserve scroll position + selection across rebuilds
-            try { _profilesScrollY = flpProfiles.VerticalScroll.Value; } catch { _profilesScrollY = 0; }
+            System.Diagnostics.Debug.WriteLine("RefreshProfileList called:\n" + Environment.StackTrace);
 
             var selectedId = _selectedProfileId;
 
@@ -383,14 +382,6 @@ namespace GWxLauncher
 
                     flpProfiles.Controls.Add(card);
                 }
-
-                // Restore scroll (best-effort)
-                try
-                {
-                    flpProfiles.VerticalScroll.Value = Math.Max(0, Math.Min(_profilesScrollY, flpProfiles.VerticalScroll.Maximum));
-                    flpProfiles.PerformLayout();
-                }
-                catch { /* ignore */ }
 
                 UpdateBulkArmingUi();
             }
@@ -504,9 +495,10 @@ namespace GWxLauncher
             flpProfiles.FlowDirection = FlowDirection.LeftToRight;
             flpProfiles.AutoScroll = true;
             flpProfiles.Padding = new Padding(4);
+            flpProfiles.TabStop = false;
 
-            // Re-layout cards on resize (FlowLayout does this, but forcing Layout helps with “tight” sizing changes)
-            flpProfiles.SizeChanged += (s, e) => flpProfiles.PerformLayout();
+            // Ensure mouse wheel messages naturally scroll the panel, not a focused child.
+            flpProfiles.MouseEnter += (_, __) => flpProfiles.Focus();
         }
 
         // -----------------------------

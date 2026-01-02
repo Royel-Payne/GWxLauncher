@@ -35,8 +35,8 @@
             flpProfiles = new FlowLayoutPanel();
             ctxProfiles = new ContextMenuStrip(components);
             menuLaunchProfile = new ToolStripMenuItem();
-            menuCopyProfile = new ToolStripMenuItem();
             menuEditProfile = new ToolStripMenuItem();
+            menuCopyProfile = new ToolStripMenuItem();
             menuShowLastLaunchDetails = new ToolStripMenuItem();
             deleteToolStripMenuItem = new ToolStripMenuItem();
             btnAddAccount = new Button();
@@ -90,7 +90,7 @@
             // 
             ctxProfiles.Items.AddRange(new ToolStripItem[] { menuLaunchProfile, menuEditProfile, menuCopyProfile, menuShowLastLaunchDetails, deleteToolStripMenuItem });
             ctxProfiles.Name = "ctxProfiles";
-            ctxProfiles.Size = new Size(217, 92);
+            ctxProfiles.Size = new Size(217, 114);
             // 
             // menuLaunchProfile
             // 
@@ -259,6 +259,7 @@
             Controls.Add(panelView);
             Controls.Add(lblStatus);
             Icon = (Icon)resources.GetObject("$this.Icon");
+            MinimumSize = new Size(383, 0);
             Name = "MainForm";
             Text = "GWxLauncher";
             FormClosing += MainForm_FormClosing;
