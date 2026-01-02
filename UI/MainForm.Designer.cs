@@ -259,7 +259,7 @@
             Controls.Add(panelView);
             Controls.Add(lblStatus);
             Icon = (Icon)resources.GetObject("$this.Icon");
-            MinimumSize = new Size(383, 0);
+            MinimumSize = new Size(383, 104);
             Name = "MainForm";
             Text = "GWxLauncher";
             FormClosing += MainForm_FormClosing;
