@@ -259,6 +259,10 @@ namespace GWxLauncher
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // IMPORTANT: reload the latest persisted config to avoid overwriting
+            // values saved by other forms (e.g., GlobalSettingsForm saving Last*Path).
+            _config = LauncherConfig.Load();
+
             if (WindowState == FormWindowState.Normal)
             {
                 _config.WindowX = Left;
@@ -286,6 +290,7 @@ namespace GWxLauncher
             _config.Theme = ThemeService.CurrentTheme.ToString();
             _config.Save();
         }
+
         private static void EnableDoubleBuffering(Control c)
         {
             if (c == null) return;
@@ -540,6 +545,7 @@ namespace GWxLauncher
 
             menuLaunchProfile.Enabled = hasProfile;
             menuEditProfile.Enabled = hasProfile;
+            menuCopyProfile.Enabled = hasProfile;
             deleteToolStripMenuItem.Enabled = hasProfile;
             menuShowLastLaunchDetails.Enabled = _launchSession.HasAnyReports;
         }
@@ -583,6 +589,33 @@ namespace GWxLauncher
                 _profileManager.Save();
                 RefreshProfileList();
             }
+        }
+        private void menuCopyProfile_Click(object sender, EventArgs e)
+        {
+            var profile = GetSelectedProfile();
+            if (profile == null)
+                return;
+
+            var copied = _profileManager.CopyProfile(profile);
+
+            // Intentionally unchecked in all views:
+            // ViewStateStore returns false for unknown profile IDs, so no entry is created here.
+
+            if (_showCheckedOnly)
+            {
+                MessageBox.Show(
+                    this,
+                    "Profile copied.\n\nIt starts unchecked in all views, so it may be hidden while \"Show Checked Accounts Only\" is enabled.\nDisable that option to see the new profile.",
+                    "Copy Profile",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+
+            _selectedProfileId = copied.Id;
+            RefreshProfileList();
+            UpdateCardSelectionVisuals();
+
+            SetStatus($"Copied profile: {profile.Name} → {copied.Name}");
         }
 
         private void menuDeleteProfile_Click(object sender, EventArgs e)

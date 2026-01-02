@@ -1,4 +1,5 @@
-﻿using GWxLauncher.Domain;
+﻿using GWxLauncher.Config;
+using GWxLauncher.Domain;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -22,6 +23,83 @@ namespace GWxLauncher.Services
         {
             if (profile != null)
                 _profiles.Add(profile);
+        }
+
+        public GameProfile CopyProfile(GameProfile source)
+        {
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
+
+            // Generate a unique display name: "Name (Copy)", "(Copy 2)", etc.
+            string baseName = $"{source.Name} (Copy)";
+            string name = baseName;
+            int i = 2;
+
+            while (_profiles.Any(p =>
+                string.Equals(p.Name, name, StringComparison.CurrentCultureIgnoreCase)))
+            {
+                name = $"{baseName} {i++}";
+            }
+
+            var copy = new GameProfile
+            {
+                // Identity
+                Id = Guid.NewGuid().ToString("N"),
+                Name = name,
+                GameType = source.GameType,
+                ExecutablePath = source.ExecutablePath,
+                BulkLaunchEnabled = source.BulkLaunchEnabled,
+
+                // ---- GW1 flags (paths intentionally NOT copied) ----
+                Gw1ToolboxEnabled = source.Gw1ToolboxEnabled,
+                Gw1ToolboxDllPath = LauncherConfig.Load().LastToolboxPath ?? "",
+
+                Gw1Py4GwEnabled = source.Gw1Py4GwEnabled,
+                Gw1Py4GwDllPath = LauncherConfig.Load().LastPy4GWPath ?? "",
+
+                Gw1GModEnabled = source.Gw1GModEnabled,
+                Gw1GModDllPath = LauncherConfig.Load().LastGModPath ?? "",
+                Gw1GModPluginPaths = new List<string>(),
+
+                Gw1InjectedDlls = new List<Gw1InjectedDll>(),
+
+                // ---- GW1 Auto-login (copied) ----
+                Gw1AutoLoginEnabled = source.Gw1AutoLoginEnabled,
+                Gw1Email = source.Gw1Email,
+                Gw1PasswordProtected = source.Gw1PasswordProtected,
+                Gw1AutoSelectCharacterEnabled = source.Gw1AutoSelectCharacterEnabled,
+                Gw1CharacterName = source.Gw1CharacterName,
+
+                // ---- GW2 Auto-login / play (copied) ----
+                Gw2AutoLoginEnabled = source.Gw2AutoLoginEnabled,
+                Gw2Email = source.Gw2Email,
+                Gw2PasswordProtected = source.Gw2PasswordProtected,
+                Gw2AutoPlayEnabled = source.Gw2AutoPlayEnabled,
+
+                // ---- GW2 ----
+                Gw2RunAfterEnabled = source.Gw2RunAfterEnabled,
+                Gw2RunAfterPrograms = source.Gw2RunAfterPrograms
+                    .Select(p => new RunAfterProgram
+                    {
+                        Name = p.Name,
+                        ExePath = p.ExePath,
+                        Enabled = p.Enabled,
+                        PassMumbleLinkName = p.PassMumbleLinkName
+                    })
+                    .ToList(),
+
+                Gw2MumbleSlot = 0,               // will be re-assigned deterministically
+                Gw2MumbleNameSuffix = ""          // regenerated from name
+            };
+
+            AddProfile(copy);
+
+            // Re-run GW2 identity assignment logic to avoid collisions
+            EnsureGw2MumbleIdentity(copy);
+
+            Save();
+
+            return copy;
         }
 
         public void RemoveProfile(GameProfile profile)

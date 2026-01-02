@@ -35,6 +35,7 @@
             flpProfiles = new FlowLayoutPanel();
             ctxProfiles = new ContextMenuStrip(components);
             menuLaunchProfile = new ToolStripMenuItem();
+            menuCopyProfile = new ToolStripMenuItem();
             menuEditProfile = new ToolStripMenuItem();
             menuShowLastLaunchDetails = new ToolStripMenuItem();
             deleteToolStripMenuItem = new ToolStripMenuItem();
@@ -87,7 +88,7 @@
             // 
             // ctxProfiles
             // 
-            ctxProfiles.Items.AddRange(new ToolStripItem[] { menuLaunchProfile, menuEditProfile, menuShowLastLaunchDetails, deleteToolStripMenuItem });
+            ctxProfiles.Items.AddRange(new ToolStripItem[] { menuLaunchProfile, menuEditProfile, menuCopyProfile, menuShowLastLaunchDetails, deleteToolStripMenuItem });
             ctxProfiles.Name = "ctxProfiles";
             ctxProfiles.Size = new Size(217, 92);
             // 
@@ -104,6 +105,13 @@
             menuEditProfile.Size = new Size(216, 22);
             menuEditProfile.Text = "Edit Account Info...";
             menuEditProfile.Click += menuEditProfile_Click;
+            // 
+            // menuCopyProfile
+            // 
+            menuCopyProfile.Name = "menuCopyProfile";
+            menuCopyProfile.Size = new Size(216, 22);
+            menuCopyProfile.Text = "Copy Profile";
+            menuCopyProfile.Click += menuCopyProfile_Click;
             // 
             // menuShowLastLaunchDetails
             // 
@@ -271,6 +279,7 @@
         private ToolStripMenuItem deleteToolStripMenuItem;
         private ToolStripMenuItem menuEditProfile;
         private ToolStripMenuItem menuShowLastLaunchDetails;
+        private ToolStripMenuItem menuCopyProfile;
         private Panel panelView;
         private Button btnViewPrev;
         private Button btnViewNext;
