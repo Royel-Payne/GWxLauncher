@@ -49,5 +49,8 @@ namespace GWxLauncher.UI
         public override Color HoverBorder => Color.FromArgb(180, 180, 190);
 
         public override Color Accent => Color.FromArgb(0, 120, 215);
+
+        public override Color AccentHover => Color.FromArgb(0, 120, 215, 120);
+
     }
 }

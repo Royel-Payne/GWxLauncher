@@ -132,6 +132,7 @@ namespace GWxLauncher.UI
             public static Color HoverBorder => CurrentPalette.HoverBorder;
 
             public static Color Accent => CurrentPalette.Accent;
+            public static Color AccentHover => CurrentPalette.AccentHover;
         }
 
 
@@ -203,6 +204,18 @@ namespace GWxLauncher.UI
         {
             switch (c)
             {
+                case FlowLayoutPanel flp:
+                    // Profiles surface / scrolling surface
+                    flp.BackColor = Palette.WindowBack;
+                    flp.ForeColor = Palette.WindowFore;
+                    break;
+
+                case UserControl uc:
+                    // Your ProfileCardControl falls here
+                    uc.BackColor = Palette.WindowBack;
+                    uc.ForeColor = Palette.WindowFore;
+                    break;
+
                 case Panel p:
                     // Panels act as a subtle “surface” layer
                     p.BackColor = Palette.SurfaceBack;

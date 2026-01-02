@@ -48,5 +48,6 @@ namespace GWxLauncher.UI
         public abstract Color HoverBorder { get; }
 
         public abstract Color Accent { get; }
+        public abstract Color AccentHover { get; }
     }
 }
