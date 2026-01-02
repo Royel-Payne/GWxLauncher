@@ -50,11 +50,19 @@ namespace GWxLauncher
         private readonly Font _nameFont;
         private readonly Font _subFont;
 
-        private int _hotIndex = -1;
         private string? _selectedProfileId = null;
-        private int _profilesScrollY = 0;
+        // Responsive card layout tuning
+        private const int CardOuterPad = 6;     // panel padding around the grid
+        private const int CardGap = 6;          // spacing between cards (horizontal + vertical)
+        private const int CardMinWidth = 260;   // minimum width before adding another column
+        private const int CardMaxWidth = 520;   // cards expand until this, then new column is allowed
+        private const int CardPreferredWidth = 340; // if another column still allows >= this width, add it
 
-        private const bool ShowSelectionBorder = false;
+        // Reserve most of the scrollbar width to prevent wrap oscillation,
+        // but reclaim a few pixels so the right gutter doesn't look oversized.
+        private const int ScrollbarReserve = 10; // subtract slightly less than full scrollbar width
+
+        private int _lastProfileLayoutWidth = -1;
 
         // -----------------------------
         // Status marquee (for long lblStatus text)
@@ -338,7 +346,6 @@ namespace GWxLauncher
                 foreach (var profile in profiles)
                 {
                     var card = new ProfileCardControl(profile, _gw1Image, _gw2Image, _nameFont, _subFont);
-                    card.Margin = new Padding(6);  // spacing between cards
                     card.IsEligible = id => _views.IsEligible(_views.ActiveViewName, id);
                     card.ToggleEligible = id =>
                     {
@@ -389,6 +396,9 @@ namespace GWxLauncher
             {
                 flpProfiles.ResumeLayout(true);
             }
+            // Apply responsive layout after rebuilding the card list
+            if (IsHandleCreated)
+                BeginInvoke(new Action(ApplyResponsiveProfileCardLayout));
         }
 
         private void UpdateCardSelectionVisuals()
@@ -494,11 +504,102 @@ namespace GWxLauncher
             flpProfiles.WrapContents = true;
             flpProfiles.FlowDirection = FlowDirection.LeftToRight;
             flpProfiles.AutoScroll = true;
-            flpProfiles.Padding = new Padding(4);
-            flpProfiles.TabStop = false;
 
-            // Ensure mouse wheel messages naturally scroll the panel, not a focused child.
-            flpProfiles.MouseEnter += (_, __) => flpProfiles.Focus();
+            // Outer gutter; card spacing handled via per-card Margin.
+            flpProfiles.Padding = new Padding(CardOuterPad);
+
+            // Relayout when width changes
+            flpProfiles.ClientSizeChanged += (_, __) =>
+            {
+                // Defer until WinForms finishes internal size/scroll calculations
+                if (IsHandleCreated)
+                    BeginInvoke(new Action(ApplyResponsiveProfileCardLayout));
+            };
+        }
+
+        private void ApplyResponsiveProfileCardLayout()
+        {
+            if (!flpProfiles.IsHandleCreated)
+                return;
+
+            // Avoid churn when height changes (scrollbar, etc.) and only relayout on width change.
+            int w = flpProfiles.ClientSize.Width;
+            if (w <= 0 || w == _lastProfileLayoutWidth)
+                return;
+
+            _lastProfileLayoutWidth = w;
+
+            var cards = flpProfiles.Controls.OfType<ProfileCardControl>().ToList();
+            if (cards.Count == 0)
+                return;
+
+            int sbW = SystemInformation.VerticalScrollBarWidth;
+
+            // Reserve *most* of the scrollbar width to keep transitions stable,
+            // but don't waste the entire width as dead gutter.
+            int reserve = Math.Max(0, sbW - ScrollbarReserve);
+            int availW = Math.Max(0, flpProfiles.ClientSize.Width - (CardOuterPad * 2) - reserve);
+
+            var (_, finalCardW) = ComputeGrid(availW);
+
+            flpProfiles.SuspendLayout();
+            try
+            {
+                flpProfiles.Padding = new Padding(CardOuterPad);
+
+                // Consistent spacing without a fat right gutter:
+                // split horizontal gap across both sides.
+                int half = Math.Max(0, CardGap / 2);
+                var margin = new Padding(half, 0, half, CardGap);
+
+                foreach (var c in cards)
+                {
+                    c.Width = finalCardW;
+                    c.Margin = margin;
+                }
+            }
+            finally
+            {
+                flpProfiles.ResumeLayout(true);
+            }
+        }
+
+
+        private (int columns, int cardWidth) ComputeGrid(int availableWidth)
+        {
+            if (availableWidth <= 0)
+                return (1, CardMinWidth);
+
+            // Start with as many columns as we can fit at minimum width
+            int cols = Math.Max(1, (availableWidth + CardGap) / (CardMinWidth + CardGap));
+
+            // Compute ideal width for that column count
+            double ideal = (availableWidth - (CardGap * (cols - 1))) / (double)cols;
+
+            // Add columns as soon as the next column still keeps cards at a "comfortable" width.
+            // This makes columns appear earlier (not only when we hit max width).
+            while (true)
+            {
+                int nextCols = cols + 1;
+                double nextIdeal = (availableWidth - (CardGap * (nextCols - 1))) / (double)nextCols;
+
+                // Stop if another column would make cards too narrow
+                if (nextIdeal < CardMinWidth)
+                    break;
+
+                // Only add the column if cards would still be at least the preferred width
+                if (nextIdeal < CardPreferredWidth)
+                    break;
+
+                cols = nextCols;
+                ideal = nextIdeal;
+            }
+
+            int w = (int)Math.Floor(ideal);
+            if (w < CardMinWidth) w = CardMinWidth;
+            if (w > CardMaxWidth) w = CardMaxWidth;
+
+            return (cols, w);
         }
 
         // -----------------------------
