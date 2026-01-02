@@ -32,7 +32,7 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             lblStatus = new Label();
             panelProfiles = new Panel();
-            lstProfiles = new ListBox();
+            flpProfiles = new FlowLayoutPanel();
             ctxProfiles = new ContextMenuStrip(components);
             menuLaunchProfile = new ToolStripMenuItem();
             menuEditProfile = new ToolStripMenuItem();
@@ -55,10 +55,11 @@
             // lblStatus
             // 
             lblStatus.Dock = DockStyle.Bottom;
-            lblStatus.Location = new Point(0, 374);
+            lblStatus.Location = new Point(0, 379);
             lblStatus.Name = "lblStatus";
             lblStatus.Padding = new Padding(6);
-            lblStatus.Size = new Size(367, 32);
+            lblStatus.RightToLeft = RightToLeft.No;
+            lblStatus.Size = new Size(367, 27);
             lblStatus.TabIndex = 2;
             lblStatus.Text = "Ready";
             lblStatus.TextAlign = ContentAlignment.MiddleLeft;
@@ -66,27 +67,23 @@
             // panelProfiles
             // 
             panelProfiles.BackColor = Color.FromArgb(24, 24, 28);
-            panelProfiles.Controls.Add(lstProfiles);
-            panelProfiles.Location = new Point(9, 68);
+            panelProfiles.Controls.Add(flpProfiles);
+            panelProfiles.Dock = DockStyle.Fill;
+            panelProfiles.Location = new Point(0, 66);
+            panelProfiles.Margin = new Padding(0);
             panelProfiles.Name = "panelProfiles";
-            panelProfiles.Size = new Size(348, 304);
+            panelProfiles.Size = new Size(367, 313);
             panelProfiles.TabIndex = 5;
             // 
-            // lstProfiles
+            // flpProfiles
             // 
-            lstProfiles.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            lstProfiles.ContextMenuStrip = ctxProfiles;
-            lstProfiles.DrawMode = DrawMode.OwnerDrawFixed;
-            lstProfiles.FormattingEnabled = true;
-            lstProfiles.ItemHeight = 60;
-            lstProfiles.Location = new Point(0, 0);
-            lstProfiles.Margin = new Padding(2);
-            lstProfiles.Name = "lstProfiles";
-            lstProfiles.Size = new Size(348, 304);
-            lstProfiles.TabIndex = 6;
-            lstProfiles.DrawItem += lstProfiles_DrawItem;
-            lstProfiles.DoubleClick += lstProfiles_DoubleClick;
-            lstProfiles.MouseDown += lstProfiles_MouseDown;
+            flpProfiles.AutoScroll = true;
+            flpProfiles.Dock = DockStyle.Fill;
+            flpProfiles.Location = new Point(0, 0);
+            flpProfiles.Name = "flpProfiles";
+            flpProfiles.Padding = new Padding(10, 5, 10, 5);
+            flpProfiles.Size = new Size(367, 313);
+            flpProfiles.TabIndex = 0;
             // 
             // ctxProfiles
             // 
@@ -251,8 +248,8 @@
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(367, 406);
             Controls.Add(panelProfiles);
-            Controls.Add(lblStatus);
             Controls.Add(panelView);
+            Controls.Add(lblStatus);
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "MainForm";
             Text = "GWxLauncher";
@@ -267,7 +264,7 @@
         #endregion
         private Label lblStatus;
         private Panel panelProfiles;
-        private ListBox lstProfiles;
+        private FlowLayoutPanel flpProfiles;
         private Button btnAddAccount;
         private ContextMenuStrip ctxProfiles;
         private ToolStripMenuItem menuLaunchProfile;
