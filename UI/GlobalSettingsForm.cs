@@ -1,26 +1,35 @@
-﻿using System;
+﻿using GWxLauncher.Config;
+using GWxLauncher.Domain;
+using System;
 using System.IO;
 using System.Windows.Forms;
-using GWxLauncher.Config;
 
 namespace GWxLauncher.UI
 {
     internal sealed partial class GlobalSettingsForm : Form
     {
         private readonly LauncherConfig _cfg;
+        private readonly Services.ProfileManager _profileManager;
         private bool _restoredFromSavedPlacement;
         public event EventHandler? ImportCompleted;
+        public event EventHandler? ProfilesBulkUpdated;
 
-        public GlobalSettingsForm()
+        public GlobalSettingsForm(Services.ProfileManager? profileManager = null)
         {
             InitializeComponent();
 
             _cfg = LauncherConfig.Load();
+            _profileManager = profileManager ?? new Services.ProfileManager();
+
+            // If we created it locally, make sure it’s loaded for Step 4 actions.
+            // (MainForm’s instance is already loaded, so this is cheap/no-op for most cases.)
+            if (_profileManager.Profiles.Count == 0)
+                _profileManager.Load();
+
             TryRestoreSavedPlacement();
             Shown += GlobalSettingsForm_Shown;
             FormClosing += GlobalSettingsForm_FormClosing;
 
-            // Modal dialog behavior
             AcceptButton = btnOk;
             CancelButton = btnCancel;
 
@@ -31,6 +40,74 @@ namespace GWxLauncher.UI
         private void GlobalSettingsForm_Load(object sender, EventArgs e)
         {
             // Intentionally empty (kept for designer hook)
+        }
+        private bool ConfirmBulkApply(string action, int count)
+        {
+            return MessageBox.Show(
+                this,
+                $"This will update {count} profile(s).\n\n{action}\n\nContinue?",
+                "Confirm bulk update",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning) == DialogResult.Yes;
+        }
+
+        private void btnApplyGlobalFlags_Click(object sender, EventArgs e)
+        {
+            var pm = _profileManager;
+            var targets = pm.Profiles.Where(p => p.GameType == GameType.GuildWars1).ToList();
+
+            if (targets.Count == 0)
+            {
+                MessageBox.Show(this, "No Guild Wars 1 profiles found.", "Nothing to do");
+                return;
+            }
+
+            if (!ConfirmBulkApply("Apply global mod enable/disable state to all Guild Wars 1 profiles.", targets.Count))
+                return;
+
+            foreach (var p in targets)
+            {
+                p.Gw1ToolboxEnabled = _cfg.GlobalToolboxEnabled;
+                p.Gw1Py4GwEnabled = _cfg.GlobalPy4GwEnabled;
+                p.Gw1GModEnabled = _cfg.GlobalGModEnabled;
+            }
+
+            pm.Save();
+
+            MessageBox.Show(this, $"Updated {targets.Count} profile(s).", "Done");
+            ProfilesBulkUpdated?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void btnApplyGlobalPaths_Click(object sender, EventArgs e)
+        {
+            var pm = _profileManager;
+            var targets = pm.Profiles.Where(p => p.GameType == GameType.GuildWars1).ToList();
+
+            if (targets.Count == 0)
+            {
+                MessageBox.Show(this, "No Guild Wars 1 profiles found.", "Nothing to do");
+                return;
+            }
+
+            if (!ConfirmBulkApply("Apply global DLL paths to all Guild Wars 1 profiles.", targets.Count))
+                return;
+
+            foreach (var p in targets)
+            {
+                if (!string.IsNullOrWhiteSpace(_cfg.LastToolboxPath))
+                    p.Gw1ToolboxDllPath = _cfg.LastToolboxPath;
+
+                if (!string.IsNullOrWhiteSpace(_cfg.LastPy4GWPath))
+                    p.Gw1Py4GwDllPath = _cfg.LastPy4GWPath;
+
+                if (!string.IsNullOrWhiteSpace(_cfg.LastGModPath))
+                    p.Gw1GModDllPath = _cfg.LastGModPath;
+            }
+
+            pm.Save();
+
+            MessageBox.Show(this, $"Updated {targets.Count} profile(s).", "Done");
+            ProfilesBulkUpdated?.Invoke(this, EventArgs.Empty);
         }
 
         private void LoadFromConfig()
@@ -45,6 +122,11 @@ namespace GWxLauncher.UI
             txtToolbox.Text = (_cfg.LastToolboxPath ?? "").Trim();
             txtGMod.Text = (_cfg.LastGModPath ?? "").Trim();
             txtPy4GW.Text = (_cfg.LastPy4GWPath ?? "").Trim();
+            // Global mod kill-switches
+            cbGlobalToolbox.Checked = _cfg.GlobalToolboxEnabled;
+            cbGlobalPy4Gw.Checked = _cfg.GlobalPy4GwEnabled;
+            cbGlobalGMod.Checked = _cfg.GlobalGModEnabled;
+
         }
 
         private void SaveAndClose()
@@ -56,6 +138,10 @@ namespace GWxLauncher.UI
             _cfg.LastToolboxPath = (txtToolbox.Text ?? "").Trim();
             _cfg.LastGModPath = (txtGMod.Text ?? "").Trim();
             _cfg.LastPy4GWPath = (txtPy4GW.Text ?? "").Trim();
+            // Persist global mod kill-switches (runtime gating only; does not modify profiles)
+            _cfg.GlobalToolboxEnabled = cbGlobalToolbox.Checked;
+            _cfg.GlobalPy4GwEnabled = cbGlobalPy4Gw.Checked;
+            _cfg.GlobalGModEnabled = cbGlobalGMod.Checked;
 
             _cfg.Save();
 
@@ -307,6 +393,11 @@ namespace GWxLauncher.UI
         }
 
         private void label6_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label5_Click(object sender, EventArgs e)
         {
 
         }

@@ -20,6 +20,15 @@ namespace GWxLauncher.Config
 
         public bool Gw1MulticlientEnabled { get; set; } = true;
         public bool Gw2MulticlientEnabled { get; set; } = true;
+        // -----------------------------
+        // Global mod kill-switches
+        // -----------------------------
+
+        // These gate injection at launch time.
+        // They do NOT modify per-profile settings.
+        public bool GlobalToolboxEnabled { get; set; } = true;
+        public bool GlobalPy4GwEnabled { get; set; } = true;
+        public bool GlobalGModEnabled { get; set; } = true;
 
         // Bulk throttling (advanced-only)
         // NOTE: Do not clamp here. Clamp is applied in BulkLaunchThrottlingPolicy (0–60 seconds).

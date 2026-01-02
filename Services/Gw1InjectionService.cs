@@ -1,4 +1,5 @@
-﻿using GWxLauncher.Domain;
+﻿using GWxLauncher.Config;
+using GWxLauncher.Domain;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -523,7 +524,10 @@ namespace GWxLauncher.Services
             Process? process = null;
 
             // 1) gMod early injection path (suspended CreateProcessW)
-            bool gmodEnabled = profile.Gw1GModEnabled;
+            bool gmodEnabled =
+                profile.Gw1GModEnabled &&
+                LauncherConfig.Load().GlobalGModEnabled;
+
             bool gmodConfigured =
                 gmodEnabled &&
                 !string.IsNullOrWhiteSpace(profile.Gw1GModDllPath) &&
@@ -596,11 +600,12 @@ namespace GWxLauncher.Services
             }
             else
             {
-                // gMod not attempted
                 stepGmod.Outcome = StepOutcome.Skipped;
-                stepGmod.Detail = gmodEnabled
-                    ? "Enabled, but DLL path missing or file not found"
-                    : "Disabled";
+                stepGmod.Detail = !LauncherConfig.Load().GlobalGModEnabled
+                    ? "Disabled globally"
+                    : profile.Gw1GModEnabled
+                        ? "Enabled, but DLL path missing or file not found"
+                        : "Disabled";
 
                 // 2) Normal launch (with or without multiclient patch)
                 if (gw1MulticlientEnabled)
@@ -786,7 +791,7 @@ namespace GWxLauncher.Services
             }
 
             // 3) Toolbox: immediate injection (after gMod, if present)
-            if (profile.Gw1ToolboxEnabled)
+            if (profile.Gw1ToolboxEnabled && LauncherConfig.Load().GlobalToolboxEnabled)
             {
                 var toolboxPath = profile.Gw1ToolboxDllPath;
 
@@ -826,11 +831,16 @@ namespace GWxLauncher.Services
             else
             {
                 stepToolbox.Outcome = StepOutcome.Skipped;
-                stepToolbox.Detail = "Disabled";
+                stepToolbox.Detail = !LauncherConfig.Load().GlobalToolboxEnabled
+                    ? "Disabled globally"
+                    : "Disabled";
             }
 
             // 4) Py4GW: background injection after window is ready
-            bool py4GwEnabled = profile.Gw1Py4GwEnabled;
+            bool py4GwEnabled =
+                profile.Gw1Py4GwEnabled &&
+                LauncherConfig.Load().GlobalPy4GwEnabled;
+
             bool py4GwConfigured =
                 py4GwEnabled &&
                 !string.IsNullOrWhiteSpace(profile.Gw1Py4GwDllPath) &&
@@ -846,6 +856,16 @@ namespace GWxLauncher.Services
             else
             {
                 if (py4GwEnabled)
+                {
+                    stepPy4Gw.Outcome = StepOutcome.Failed;
+                    stepPy4Gw.Detail = "Enabled, but DLL path missing or file not found";
+                }
+                if (!LauncherConfig.Load().GlobalPy4GwEnabled)
+                {
+                    stepPy4Gw.Outcome = StepOutcome.Skipped;
+                    stepPy4Gw.Detail = "Disabled globally";
+                }
+                else if (profile.Gw1Py4GwEnabled)
                 {
                     stepPy4Gw.Outcome = StepOutcome.Failed;
                     stepPy4Gw.Detail = "Enabled, but DLL path missing or file not found";

@@ -210,8 +210,9 @@ namespace GWxLauncher
 
             _btnSettings.Click += (s, e) =>
             {
-                using var dlg = new GWxLauncher.UI.GlobalSettingsForm();
+                using var dlg = new GWxLauncher.UI.GlobalSettingsForm(_profileManager);
                 dlg.ImportCompleted += (_, __) => ReloadProfilesAndViewsAfterImport();
+                dlg.ProfilesBulkUpdated += (_, __) => RefreshProfileList();
                 dlg.ShowDialog(this);
 
                 // If theme was changed, the Settings form applies it immediately.
