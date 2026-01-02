@@ -396,7 +396,10 @@ namespace GWxLauncher
             {
                 flpProfiles.ResumeLayout(true);
             }
-            // Apply responsive layout after rebuilding the card list
+            // Force responsive layout after rebuilding cards.
+            // The width may not have changed, but the card set did.
+            _lastProfileLayoutWidth = -1;
+
             if (IsHandleCreated)
                 BeginInvoke(new Action(ApplyResponsiveProfileCardLayout));
         }
