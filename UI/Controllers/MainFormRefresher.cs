@@ -25,6 +25,7 @@ namespace GWxLauncher.UI.Controllers
         private readonly Action _refreshProfileList;
         private readonly Action _updateBulkArmingUi;
         private readonly Action _applyResponsiveProfileCardLayout;
+        private readonly Action? _refreshTheme;
 
         private int _pending; // 0/1 guard to coalesce refresh requests
 
@@ -32,12 +33,14 @@ namespace GWxLauncher.UI.Controllers
             WinFormsUiDispatcher ui,
             Action refreshProfileList,
             Action updateBulkArmingUi,
-            Action applyResponsiveProfileCardLayout)
+            Action applyResponsiveProfileCardLayout,
+            Action? refreshTheme = null)
         {
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
             _refreshProfileList = refreshProfileList ?? throw new ArgumentNullException(nameof(refreshProfileList));
             _updateBulkArmingUi = updateBulkArmingUi ?? throw new ArgumentNullException(nameof(updateBulkArmingUi));
             _applyResponsiveProfileCardLayout = applyResponsiveProfileCardLayout ?? throw new ArgumentNullException(nameof(applyResponsiveProfileCardLayout));
+            _refreshTheme = refreshTheme;
         }
 
         public void RequestRefresh(RefreshReason reason)
@@ -50,6 +53,9 @@ namespace GWxLauncher.UI.Controllers
             {
                 try
                 {
+                    if (reason == RefreshReason.ThemeChanged)
+                        _refreshTheme?.Invoke();
+
                     // 1) Rebuild cards based on current view/filter state.
                     _refreshProfileList();
 

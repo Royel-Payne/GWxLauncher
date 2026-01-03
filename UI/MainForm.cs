@@ -66,7 +66,7 @@ namespace GWxLauncher
                 txtView: txtView,
                 chkShowCheckedOnly: chkArmBulk,
                 setShowCheckedOnly: v => _showCheckedOnly = v,
-                requestRefresh: r => _refresher.RequestRefresh(r),
+                requestRefresh: null,
                 setStatus: SetStatus);
 
             EnableDoubleBuffering(flpProfiles);
@@ -80,8 +80,8 @@ namespace GWxLauncher
                 dlg.ProfilesBulkUpdated += (_, __) => _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
                 dlg.ShowDialog(this);
 
-                // Theme may have changed; ensure profile cards repaint immediately.
-                _profileGrid.RefreshTheme();
+                // Theme may have changed; route through the unified refresher pipeline.
+                _refresher.RequestRefresh(RefreshReason.ThemeChanged);
                 UpdateHeaderResponsiveness();
             };
             _ui = new WinFormsUiDispatcher(this);
@@ -105,18 +105,6 @@ namespace GWxLauncher
 
             ThemeService.SetTheme(ParseTheme(_config.Theme));
             ThemeService.ApplyToForm(this);
-
-            panelProfiles.Invalidate(true);
-            flpProfiles.Invalidate(true);
-
-            foreach (Control c in flpProfiles.Controls)
-                c.Invalidate(true);
-
-            Update();
-
-            flpProfiles.SuspendLayout();
-            flpProfiles.ResumeLayout(true);
-            flpProfiles.Update();
 
             UpdateHeaderResponsiveness();
 
@@ -186,12 +174,14 @@ namespace GWxLauncher
             );
 
             _profileGrid.InitializePanel();
-            _profileGrid.RefreshTheme();
+            //_profileGrid.RefreshTheme();
             _refresher = new MainFormRefresher(
                 _ui,
                 refreshProfileList: RefreshProfileList,
                 updateBulkArmingUi: UpdateBulkArmingUi,
-                applyResponsiveProfileCardLayout: () => _profileGrid.ApplyResponsiveLayout(force: true));
+                applyResponsiveProfileCardLayout: () => _profileGrid.ApplyResponsiveLayout(force: true),
+                refreshTheme: () => _profileGrid.RefreshTheme());
+                _viewUi.SetRequestRefresh(r => _refresher.RequestRefresh(r));
 
             this.Shown += (_, __) => _refresher.RequestRefresh(RefreshReason.Startup);
         }

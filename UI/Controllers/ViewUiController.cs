@@ -11,7 +11,7 @@ namespace GWxLauncher.UI.Controllers
         private readonly CheckBox _chkShowCheckedOnly;
 
         private readonly Action<bool> _setShowCheckedOnly;
-        private readonly Action<RefreshReason> _requestRefresh;
+        private Action<RefreshReason>? _requestRefresh;
         private readonly Action<string> _setStatus;
 
         private bool _suppressViewTextEvents;
@@ -25,7 +25,7 @@ namespace GWxLauncher.UI.Controllers
             TextBox txtView,
             CheckBox chkShowCheckedOnly,
             Action<bool> setShowCheckedOnly,
-            Action<RefreshReason> requestRefresh,
+            Action<RefreshReason>? requestRefresh,
             Action<string> setStatus)
         {
             _views = views ?? throw new ArgumentNullException(nameof(views));
@@ -33,8 +33,13 @@ namespace GWxLauncher.UI.Controllers
             _chkShowCheckedOnly = chkShowCheckedOnly ?? throw new ArgumentNullException(nameof(chkShowCheckedOnly));
 
             _setShowCheckedOnly = setShowCheckedOnly ?? throw new ArgumentNullException(nameof(setShowCheckedOnly));
-            _requestRefresh = requestRefresh ?? throw new ArgumentNullException(nameof(requestRefresh));
+            _requestRefresh = requestRefresh;
             _setStatus = setStatus ?? throw new ArgumentNullException(nameof(setStatus));
+        }
+
+        public void SetRequestRefresh(Action<RefreshReason> requestRefresh)
+        {
+            _requestRefresh = requestRefresh ?? throw new ArgumentNullException(nameof(requestRefresh));
         }
 
         public void InitializeFromStore()
@@ -68,7 +73,7 @@ namespace GWxLauncher.UI.Controllers
             _views.SetShowCheckedOnly(_views.ActiveViewName, show);
             _views.Save();
 
-            _requestRefresh(RefreshReason.ShowCheckedOnlyChanged);
+            _requestRefresh?.Invoke(RefreshReason.ShowCheckedOnlyChanged);
         }
 
         public void StepView(int delta)
@@ -81,7 +86,7 @@ namespace GWxLauncher.UI.Controllers
             ApplyViewScopedUiState();
             _suppressViewTextEvents = false;
 
-            _requestRefresh(RefreshReason.ViewChanged);
+            _requestRefresh?.Invoke(RefreshReason.ViewChanged);
         }
 
         public void OnViewTextChanged()
@@ -123,7 +128,7 @@ namespace GWxLauncher.UI.Controllers
             ApplyViewScopedUiState();
             _suppressViewTextEvents = false;
 
-            _requestRefresh(RefreshReason.ViewChanged);
+            _requestRefresh?.Invoke(RefreshReason.ViewChanged);
         }
 
         private void CommitViewRenameIfDirty()
@@ -154,7 +159,7 @@ namespace GWxLauncher.UI.Controllers
             }
 
             _views.Save();
-            _requestRefresh(RefreshReason.ViewChanged);
+            _requestRefresh?.Invoke(RefreshReason.ViewChanged);
         }
     }
 }
