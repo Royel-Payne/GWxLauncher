@@ -57,18 +57,6 @@ namespace GWxLauncher
 
         private string? _selectedProfileId = null;
 
-        //// Responsive card layout tuning
-        private const int CardOuterPad = 6;     // panel padding around the grid
-        //private const int CardGap = 6;          // spacing between cards (horizontal + vertical)
-        //private const int CardMinWidth = 230;   // minimum width before adding another column
-        //private const int CardMaxWidth = 520;   // cards expand until this, then new column is allowed
-        //private const int CardPreferredWidth = 340; // if another column still allows >= this width, add it
-
-        //// Reserve most of the scrollbar width to prevent wrap oscillation,
-        //// but reclaim a few pixels so the right gutter doesn't look oversized.
-        //private const int ScrollbarReserve = 10; // subtract slightly less than full scrollbar width
-
-        //private int _lastProfileLayoutWidth = -1;
 
         // -----------------------------
         // Ctor / Form lifecycle
@@ -122,15 +110,12 @@ namespace GWxLauncher
 
             _config = LauncherConfig.Load();
 
-            // Apply persisted theme BEFORE styling anything.
             ThemeService.SetTheme(ParseTheme(_config.Theme));
             ThemeService.ApplyToForm(this);
 
-            // Force a clean repaint of the card surface to prevent any stale pixels
             panelProfiles.Invalidate(true);
             flpProfiles.Invalidate(true);
 
-            // And each card too (covers hover/selection borders)
             foreach (Control c in flpProfiles.Controls)
                 c.Invalidate(true);
 
@@ -162,20 +147,12 @@ namespace GWxLauncher
                 lblStatus.Invalidate();
             }
 
-            //// View label / tooltip
-            //chkArmBulk.Visible = true;
-            //chkArmBulk.Text = "Show Checked \nAccounts Only";
-            //chkArmBulk.AutoSize = true;
-            //chkArmBulk.ForeColor = ThemeService.Palette.SubtleFore;
-
             var tip = new ToolTip();
             tip.SetToolTip(chkArmBulk, "Show Checked Accounts Only (Enables 'Launch All')");
-            // Add tooltips for the new icon buttons so their purpose remains clear
             tip.SetToolTip(btnNewView, "Create New Profile");
             tip.SetToolTip(btnAddAccount, "Add Game Account");
             tip.SetToolTip(btnLaunchAll, "Launch All Armed Accounts");
 
-            // Window-position restore
             if (_config.WindowX >= 0 && _config.WindowY >= 0)
             {
                 StartPosition = FormStartPosition.Manual;
@@ -196,10 +173,7 @@ namespace GWxLauncher
             _profileManager.Load();
             _views.Load();
             _launchPolicy = new LaunchEligibilityPolicy(_views);
-
             _viewUi.InitializeFromStore();
-
-            ConfigureProfilesFlowPanel();
 
             _profileGrid = new ProfileGridController(
                 panel: flpProfiles,
@@ -219,20 +193,18 @@ namespace GWxLauncher
                 onRightClicked: (id, pt) => ShowProfileContextMenu(id, pt)
             );
 
-            // Centralized refresh pipeline (coalesced + ordered)
+            _profileGrid.InitializePanel();
+
             _refresher = new MainFormRefresher(
                 _ui,
                 refreshProfileList: RefreshProfileList,
                 updateBulkArmingUi: UpdateBulkArmingUi,
                 applyResponsiveProfileCardLayout: () => _profileGrid.ApplyResponsiveLayout(force: true));
 
-            // Ensure layout is applied once after the window is actually shown/sized.
-            // Startup refresh happens before layout sizing is final, so the first layout pass may bail out.
             this.Shown += (_, __) =>
             {
                 BeginInvoke(new Action(() => _profileGrid.ApplyResponsiveLayout(force: true)));
             };
-            // Initial paint/build through the same path we’ll use everywhere else.
             _refresher.RequestRefresh(RefreshReason.Startup);
         }
 
@@ -324,17 +296,6 @@ namespace GWxLauncher
                 _subFont);
         }
 
-        private void UpdateCardSelectionVisuals()
-        {
-            foreach (Control c in flpProfiles.Controls)
-            {
-                if (c is ProfileCardControl card)
-                    card.SetSelected(_selectedProfileId != null &&
-                        string.Equals(card.Profile.Id, _selectedProfileId, StringComparison.Ordinal));
-            }
-        }
-
-
         private void UpdateBulkArmingUi()
         {
             // Ensure we always evaluate the latest persisted settings (e.g., after ProfileSettingsForm saves).
@@ -357,30 +318,6 @@ namespace GWxLauncher
             {
                 SetStatus(eval.StatusText);
             }
-        }
-
-
-        // -----------------------------
-        // Layout helpers
-        // -----------------------------
-
-        // Keep FlowLayoutPanel behaving consistently
-        private void ConfigureProfilesFlowPanel()
-        {
-            flpProfiles.WrapContents = true;
-            flpProfiles.FlowDirection = FlowDirection.LeftToRight;
-            flpProfiles.AutoScroll = true;
-
-            // Outer gutter; card spacing handled via per-card Margin.
-            flpProfiles.Padding = new Padding(CardOuterPad);
-
-            // Relayout when width changes
-            flpProfiles.ClientSizeChanged += (_, __) =>
-            {
-                // Defer until WinForms finishes internal size/scroll calculations
-                if (IsHandleCreated)
-                    BeginInvoke(new Action(() => _profileGrid.ApplyResponsiveLayout(force: false)));
-            };
         }
 
         // -----------------------------
@@ -505,10 +442,12 @@ namespace GWxLauncher
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
-
             _selectedProfileId = copied.Id;
+
+            // Update selection immediately through the controller path
+            _profileGrid.SetSelectedProfile(_selectedProfileId);
+
             _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
-            UpdateCardSelectionVisuals();
 
             SetStatus($"Copied profile: {profile.Name} → {copied.Name}");
         }

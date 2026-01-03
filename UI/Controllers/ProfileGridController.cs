@@ -1,5 +1,4 @@
-﻿// Marker - Refactor Identifier: 01-03-26 01:18:00
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -37,7 +36,23 @@ namespace GWxLauncher.UI.Controllers
             _onDoubleClicked = onDoubleClicked ?? throw new ArgumentNullException(nameof(onDoubleClicked));
             _onRightClicked = onRightClicked ?? throw new ArgumentNullException(nameof(onRightClicked));
         }
+        public void InitializePanel()
+        {
+            // Keep FlowLayoutPanel behaving consistently (moved from MainForm)
+            _panel.WrapContents = true;
+            _panel.FlowDirection = FlowDirection.LeftToRight;
+            _panel.AutoScroll = true;
 
+            // Ensure we start with the same outer gutter used by responsive layout.
+            _panel.Padding = new Padding(CardOuterPad);
+
+            // Relayout when width changes (defer until WinForms completes scroll calculations)
+            _panel.ClientSizeChanged += (_, __) =>
+            {
+                if (_panel.IsHandleCreated)
+                    _panel.BeginInvoke(new Action(() => ApplyResponsiveLayout(force: false)));
+            };
+        }
         public void Rebuild(
             IEnumerable<GameProfile> profiles,
             string? selectedProfileId,
