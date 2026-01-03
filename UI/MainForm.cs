@@ -51,6 +51,7 @@ namespace GWxLauncher
         private readonly Font _subFont;
 
         private readonly ProfileSelectionController _selection;
+        private readonly ProfileContextMenuController _profileMenu;
 
 
         // -----------------------------
@@ -181,6 +182,18 @@ namespace GWxLauncher
 
             _viewUi.SetRequestRefresh(r => _refresher.RequestRefresh(r));
 
+            _profileMenu = new ProfileContextMenuController(
+                owner: this,
+                profiles: _profileManager,
+                selection: _selection,
+                launchSession: _launchSession,
+                refresher: _refresher,
+                isShowCheckedOnly: () => _showCheckedOnly,
+                setStatus: SetStatus,
+                launchProfile: (p, bulkMode) => LaunchProfile(p, bulkMode),
+                trySelectProfileExecutable: TrySelectProfileExecutable,
+                trySelectGw1ToolboxDll: TrySelectGw1ToolboxDll);
+
             this.Shown += (_, __) => _refresher.RequestRefresh(RefreshReason.Startup);
         }
 
@@ -258,8 +271,9 @@ namespace GWxLauncher
         // -----------------------------
         private void RefreshProfileList()
         {
-            IEnumerable<GameProfile> profiles = _profileManager.Profiles;
             _selection.EnsureSelectionValid(_profileManager.Profiles);
+
+            IEnumerable<GameProfile> profiles = _profileManager.Profiles;
 
             if (_showCheckedOnly)
                 profiles = profiles.Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
@@ -350,120 +364,36 @@ namespace GWxLauncher
 
         private void menuShowLastLaunchDetails_Click(object sender, EventArgs e)
         {
-            if (!_launchSession.HasAnyReports)
-                return;
-
-            var dlg = new LastLaunchDetailsForm(_launchSession.AllReports);
-            dlg.ShowDialog(this);
+            _profileMenu.ShowLastLaunchDetails();
         }
 
         private void menuLaunchProfile_Click(object sender, EventArgs e)
         {
-            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
-            if (profile != null)
-            {
-                LaunchProfile(profile, bulkMode: false);
-            }
+            _profileMenu.LaunchSelectedProfile();
         }
-
         private void menuSetProfilePath_Click(object sender, EventArgs e)
         {
-            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
-            if (profile == null)
-                return;
-
-            TrySelectProfileExecutable(profile);
+            _profileMenu.SetSelectedProfilePath();
         }
-
         private void menuEditProfile_Click(object sender, EventArgs e)
         {
-            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
-            if (profile == null)
-                return;
-
-            using var dlg = new ProfileSettingsForm(profile);
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-            {
-                _profileManager.Save();
-                _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
-            }
+            _profileMenu.EditSelectedProfile();
         }
         private void menuCopyProfile_Click(object sender, EventArgs e)
         {
-            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
-            if (profile == null)
-                return;
-
-            var copied = _profileManager.CopyProfile(profile);
-
-            // Intentionally unchecked in all views:
-            // ViewStateStore returns false for unknown profile IDs, so no entry is created here.
-
-            if (_showCheckedOnly)
-            {
-                MessageBox.Show(
-                    this,
-                    "Profile copied.\n\nIt starts unchecked in all views, so it may be hidden while \"Show Checked Accounts Only\" is enabled.\nDisable that option to see the new profile.",
-                    "Copy Profile",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
-            _selection.Select(copied.Id);
-
-            _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
-
-            SetStatus($"Copied profile: {profile.Name} → {copied.Name}");
+            _profileMenu.CopySelectedProfile();
         }
-
         private void menuDeleteProfile_Click(object sender, EventArgs e)
         {
-            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
-            if (profile == null)
-                return;
-
-            var result = MessageBox.Show(
-                $"Delete account \"{profile.Name}\"?",
-                "Confirm Delete",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
-
-            if (result == DialogResult.Yes)
-            {
-                _profileManager.RemoveProfile(profile);
-                _profileManager.Save();
-
-                _selection.EnsureSelectionValid(_profileManager.Profiles);
-                _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
-
-                SetStatus($"Deleted account: {profile.Name}.");
-            }
+            _profileMenu.DeleteSelectedProfile();
         }
-
         private void menuGw1ToolboxToggle_Click(object sender, EventArgs e)
         {
-            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
-            if (profile == null || profile.GameType != GameType.GuildWars1)
-            {
-                // Safety: if somehow clicked with no GW1 profile, just uncheck.
-                // menuGw1ToolboxToggle.Checked = false;
-                return;
-            }
-
-            _profileManager.Save();
-
-            SetStatus(
-                $"GW1 Toolbox injection " +
-                (profile.Gw1ToolboxEnabled ? "enabled" : "disabled") +
-                $" for {profile.Name}.");
+            _profileMenu.ToggleGw1Toolbox();
         }
-
         private void menuGw1ToolboxPath_Click(object sender, EventArgs e)
         {
-            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
-            if (profile == null || profile.GameType != GameType.GuildWars1)
-                return;
-
-            TrySelectGw1ToolboxDll(profile);
+            _profileMenu.SetGw1ToolboxPath();
         }
 
         // -----------------------------
