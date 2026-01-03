@@ -1,4 +1,5 @@
-﻿using GWxLauncher.Config;
+﻿// Marker refactor identifier: 2026 12:40:00
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
@@ -46,12 +47,7 @@ namespace GWxLauncher
         private readonly Image _gw2Image = Properties.Resources.Gw2;
 
         private bool _showCheckedOnly = false;
-        private string _viewNameBeforeEdit = "";
-        private bool _viewNameDirty = false;
-        private bool _suppressViewTextEvents = false;
-        private bool _suppressArmBulkEvents = false;
         private bool _bulkLaunchInProgress = false;
-
         private readonly Font _nameFont;
         private readonly Font _subFont;
 
@@ -76,14 +72,8 @@ namespace GWxLauncher
 
             EnableDoubleBuffering(flpProfiles);
 
-            // Handle the resize on the form itself to trigger the reflow
-            this.SizeChanged += (s, e) => {
-                ReflowStatus();
-            };
-            this.SizeChanged += (s, e) => {
-                UpdateHeaderResponsiveness();
-                ReflowStatus();
-            };
+            this.SizeChanged += (s, e) => { UpdateHeaderResponsiveness(); ReflowStatus(); };
+
             btnSettings.Click += (s, e) =>
             {
                 using var dlg = new GWxLauncher.UI.GlobalSettingsForm(_profileManager);
@@ -201,11 +191,7 @@ namespace GWxLauncher
                 updateBulkArmingUi: UpdateBulkArmingUi,
                 applyResponsiveProfileCardLayout: () => _profileGrid.ApplyResponsiveLayout(force: true));
 
-            this.Shown += (_, __) =>
-            {
-                BeginInvoke(new Action(() => _profileGrid.ApplyResponsiveLayout(force: true)));
-            };
-            _refresher.RequestRefresh(RefreshReason.Startup);
+            this.Shown += (_, __) => _refresher.RequestRefresh(RefreshReason.Startup);
         }
 
         private static AppTheme ParseTheme(string? value)

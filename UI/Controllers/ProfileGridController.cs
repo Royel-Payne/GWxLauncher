@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Marker refactor identifier: 2026 12:40:00
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -36,6 +37,7 @@ namespace GWxLauncher.UI.Controllers
             _onDoubleClicked = onDoubleClicked ?? throw new ArgumentNullException(nameof(onDoubleClicked));
             _onRightClicked = onRightClicked ?? throw new ArgumentNullException(nameof(onRightClicked));
         }
+
         public void InitializePanel()
         {
             // Keep FlowLayoutPanel behaving consistently (moved from MainForm)
