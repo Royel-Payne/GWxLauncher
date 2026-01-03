@@ -61,7 +61,7 @@
             lblStatus.Name = "lblStatus";
             lblStatus.Padding = new Padding(6);
             lblStatus.RightToLeft = RightToLeft.No;
-            lblStatus.Size = new Size(248, 27);
+            lblStatus.Size = new Size(265, 27);
             lblStatus.TabIndex = 2;
             lblStatus.Text = "Ready";
             lblStatus.TextAlign = ContentAlignment.MiddleLeft;
@@ -74,7 +74,7 @@
             panelProfiles.Location = new Point(0, 66);
             panelProfiles.Margin = new Padding(0);
             panelProfiles.Name = "panelProfiles";
-            panelProfiles.Size = new Size(248, 286);
+            panelProfiles.Size = new Size(265, 286);
             panelProfiles.TabIndex = 5;
             // 
             // flpProfiles
@@ -84,7 +84,7 @@
             flpProfiles.Location = new Point(0, 0);
             flpProfiles.Name = "flpProfiles";
             flpProfiles.Padding = new Padding(10, 5, 10, 5);
-            flpProfiles.Size = new Size(248, 286);
+            flpProfiles.Size = new Size(265, 286);
             flpProfiles.TabIndex = 0;
             // 
             // ctxProfiles
@@ -159,7 +159,7 @@
             panelView.Location = new Point(0, 0);
             panelView.Margin = new Padding(2);
             panelView.Name = "panelView";
-            panelView.Size = new Size(248, 66);
+            panelView.Size = new Size(265, 66);
             panelView.TabIndex = 10;
             // 
             // btnNewView
@@ -184,7 +184,7 @@
             btnLaunchAll.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
             btnLaunchAll.FlatStyle = FlatStyle.Flat;
             btnLaunchAll.ForeColor = Color.White;
-            btnLaunchAll.Location = new Point(207, 35);
+            btnLaunchAll.Location = new Point(224, 35);
             btnLaunchAll.Name = "btnLaunchAll";
             btnLaunchAll.Size = new Size(32, 28);
             btnLaunchAll.TabIndex = 6;
@@ -214,7 +214,7 @@
             txtView.ForeColor = Color.Gainsboro;
             txtView.Location = new Point(74, 6);
             txtView.Name = "txtView";
-            txtView.Size = new Size(100, 23);
+            txtView.Size = new Size(117, 23);
             txtView.TabIndex = 2;
             txtView.TextAlign = HorizontalAlignment.Center;
             txtView.TextChanged += txtView_TextChanged;
@@ -229,7 +229,7 @@
             btnViewNext.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 90);
             btnViewNext.FlatStyle = FlatStyle.Flat;
             btnViewNext.ForeColor = Color.White;
-            btnViewNext.Location = new Point(179, 5);
+            btnViewNext.Location = new Point(196, 5);
             btnViewNext.Name = "btnViewNext";
             btnViewNext.Size = new Size(24, 24);
             btnViewNext.TabIndex = 3;
@@ -243,7 +243,7 @@
             btnSettings.BackColor = Color.FromArgb(45, 45, 52);
             btnSettings.FlatAppearance.BorderSize = 0;
             btnSettings.FlatStyle = FlatStyle.Flat;
-            btnSettings.Location = new Point(207, 3);
+            btnSettings.Location = new Point(224, 3);
             btnSettings.Name = "btnSettings";
             btnSettings.Size = new Size(32, 28);
             btnSettings.TabIndex = 8;
@@ -272,12 +272,12 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(248, 379);
+            ClientSize = new Size(265, 379);
             Controls.Add(panelProfiles);
             Controls.Add(panelView);
             Controls.Add(lblStatus);
             Icon = (Icon)resources.GetObject("$this.Icon");
-            MinimumSize = new Size(264, 104);
+            MinimumSize = new Size(281, 104);
             Name = "MainForm";
             Text = "GWxLauncher";
             FormClosing += MainForm_FormClosing;

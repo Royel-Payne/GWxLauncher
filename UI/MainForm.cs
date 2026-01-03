@@ -57,18 +57,18 @@ namespace GWxLauncher
 
         private string? _selectedProfileId = null;
 
-        // Responsive card layout tuning
+        //// Responsive card layout tuning
         private const int CardOuterPad = 6;     // panel padding around the grid
-        private const int CardGap = 6;          // spacing between cards (horizontal + vertical)
-        private const int CardMinWidth = 230;   // minimum width before adding another column
-        private const int CardMaxWidth = 520;   // cards expand until this, then new column is allowed
-        private const int CardPreferredWidth = 340; // if another column still allows >= this width, add it
+        //private const int CardGap = 6;          // spacing between cards (horizontal + vertical)
+        //private const int CardMinWidth = 230;   // minimum width before adding another column
+        //private const int CardMaxWidth = 520;   // cards expand until this, then new column is allowed
+        //private const int CardPreferredWidth = 340; // if another column still allows >= this width, add it
 
-        // Reserve most of the scrollbar width to prevent wrap oscillation,
-        // but reclaim a few pixels so the right gutter doesn't look oversized.
-        private const int ScrollbarReserve = 10; // subtract slightly less than full scrollbar width
+        //// Reserve most of the scrollbar width to prevent wrap oscillation,
+        //// but reclaim a few pixels so the right gutter doesn't look oversized.
+        //private const int ScrollbarReserve = 10; // subtract slightly less than full scrollbar width
 
-        private int _lastProfileLayoutWidth = -1;
+        //private int _lastProfileLayoutWidth = -1;
 
         // -----------------------------
         // Ctor / Form lifecycle
@@ -224,8 +224,8 @@ namespace GWxLauncher
                 _ui,
                 refreshProfileList: RefreshProfileList,
                 updateBulkArmingUi: UpdateBulkArmingUi,
-                applyResponsiveProfileCardLayout: () => ApplyResponsiveProfileCardLayout(force: true));
-            
+                applyResponsiveProfileCardLayout: () => _profileGrid.ApplyResponsiveLayout(force: true));
+
             // Initial paint/build through the same path we’ll use everywhere else.
             _refresher.RequestRefresh(RefreshReason.Startup);
         }
@@ -373,99 +373,14 @@ namespace GWxLauncher
             {
                 // Defer until WinForms finishes internal size/scroll calculations
                 if (IsHandleCreated)
-                    BeginInvoke(new Action(ApplyResponsiveProfileCardLayout));
+                    BeginInvoke(new Action(() => _profileGrid.ApplyResponsiveLayout(force: false)));
             };
-        }
-
-        private void ApplyResponsiveProfileCardLayout() => ApplyResponsiveProfileCardLayout(force: false);
-
-        private void ApplyResponsiveProfileCardLayout(bool force)
-        {
-            if (!flpProfiles.IsHandleCreated)
-                return;
-
-            int w = flpProfiles.ClientSize.Width;
-            if (w <= 0)
-                return;
-
-            // Only skip when not forced AND width unchanged.
-            // Forced calls are used after rebuilds (new controls need margins/width applied).
-            if (!force && w == _lastProfileLayoutWidth)
-                return;
-
-            _lastProfileLayoutWidth = w;
-
-            var cards = flpProfiles.Controls.OfType<ProfileCardControl>().ToList();
-            if (cards.Count == 0)
-                return;
-
-            int sbW = SystemInformation.VerticalScrollBarWidth;
-
-            int reserve = Math.Max(0, sbW - ScrollbarReserve);
-            int availW = Math.Max(0, flpProfiles.ClientSize.Width - (CardOuterPad * 2) - reserve);
-
-            var (_, finalCardW) = ComputeGrid(availW);
-
-            flpProfiles.SuspendLayout();
-            try
-            {
-                flpProfiles.Padding = new Padding(CardOuterPad);
-
-                int half = Math.Max(0, CardGap / 2);
-                var margin = new Padding(half, 0, half, CardGap);
-
-                foreach (var c in cards)
-                {
-                    c.Width = finalCardW;
-                    c.Margin = margin;
-                }
-            }
-            finally
-            {
-                flpProfiles.ResumeLayout(true);
-            }
-        }
-
-        private (int columns, int cardWidth) ComputeGrid(int availableWidth)
-        {
-            if (availableWidth <= 0)
-                return (1, CardMinWidth);
-
-            // Start with as many columns as we can fit at minimum width
-            int cols = Math.Max(1, (availableWidth + CardGap) / (CardMinWidth + CardGap));
-
-            // Compute ideal width for that column count
-            double ideal = (availableWidth - (CardGap * (cols - 1))) / (double)cols;
-
-            // Add columns as soon as the next column still keeps cards at a "comfortable" width.
-            // This makes columns appear earlier (not only when we hit max width).
-            while (true)
-            {
-                int nextCols = cols + 1;
-                double nextIdeal = (availableWidth - (CardGap * (nextCols - 1))) / (double)nextCols;
-
-                // Stop if another column would make cards too narrow
-                if (nextIdeal < CardMinWidth)
-                    break;
-
-                // Only add the column if cards would still be at least the preferred width
-                if (nextIdeal < CardPreferredWidth)
-                    break;
-
-                cols = nextCols;
-                ideal = nextIdeal;
-            }
-
-            int w = (int)Math.Floor(ideal);
-            if (w < CardMinWidth) w = CardMinWidth;
-            if (w > CardMaxWidth) w = CardMaxWidth;
-
-            return (cols, w);
         }
 
         // -----------------------------
         // Context menu / selection helpers
         // -----------------------------
+
         private void EditProfile(string id)
         {
             var profile = _profileManager.Profiles.FirstOrDefault(p =>

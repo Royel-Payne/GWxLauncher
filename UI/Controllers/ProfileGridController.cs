@@ -88,9 +88,99 @@ namespace GWxLauncher.UI.Controllers
                 card.SetSelected(string.Equals(card.Profile.Id, id, StringComparison.Ordinal));
         }
 
-        public void ApplyResponsiveLayout()
+        // Layout tuning knobs (moved from MainForm)
+        private const int CardOuterPad = 6;
+        private const int CardGap = 6;
+        private const int CardMinWidth = 230;
+        private const int CardMaxWidth = 520;
+        private const int CardPreferredWidth = 340;
+
+        private const int ScrollbarReserve = 10;
+
+        private int _lastLayoutWidth = -1;
+
+        public void ApplyResponsiveLayout(bool force = false)
         {
-            // Bug workaround:
+            if (!_panel.IsHandleCreated)
+                return;
+
+            int w = _panel.ClientSize.Width;
+            if (w <= 0)
+                return;
+
+            // Only skip when not forced AND width unchanged.
+            // Forced calls are used after rebuilds (new controls need margins/width applied).
+            if (!force && w == _lastLayoutWidth)
+                return;
+
+            _lastLayoutWidth = w;
+
+            var cards = _panel.Controls.OfType<ProfileCardControl>().ToList();
+            if (cards.Count == 0)
+                return;
+
+            int sbW = SystemInformation.VerticalScrollBarWidth;
+
+            int reserve = Math.Max(0, sbW - ScrollbarReserve);
+            int availW = Math.Max(0, _panel.ClientSize.Width - (CardOuterPad * 2) - reserve);
+
+            var (_, finalCardW) = ComputeGrid(availW);
+
+            _panel.SuspendLayout();
+            try
+            {
+                _panel.Padding = new Padding(CardOuterPad);
+
+                int half = Math.Max(0, CardGap / 2);
+                var margin = new Padding(half, 0, half, CardGap);
+
+                foreach (var c in cards)
+                {
+                    c.Width = finalCardW;
+                    c.Margin = margin;
+                }
+            }
+            finally
+            {
+                _panel.ResumeLayout(true);
+            }
+        }
+
+        private static (int columns, int cardWidth) ComputeGrid(int availableWidth)
+        {
+            if (availableWidth <= 0)
+                return (1, CardMinWidth);
+
+            // Start with as many columns as we can fit at minimum width
+            int cols = Math.Max(1, (availableWidth + CardGap) / (CardMinWidth + CardGap));
+
+            // Compute ideal width for that column count
+            double ideal = (availableWidth - (CardGap * (cols - 1))) / (double)cols;
+
+            // Add columns as soon as the next column still keeps cards at a "comfortable" width.
+            // This makes columns appear earlier (not only when we hit max width).
+            while (true)
+            {
+                int nextCols = cols + 1;
+                double nextIdeal = (availableWidth - (CardGap * (nextCols - 1))) / (double)nextCols;
+
+                // Stop if another column would make cards too narrow
+                if (nextIdeal < CardMinWidth)
+                    break;
+
+                // Only add the column if cards would still be at least the preferred width
+                if (nextIdeal < CardPreferredWidth)
+                    break;
+
+                cols = nextCols;
+                ideal = nextIdeal;
+            }
+
+            int w = (int)Math.Floor(ideal);
+            if (w < CardMinWidth) w = CardMinWidth;
+            if (w > CardMaxWidth) w = CardMaxWidth;
+
+            return (cols, w);
         }
     }
 }
