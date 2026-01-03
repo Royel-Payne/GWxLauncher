@@ -306,7 +306,7 @@ namespace GWxLauncher.UI
             }
             else
             {
-                b.FlatAppearance.BorderSize = 1; // Standard border for other buttons 
+                b.FlatAppearance.BorderSize = 0; // Remove border for other buttons 
             }
         }
     }
