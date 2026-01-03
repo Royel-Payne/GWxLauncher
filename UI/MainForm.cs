@@ -50,7 +50,7 @@ namespace GWxLauncher
         private readonly Font _nameFont;
         private readonly Font _subFont;
 
-        private string? _selectedProfileId = null;
+        private readonly ProfileSelectionController _selection;
 
 
         // -----------------------------
@@ -164,14 +164,11 @@ namespace GWxLauncher
                     _views.Save();
                     _refresher.RequestRefresh(RefreshReason.EligibilityChanged);
                 },
-                onSelected: id =>
-                {
-                    _selectedProfileId = id;
-                    _profileGrid.SetSelectedProfile(id);
-                },
+                onSelected: id => _selection.Select(id),
                 onDoubleClicked: id => EditProfile(id),
                 onRightClicked: (id, pt) => ShowProfileContextMenu(id, pt)
             );
+            _selection = new ProfileSelectionController(id => _profileGrid.SetSelectedProfile(id));
 
             _profileGrid.InitializePanel();
             //_profileGrid.RefreshTheme();
@@ -181,7 +178,8 @@ namespace GWxLauncher
                 updateBulkArmingUi: UpdateBulkArmingUi,
                 applyResponsiveProfileCardLayout: () => _profileGrid.ApplyResponsiveLayout(force: true),
                 refreshTheme: () => _profileGrid.RefreshTheme());
-                _viewUi.SetRequestRefresh(r => _refresher.RequestRefresh(r));
+
+            _viewUi.SetRequestRefresh(r => _refresher.RequestRefresh(r));
 
             this.Shown += (_, __) => _refresher.RequestRefresh(RefreshReason.Startup);
         }
@@ -267,7 +265,7 @@ namespace GWxLauncher
 
             _profileGrid.Rebuild(
                 profiles,
-                _selectedProfileId,
+                _selection.SelectedProfileId,
                 _gw1Image,
                 _gw2Image,
                 _nameFont,
@@ -319,8 +317,7 @@ namespace GWxLauncher
 
         private void ShowProfileContextMenu(string id, Point screenPos)
         {
-            _selectedProfileId = id;
-            _profileGrid.SetSelectedProfile(id);
+            _selection.Select(id);
 
             // Show context menu at screen position
             ctxProfiles.Show(screenPos);
@@ -339,18 +336,9 @@ namespace GWxLauncher
             SetStatus("Import complete.");
         }
 
-        private GameProfile? GetSelectedProfile()
-        {
-            if (string.IsNullOrWhiteSpace(_selectedProfileId))
-                return null;
-
-            return _profileManager.Profiles.FirstOrDefault(p =>
-                string.Equals(p.Id, _selectedProfileId, StringComparison.Ordinal));
-        }
-
         private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
             bool hasProfile = profile != null;
 
             menuLaunchProfile.Enabled = hasProfile;
@@ -371,7 +359,7 @@ namespace GWxLauncher
 
         private void menuLaunchProfile_Click(object sender, EventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
             if (profile != null)
             {
                 LaunchProfile(profile, bulkMode: false);
@@ -380,7 +368,7 @@ namespace GWxLauncher
 
         private void menuSetProfilePath_Click(object sender, EventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
             if (profile == null)
                 return;
 
@@ -389,7 +377,7 @@ namespace GWxLauncher
 
         private void menuEditProfile_Click(object sender, EventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
             if (profile == null)
                 return;
 
@@ -402,7 +390,7 @@ namespace GWxLauncher
         }
         private void menuCopyProfile_Click(object sender, EventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
             if (profile == null)
                 return;
 
@@ -420,10 +408,7 @@ namespace GWxLauncher
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
-            _selectedProfileId = copied.Id;
-
-            // Update selection immediately through the controller path
-            _profileGrid.SetSelectedProfile(_selectedProfileId);
+            _selection.Select(copied.Id);
 
             _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
 
@@ -432,7 +417,7 @@ namespace GWxLauncher
 
         private void menuDeleteProfile_Click(object sender, EventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
             if (profile == null)
                 return;
 
@@ -454,7 +439,7 @@ namespace GWxLauncher
 
         private void menuGw1ToolboxToggle_Click(object sender, EventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
             if (profile == null || profile.GameType != GameType.GuildWars1)
             {
                 // Safety: if somehow clicked with no GW1 profile, just uncheck.
@@ -472,7 +457,7 @@ namespace GWxLauncher
 
         private void menuGw1ToolboxPath_Click(object sender, EventArgs e)
         {
-            var profile = GetSelectedProfile();
+            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
             if (profile == null || profile.GameType != GameType.GuildWars1)
                 return;
 
