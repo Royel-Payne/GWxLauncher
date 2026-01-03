@@ -46,6 +46,23 @@ namespace GWxLauncher.UI.Controllers
                 HasSelectedProfile: hasProfile,
                 CanShowLastLaunchDetails: hasAnyLaunchReports);
         }
+        public void ClearSelection()
+        {
+            Select(null);
+        }
+
+        public void EnsureSelectionValid(IEnumerable<GameProfile> profiles)
+        {
+            if (profiles == null)
+                throw new ArgumentNullException(nameof(profiles));
+
+            if (string.IsNullOrWhiteSpace(SelectedProfileId))
+                return;
+
+            bool exists = profiles.Any(p => string.Equals(p.Id, SelectedProfileId, StringComparison.Ordinal));
+            if (!exists)
+                ClearSelection();
+        }
     }
 }
 

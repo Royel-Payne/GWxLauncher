@@ -259,6 +259,7 @@ namespace GWxLauncher
         private void RefreshProfileList()
         {
             IEnumerable<GameProfile> profiles = _profileManager.Profiles;
+            _selection.EnsureSelectionValid(_profileManager.Profiles);
 
             if (_showCheckedOnly)
                 profiles = profiles.Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
@@ -430,6 +431,8 @@ namespace GWxLauncher
             {
                 _profileManager.RemoveProfile(profile);
                 _profileManager.Save();
+
+                _selection.EnsureSelectionValid(_profileManager.Profiles);
                 _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
 
                 SetStatus($"Deleted account: {profile.Name}.");
