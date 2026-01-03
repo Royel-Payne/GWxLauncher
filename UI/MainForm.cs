@@ -338,14 +338,13 @@ namespace GWxLauncher
 
         private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
         {
-            var profile = _selection.GetSelectedProfile(_profileManager.Profiles);
-            bool hasProfile = profile != null;
+            var state = _selection.GetContextMenuState(_profileManager.Profiles, _launchSession.HasAnyReports);
 
-            menuLaunchProfile.Enabled = hasProfile;
-            menuEditProfile.Enabled = hasProfile;
-            menuCopyProfile.Enabled = hasProfile;
-            deleteToolStripMenuItem.Enabled = hasProfile;
-            menuShowLastLaunchDetails.Enabled = _launchSession.HasAnyReports;
+            menuLaunchProfile.Enabled = state.HasSelectedProfile;
+            menuEditProfile.Enabled = state.HasSelectedProfile;
+            menuCopyProfile.Enabled = state.HasSelectedProfile;
+            deleteToolStripMenuItem.Enabled = state.HasSelectedProfile;
+            menuShowLastLaunchDetails.Enabled = state.CanShowLastLaunchDetails;
         }
 
         private void menuShowLastLaunchDetails_Click(object sender, EventArgs e)
