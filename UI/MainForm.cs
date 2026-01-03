@@ -226,6 +226,12 @@ namespace GWxLauncher
                 updateBulkArmingUi: UpdateBulkArmingUi,
                 applyResponsiveProfileCardLayout: () => _profileGrid.ApplyResponsiveLayout(force: true));
 
+            // Ensure layout is applied once after the window is actually shown/sized.
+            // Startup refresh happens before layout sizing is final, so the first layout pass may bail out.
+            this.Shown += (_, __) =>
+            {
+                BeginInvoke(new Action(() => _profileGrid.ApplyResponsiveLayout(force: true)));
+            };
             // Initial paint/build through the same path we’ll use everywhere else.
             _refresher.RequestRefresh(RefreshReason.Startup);
         }
