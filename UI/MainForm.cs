@@ -1,5 +1,4 @@
-﻿// Marker - Refactor Identifier: 01-02-26 22:18:00
-using GWxLauncher.Config;
+﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
@@ -28,7 +27,10 @@ namespace GWxLauncher
         // Fields / State
         // -----------------------------
 
+        private ProfileGridController _profileGrid;
+        private readonly ViewUiController _viewUi;
         private readonly MainFormRefresher _refresher;
+        private readonly StatusBarController _statusBar;
 
         private LauncherConfig _config;
         private readonly ViewStateStore _views = new();
@@ -54,6 +56,7 @@ namespace GWxLauncher
         private readonly Font _subFont;
 
         private string? _selectedProfileId = null;
+
         // Responsive card layout tuning
         private const int CardOuterPad = 6;     // panel padding around the grid
         private const int CardGap = 6;          // spacing between cards (horizontal + vertical)
@@ -68,21 +71,21 @@ namespace GWxLauncher
         private int _lastProfileLayoutWidth = -1;
 
         // -----------------------------
-        // Status marquee (for long lblStatus text)
-        // -----------------------------
-        private readonly System.Windows.Forms.Timer _statusMarqueeTimer = new System.Windows.Forms.Timer();
-        private string _statusFullText = "";
-        private int _statusMarqueeIndex = 0;
-        private const int StatusMarqueeIntervalMs = 120;
-        private const string StatusMarqueeGap = "   •   ";
-
-        // -----------------------------
         // Ctor / Form lifecycle
         // -----------------------------
 
         public MainForm()
         {
             InitializeComponent();
+            _statusBar = new StatusBarController(lblStatus);
+            _viewUi = new ViewUiController(
+                views: _views,
+                txtView: txtView,
+                chkShowCheckedOnly: chkArmBulk,
+                setShowCheckedOnly: v => _showCheckedOnly = v,
+                requestRefresh: r => _refresher.RequestRefresh(r),
+                setStatus: SetStatus);
+
             EnableDoubleBuffering(flpProfiles);
 
             // Handle the resize on the form itself to trigger the reflow
@@ -100,9 +103,6 @@ namespace GWxLauncher
                 dlg.ProfilesBulkUpdated += (_, __) => _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
                 dlg.ShowDialog(this);
             };
-
-            _statusMarqueeTimer.Interval = StatusMarqueeIntervalMs;
-            _statusMarqueeTimer.Tick += (s, e) => TickStatusMarquee();
             _ui = new WinFormsUiDispatcher(this);
 
             var baseFont = Font;
@@ -159,8 +159,6 @@ namespace GWxLauncher
 
             void ReflowStatus()
             {
-                _statusMarqueeIndex = 0;
-                UpdateStatusMarquee();
                 lblStatus.Invalidate();
             }
 
@@ -199,24 +197,37 @@ namespace GWxLauncher
             _views.Load();
             _launchPolicy = new LaunchEligibilityPolicy(_views);
 
-            // View -> UI sync
-            _suppressViewTextEvents = true;
-            txtView.Text = _views.ActiveViewName;
-            ApplyViewScopedUiState();
-            _suppressViewTextEvents = false;
+            _viewUi.InitializeFromStore();
 
             ConfigureProfilesFlowPanel();
+
+            _profileGrid = new ProfileGridController(
+                panel: flpProfiles,
+                isEligible: id => _views.IsEligible(_views.ActiveViewName, id),
+                toggleEligible: id =>
+                {
+                    _views.ToggleEligible(_views.ActiveViewName, id);
+                    _views.Save();
+                    _refresher.RequestRefresh(RefreshReason.EligibilityChanged);
+                },
+                onSelected: id =>
+                {
+                    _selectedProfileId = id;
+                    _profileGrid.SetSelectedProfile(id);
+                },
+                onDoubleClicked: id => EditProfile(id),
+                onRightClicked: (id, pt) => ShowProfileContextMenu(id, pt)
+            );
 
             // Centralized refresh pipeline (coalesced + ordered)
             _refresher = new MainFormRefresher(
                 _ui,
                 refreshProfileList: RefreshProfileList,
                 updateBulkArmingUi: UpdateBulkArmingUi,
-                applyResponsiveProfileCardLayout: ApplyResponsiveProfileCardLayout);
-
+                applyResponsiveProfileCardLayout: () => ApplyResponsiveProfileCardLayout(force: true));
+            
             // Initial paint/build through the same path we’ll use everywhere else.
             _refresher.RequestRefresh(RefreshReason.Startup);
-
         }
 
         private static AppTheme ParseTheme(string? value)
@@ -240,6 +251,7 @@ namespace GWxLauncher
             // IMPORTANT: reload the latest persisted config to avoid overwriting
             // values saved by other forms (e.g., GlobalSettingsForm saving Last*Path).
             _config = LauncherConfig.Load();
+            _statusBar.Dispose();
 
             if (WindowState == FormWindowState.Normal)
             {
@@ -263,8 +275,6 @@ namespace GWxLauncher
 
             _nameFont?.Dispose();
             _subFont?.Dispose();
-            _statusMarqueeTimer.Stop();
-
             _config.Theme = ThemeService.CurrentTheme.ToString();
             _config.Save();
         }
@@ -292,87 +302,20 @@ namespace GWxLauncher
         // -----------------------------
         // Profile list / View logic
         // -----------------------------
-
         private void RefreshProfileList()
         {
-            System.Diagnostics.Debug.WriteLine("RefreshProfileList called:\n" + Environment.StackTrace);
+            IEnumerable<GameProfile> profiles = _profileManager.Profiles;
 
-            var selectedId = _selectedProfileId;
+            if (_showCheckedOnly)
+                profiles = profiles.Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
 
-            flpProfiles.SuspendLayout();
-            try
-            {
-                flpProfiles.Controls.Clear();
-
-                var profiles = _profileManager.Profiles
-                    .OrderBy(p => p.GameType) // GW1 before GW2
-                    .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-                    .AsEnumerable();
-
-                // Visibility is controlled ONLY by Show Checked Accounts Only (view-scoped)
-                if (_showCheckedOnly)
-                    profiles = profiles.Where(p => _views.IsEligible(_views.ActiveViewName, p.Id));
-
-                foreach (var profile in profiles)
-                {
-                    var card = new ProfileCardControl(profile, _gw1Image, _gw2Image, _nameFont, _subFont);
-                    card.IsEligible = id => _views.IsEligible(_views.ActiveViewName, id);
-                    card.ToggleEligible = id =>
-                    {
-                        _views.ToggleEligible(_views.ActiveViewName, id);
-                        _views.Save();
-
-                        if (_showCheckedOnly)
-                        {
-                            // Eligibility impacts visibility when filtering; rebuild via centralized refresh path.
-                            _refresher.RequestRefresh(RefreshReason.EligibilityChanged);
-                        }
-                        else
-                        {
-                            // No visibility change; just repaint this card and re-evaluate bulk arming state.
-                            card.Invalidate(); // cheap repaint
-                        }
-                    };
-
-
-                    card.Clicked += (_, __) =>
-                    {
-                        _selectedProfileId = profile.Id;
-                        UpdateCardSelectionVisuals();
-                    };
-
-                    card.DoubleClicked += (_, __) =>
-                    {
-                        _selectedProfileId = profile.Id;
-                        UpdateCardSelectionVisuals();
-                        menuLaunchProfile_Click(this, EventArgs.Empty);
-                    };
-
-                    card.RightClicked += (_, e) =>
-                    {
-                        _selectedProfileId = profile.Id;
-                        UpdateCardSelectionVisuals();
-                        ctxProfiles.Show(card, e.Location);
-                    };
-
-                    // Keep selection visual on rebuild
-                    card.SetSelected(selectedId != null && selectedId == profile.Id);
-
-                    flpProfiles.Controls.Add(card);
-                }
-
-                UpdateBulkArmingUi();
-            }
-            finally
-            {
-                flpProfiles.ResumeLayout(true);
-            }
-            // Force responsive layout after rebuilding cards.
-            // The width may not have changed, but the card set did.
-            _lastProfileLayoutWidth = -1;
-
-            if (IsHandleCreated)
-                BeginInvoke(new Action(ApplyResponsiveProfileCardLayout));
+            _profileGrid.Rebuild(
+                profiles,
+                _selectedProfileId,
+                _gw1Image,
+                _gw2Image,
+                _nameFont,
+                _subFont);
         }
 
         private void UpdateCardSelectionVisuals()
@@ -380,7 +323,8 @@ namespace GWxLauncher
             foreach (Control c in flpProfiles.Controls)
             {
                 if (c is ProfileCardControl card)
-                    card.SetSelected(_selectedProfileId != null && card.Profile.Id == _selectedProfileId);
+                    card.SetSelected(_selectedProfileId != null &&
+                        string.Equals(card.Profile.Id, _selectedProfileId, StringComparison.Ordinal));
             }
         }
 
@@ -409,63 +353,6 @@ namespace GWxLauncher
             }
         }
 
-        private void ApplyViewScopedUiState()
-        {
-            _showCheckedOnly = _views.GetShowCheckedOnly(_views.ActiveViewName);
-
-            _suppressArmBulkEvents = true;
-            chkArmBulk.Checked = _showCheckedOnly;
-            _suppressArmBulkEvents = false;
-        }
-
-        private void StepView(int delta)
-        {
-            // Step through saved View names (Team1/Team2/Team3), not profiles
-            var newName = _views.StepActiveView(delta);
-
-            // Persist the new ActiveViewName so views.json reflects the user's selection.
-            _views.Save();
-
-            _suppressViewTextEvents = true;
-            txtView.Text = newName;
-            ApplyViewScopedUiState();
-            _suppressViewTextEvents = false;
-
-            // Switching view changes which profiles are checked (per-view),
-            // but does not hide profiles by name.
-            _refresher.RequestRefresh(RefreshReason.ViewChanged);
-        }
-
-        private void CommitViewRenameIfDirty()
-        {
-            if (!_viewNameDirty)
-                return;
-
-            _viewNameDirty = false;
-
-            string newName = (txtView.Text ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(newName))
-            {
-                // Revert to old name if user blanked it
-                _suppressViewTextEvents = true;
-                txtView.Text = _views.ActiveViewName;
-                _suppressViewTextEvents = false;
-                return;
-            }
-
-            // Try rename. If it fails (duplicate name), revert & show a status hint.
-            if (!_views.RenameActiveView(newName))
-            {
-                _suppressViewTextEvents = true;
-                txtView.Text = _views.ActiveViewName;
-                _suppressViewTextEvents = false;
-
-                SetStatus("View rename failed (name already exists).");
-                return;
-            }
-            _views.Save();
-            _refresher.RequestRefresh(RefreshReason.ViewChanged);
-        }
 
         // -----------------------------
         // Layout helpers
@@ -490,14 +377,20 @@ namespace GWxLauncher
             };
         }
 
-        private void ApplyResponsiveProfileCardLayout()
+        private void ApplyResponsiveProfileCardLayout() => ApplyResponsiveProfileCardLayout(force: false);
+
+        private void ApplyResponsiveProfileCardLayout(bool force)
         {
             if (!flpProfiles.IsHandleCreated)
                 return;
 
-            // Avoid churn when height changes (scrollbar, etc.) and only relayout on width change.
             int w = flpProfiles.ClientSize.Width;
-            if (w <= 0 || w == _lastProfileLayoutWidth)
+            if (w <= 0)
+                return;
+
+            // Only skip when not forced AND width unchanged.
+            // Forced calls are used after rebuilds (new controls need margins/width applied).
+            if (!force && w == _lastProfileLayoutWidth)
                 return;
 
             _lastProfileLayoutWidth = w;
@@ -508,8 +401,6 @@ namespace GWxLauncher
 
             int sbW = SystemInformation.VerticalScrollBarWidth;
 
-            // Reserve *most* of the scrollbar width to keep transitions stable,
-            // but don't waste the entire width as dead gutter.
             int reserve = Math.Max(0, sbW - ScrollbarReserve);
             int availW = Math.Max(0, flpProfiles.ClientSize.Width - (CardOuterPad * 2) - reserve);
 
@@ -520,8 +411,6 @@ namespace GWxLauncher
             {
                 flpProfiles.Padding = new Padding(CardOuterPad);
 
-                // Consistent spacing without a fat right gutter:
-                // split horizontal gap across both sides.
                 int half = Math.Max(0, CardGap / 2);
                 var margin = new Padding(half, 0, half, CardGap);
 
@@ -536,7 +425,6 @@ namespace GWxLauncher
                 flpProfiles.ResumeLayout(true);
             }
         }
-
 
         private (int columns, int cardWidth) ComputeGrid(int availableWidth)
         {
@@ -578,17 +466,37 @@ namespace GWxLauncher
         // -----------------------------
         // Context menu / selection helpers
         // -----------------------------
+        private void EditProfile(string id)
+        {
+            var profile = _profileManager.Profiles.FirstOrDefault(p =>
+                string.Equals(p.Id, id, StringComparison.Ordinal));
+            if (profile == null)
+                return;
+
+            using var dlg = new ProfileSettingsForm(profile);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                _profileManager.Save();
+                _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
+            }
+        }
+
+        private void ShowProfileContextMenu(string id, Point screenPos)
+        {
+            _selectedProfileId = id;
+            _profileGrid.SetSelectedProfile(id);
+
+            // Show context menu at screen position
+            ctxProfiles.Show(screenPos);
+        }
 
         private void ReloadProfilesAndViewsAfterImport()
         {
             _profileManager.Load();
             _views.Load();
 
-            // Update view UI (same idea as startup)
-            _suppressViewTextEvents = true;
-            txtView.Text = _views.ActiveViewName;
-            ApplyViewScopedUiState();
-            _suppressViewTextEvents = false;
+            // Re-sync view UI from the store using the controller
+            _viewUi.InitializeFromStore();
 
             _refresher.RequestRefresh(RefreshReason.ImportCompleted);
 
@@ -600,7 +508,8 @@ namespace GWxLauncher
             if (string.IsNullOrWhiteSpace(_selectedProfileId))
                 return null;
 
-            return _profileManager.Profiles.FirstOrDefault(p => p.Id == _selectedProfileId);
+            return _profileManager.Profiles.FirstOrDefault(p =>
+                string.Equals(p.Id, _selectedProfileId, StringComparison.Ordinal));
         }
 
         private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
@@ -754,68 +663,45 @@ namespace GWxLauncher
 
         private void chkArmBulk_CheckedChanged(object sender, EventArgs e)
         {
-            if (_suppressArmBulkEvents)
-                return;
-
-            _showCheckedOnly = chkArmBulk.Checked;
-
-            _views.SetShowCheckedOnly(_views.ActiveViewName, _showCheckedOnly);
-            _views.Save();
-
-            _refresher.RequestRefresh(RefreshReason.ShowCheckedOnlyChanged);
+            _viewUi.OnShowCheckedOnlyChanged();
         }
 
         private void btnViewPrev_Click(object sender, EventArgs e)
         {
-            StepView(-1);
+            _viewUi.StepView(-1);
         }
 
         private void btnViewNext_Click(object sender, EventArgs e)
         {
-            StepView(+1);
+            _viewUi.StepView(+1);
         }
 
         private void txtView_TextChanged(object sender, EventArgs e)
         {
-            if (_suppressViewTextEvents)
-                return;
-
-            // Don’t mutate view store during typing.
-            _viewNameDirty = true;
+            _viewUi.OnViewTextChanged();
         }
 
         private void txtView_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
             {
-                e.Handled = true;
-                e.SuppressKeyPress = true;
-                CommitViewRenameIfDirty();
+                _viewUi.OnViewKeyDown(e);
             }
         }
 
         private void txtView_Leave(object sender, EventArgs e)
         {
-            CommitViewRenameIfDirty();
+            _viewUi.OnViewLeave();
         }
 
         private void txtView_Enter(object sender, EventArgs e)
         {
-            _viewNameBeforeEdit = _views.ActiveViewName;
-            _viewNameDirty = false;
+            _viewUi.OnViewEnter();
         }
 
         private void btnNewView_Click(object sender, EventArgs e)
         {
-            var newName = _views.CreateNewView("New View");
-            _views.Save();
-
-            _suppressViewTextEvents = true;
-            txtView.Text = newName;
-            ApplyViewScopedUiState();
-            _suppressViewTextEvents = false;
-
-            _refresher.RequestRefresh(RefreshReason.ViewChanged);
+            _viewUi.CreateNewView();
         }
 
         // -----------------------------
@@ -1390,35 +1276,12 @@ namespace GWxLauncher
 
         private void SetStatus(string text)
         {
-            SafeUi(() =>
-            {
-                _statusFullText = text ?? "";
-                _statusMarqueeIndex = 0;
-                UpdateStatusMarquee();
-            });
+            _statusBar.SetText(text);
         }
 
         private void SafeUi(Action action)
         {
             _ui.Post(action);
-        }
-        private void UpdateStatusMarquee()
-        {
-            if (lblStatus == null) return;
-
-            string full = _statusFullText ?? "";
-
-            if (StatusTextFits(full))
-            {
-                StopStatusMarquee();
-                lblStatus.Text = full;
-            }
-            else
-            {
-                StartStatusMarquee();
-                // Force the first slice immediately
-                lblStatus.Text = BuildMarqueeSlice(full, _statusMarqueeIndex);
-            }
         }
 
         private bool StatusTextFits(string text)
@@ -1437,58 +1300,6 @@ namespace GWxLauncher
             int available = Math.Max(0, lblStatus.ClientSize.Width - padding);
 
             return size.Width <= available;
-        }
-
-        private void StartStatusMarquee()
-        {
-            if (!_statusMarqueeTimer.Enabled)
-                _statusMarqueeTimer.Start();
-        }
-
-        private void StopStatusMarquee()
-        {
-            if (_statusMarqueeTimer.Enabled)
-                _statusMarqueeTimer.Stop();
-        }
-
-        private void TickStatusMarquee()
-        {
-            if (lblStatus == null) return;
-
-            string full = _statusFullText ?? "";
-
-            if (StatusTextFits(full))
-            {
-                StopStatusMarquee();
-                lblStatus.Text = full;
-                return;
-            }
-
-            _statusMarqueeIndex++;
-
-            // Safety check for empty strings
-            if (string.IsNullOrEmpty(full)) return;
-
-            int loopLen = (full + StatusMarqueeGap).Length;
-            if (_statusMarqueeIndex >= loopLen) _statusMarqueeIndex = 0;
-
-            // Direct text assignment triggers the repaint
-            lblStatus.Text = BuildMarqueeSlice(full, _statusMarqueeIndex);
-        }
-
-        private static string BuildMarqueeSlice(string full, int index)
-        {
-            // Simple, stable marquee: rotate across "full + gap + full"
-            string combined = full + StatusMarqueeGap + full;
-
-            if (combined.Length == 0)
-                return "";
-
-            index %= (full + StatusMarqueeGap).Length;
-            if (index < 0) index = 0;
-
-            // Return from index to end (label will clip naturally)
-            return combined.Substring(index);
         }
 
         private void ApplyLaunchReportToUi(LaunchReport report)
