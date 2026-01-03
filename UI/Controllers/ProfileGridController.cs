@@ -1,5 +1,4 @@
-﻿// Marker refactor identifier: 2026 12:40:00
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -36,6 +35,23 @@ namespace GWxLauncher.UI.Controllers
             _onSelected = onSelected ?? throw new ArgumentNullException(nameof(onSelected));
             _onDoubleClicked = onDoubleClicked ?? throw new ArgumentNullException(nameof(onDoubleClicked));
             _onRightClicked = onRightClicked ?? throw new ArgumentNullException(nameof(onRightClicked));
+        }
+
+        public void RefreshTheme()
+        {
+            // Force full repaint of custom-drawn cards after theme change
+            _panel.SuspendLayout();
+
+            foreach (Control c in _panel.Controls)
+            {
+                if (c is ProfileCardControl card)
+                {
+                    card.Invalidate();
+                    card.Update(); // flush paint immediately to avoid ghosting
+                }
+            }
+
+            _panel.ResumeLayout(true);
         }
 
         public void InitializePanel()

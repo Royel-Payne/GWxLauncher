@@ -1,5 +1,4 @@
-﻿// Marker refactor identifier: 2026 12:40:00
-using GWxLauncher.Config;
+﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
@@ -80,6 +79,10 @@ namespace GWxLauncher
                 dlg.ImportCompleted += (_, __) => ReloadProfilesAndViewsAfterImport();
                 dlg.ProfilesBulkUpdated += (_, __) => _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
                 dlg.ShowDialog(this);
+
+                // Theme may have changed; ensure profile cards repaint immediately.
+                _profileGrid.RefreshTheme();
+                UpdateHeaderResponsiveness();
             };
             _ui = new WinFormsUiDispatcher(this);
 
@@ -115,7 +118,6 @@ namespace GWxLauncher
             flpProfiles.ResumeLayout(true);
             flpProfiles.Update();
 
-            RefreshProfileCardTheme();
             UpdateHeaderResponsiveness();
 
             // Separators
@@ -184,7 +186,7 @@ namespace GWxLauncher
             );
 
             _profileGrid.InitializePanel();
-
+            _profileGrid.RefreshTheme();
             _refresher = new MainFormRefresher(
                 _ui,
                 refreshProfileList: RefreshProfileList,
@@ -485,22 +487,6 @@ namespace GWxLauncher
                 return;
 
             TrySelectGw1ToolboxDll(profile);
-        }
-        private void RefreshProfileCardTheme()
-        {
-            // Force full repaint of custom-drawn cards after theme change
-            flpProfiles.SuspendLayout();
-
-            foreach (Control c in flpProfiles.Controls)
-            {
-                if (c is ProfileCardControl card)
-                {
-                    card.Invalidate();
-                    card.Update(); // flush paint immediately to avoid ghosting
-                }
-            }
-
-            flpProfiles.ResumeLayout(true);
         }
 
         // -----------------------------
@@ -1125,29 +1111,6 @@ namespace GWxLauncher
             _statusBar.SetText(text);
         }
 
-        private void SafeUi(Action action)
-        {
-            _ui.Post(action);
-        }
-
-        private bool StatusTextFits(string text)
-        {
-            if (string.IsNullOrEmpty(text)) return true;
-
-            // Measure with specific flags to ensure we catch precise pixel widths
-            var size = TextRenderer.MeasureText(text, lblStatus.Font,
-                new Size(int.MaxValue, lblStatus.Height),
-                TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
-
-            // Available width inside the label minus the padding you set in the designer (6)
-            int padding = lblStatus.Padding.Left + lblStatus.Padding.Right;
-
-            // We use ClientSize.Width to get the internal area 
-            int available = Math.Max(0, lblStatus.ClientSize.Width - padding);
-
-            return size.Width <= available;
-        }
-
         private void ApplyLaunchReportToUi(LaunchReport report)
         {
             _launchSession.Record(report);
@@ -1157,7 +1120,7 @@ namespace GWxLauncher
         /// <summary>
         /// Bulk-launch worker for GW2 that runs off the UI thread so the listbox/cards can repaint
         /// while GW2 mutex handling + automation (polling/sleeps/pixel checks) are running.
-        /// UI updates are marshaled back via SafeUi().
+        /// UI updates (if needed) should be marshaled back via _ui.Post(...).
         /// </summary>
         private Gw2LaunchOrchestrator.Gw2LaunchResult LaunchProfileGw2BulkWorker(GameProfile profile)
         {
