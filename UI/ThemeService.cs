@@ -297,9 +297,17 @@ namespace GWxLauncher.UI
             b.ForeColor = fore;
             b.FlatStyle = FlatStyle.Flat;
             b.FlatAppearance.BorderColor = border;
-            b.FlatAppearance.BorderSize = 1;
-            b.UseVisualStyleBackColor = false;
-        }
 
+            // Specifically for the gear button to remove the white border and prevent "pop"
+            if (b.Name == "btnSettings")
+            {
+                b.FlatAppearance.BorderSize = 0; // Strip border entirely
+                b.FlatAppearance.MouseOverBackColor = Palette.ButtonBack;
+            }
+            else
+            {
+                b.FlatAppearance.BorderSize = 1; // Standard border for other buttons 
+            }
+        }
     }
 }

@@ -45,8 +45,6 @@ namespace GWxLauncher
         private bool _suppressArmBulkEvents = false;
         private bool _bulkLaunchInProgress = false;
 
-        private Button? _btnSettings;
-
         private readonly Font _nameFont;
         private readonly Font _subFont;
 
@@ -54,7 +52,7 @@ namespace GWxLauncher
         // Responsive card layout tuning
         private const int CardOuterPad = 6;     // panel padding around the grid
         private const int CardGap = 6;          // spacing between cards (horizontal + vertical)
-        private const int CardMinWidth = 260;   // minimum width before adding another column
+        private const int CardMinWidth = 230;   // minimum width before adding another column
         private const int CardMaxWidth = 520;   // cards expand until this, then new column is allowed
         private const int CardPreferredWidth = 340; // if another column still allows >= this width, add it
 
@@ -85,6 +83,17 @@ namespace GWxLauncher
             // Handle the resize on the form itself to trigger the reflow
             this.SizeChanged += (s, e) => {
                 ReflowStatus();
+            };
+            this.SizeChanged += (s, e) => {
+                UpdateHeaderResponsiveness();
+                ReflowStatus();
+            };
+            btnSettings.Click += (s, e) =>
+            {
+                using var dlg = new GWxLauncher.UI.GlobalSettingsForm(_profileManager);
+                dlg.ImportCompleted += (_, __) => ReloadProfilesAndViewsAfterImport();
+                dlg.ProfilesBulkUpdated += (_, __) => RefreshProfileList();
+                dlg.ShowDialog(this);
             };
 
             _statusMarqueeTimer.Interval = StatusMarqueeIntervalMs;
@@ -127,7 +136,7 @@ namespace GWxLauncher
             flpProfiles.Update();
 
             RefreshProfileCardTheme();
-            InitializeAppMenu();
+            UpdateHeaderResponsiveness();
 
             // Separators
             panelView.Paint += (s, e) =>
@@ -150,15 +159,18 @@ namespace GWxLauncher
                 lblStatus.Invalidate();
             }
 
-            // View label / tooltip
-            lblView.Visible = true;
-            lblView.Text = "Show Checked \nAccounts Only";
-            lblView.AutoSize = true;
-            lblView.ForeColor = ThemeService.Palette.SubtleFore;
+            //// View label / tooltip
+            //chkArmBulk.Visible = true;
+            //chkArmBulk.Text = "Show Checked \nAccounts Only";
+            //chkArmBulk.AutoSize = true;
+            //chkArmBulk.ForeColor = ThemeService.Palette.SubtleFore;
 
             var tip = new ToolTip();
-            tip.SetToolTip(chkArmBulk, "Show Checked Accounts Only (enables launch all)");
-            tip.SetToolTip(lblView, "Show Checked Accounts Only (enables launch all)");
+            tip.SetToolTip(chkArmBulk, "Show Checked Accounts Only (Enables 'Launch All')");
+            // Add tooltips for the new icon buttons so their purpose remains clear
+            tip.SetToolTip(btnNewView, "Create New Profile");
+            tip.SetToolTip(btnAddAccount, "Add Game Account");
+            tip.SetToolTip(btnLaunchAll, "Launch All Armed Accounts");
 
             // Window-position restore
             if (_config.WindowX >= 0 && _config.WindowY >= 0)
@@ -190,63 +202,6 @@ namespace GWxLauncher
             ConfigureProfilesFlowPanel();
 
             RefreshProfileList();
-        }
-        private void InitializeAppMenu()
-        {
-            // Settings button (Unicode gear). No designer changes required.
-            _btnSettings = new Button
-            {
-                Name = "btnSettings",
-                Text = "⚙",
-                TabStop = false,
-                Size = new Size(32, 28),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-
-            ThemeService.StyleButton(_btnSettings);
-
-            // Optional: slightly more "icon-like" alignment
-            _btnSettings.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-
-            // Tooltip / accessibility: user-facing language is "Settings..."
-            try
-            {
-                var tip = new ToolTip();
-                tip.SetToolTip(_btnSettings, "Settings...");
-            }
-            catch { /* best-effort */ }
-
-            _btnSettings.Click += (s, e) =>
-            {
-                using var dlg = new GWxLauncher.UI.GlobalSettingsForm(_profileManager);
-                dlg.ImportCompleted += (_, __) => ReloadProfilesAndViewsAfterImport();
-                dlg.ProfilesBulkUpdated += (_, __) => RefreshProfileList();
-                dlg.ShowDialog(this);
-
-                // If theme was changed, the Settings form applies it immediately.
-            };
-
-            panelView.Controls.Add(_btnSettings);
-            _btnSettings.BringToFront();
-
-            PositionSettingsButton();
-            Resize += (s, e) => PositionSettingsButton();
-        }
-
-        private void PositionSettingsButton()
-        {
-            if (_btnSettings == null) return;
-
-            int gap = 6;
-
-            // Match the top-row button sizing
-            _btnSettings.Size = new Size(btnViewNext.Width, btnViewNext.Height);
-
-            // Place immediately to the right of the top-right view button
-            _btnSettings.Location = new Point(
-                btnViewNext.Right + gap,
-                btnViewNext.Top
-            );
         }
 
         private static AppTheme ParseTheme(string? value)
@@ -1372,6 +1327,55 @@ namespace GWxLauncher
         // -----------------------------
         // UI helpers
         // -----------------------------
+
+        private void UpdateHeaderResponsiveness()
+        {
+            // Threshold for expansion
+            bool isWide = this.Width > 480;
+
+            // 1. Core Dimensions
+            int btnWidth = isWide ? 110 : 32;
+            int btnHeight = 28; // RESTORED: Separation gap returns when height is 28
+            int rightPadding = 12;
+            int leftPadding = 12;
+            int gap = 8;
+
+            // 2. PIN THE FAR-RIGHT GROUP (Settings & Launch)
+            // Settings stays top-right
+            btnSettings.Left = this.ClientSize.Width - rightPadding - btnSettings.Width;
+
+            // Launch All aligns flush with the right edge
+            btnLaunchAll.Text = isWide ? "▶ Launch All" : "▶";
+            btnLaunchAll.Size = new Size(isWide ? 100 : 32, btnHeight);
+            btnLaunchAll.Left = this.ClientSize.Width - rightPadding - btnLaunchAll.Width;
+
+            // 3. POSITION THE NAVIGATION '>' (Relative to Settings)
+            btnViewNext.Left = btnSettings.Left - btnViewNext.Width - gap;
+
+            // 4. UPDATE THE LEFT GROUP (New/Add)
+            btnNewView.Text = isWide ? "➕ New Profile" : "➕";
+            btnNewView.Size = new Size(btnWidth, btnHeight);
+            btnNewView.Left = leftPadding;
+
+            btnAddAccount.Text = isWide ? "👤 Add Account" : "👤";
+            btnAddAccount.Size = new Size(btnWidth, btnHeight);
+            btnAddAccount.Left = leftPadding;
+
+            // 5. CENTER NAVIGATION (Arrows & TextBox)
+            btnViewPrev.Left = btnNewView.Right + gap;
+
+            txtView.Left = btnViewPrev.Right + 4;
+            txtView.Width = Math.Max(32, btnViewNext.Left - txtView.Left - 4);
+
+            // 6. THE CHECKBOX ALIGNMENT FIX
+            // Moving Top to 41 lifts it up to align with the buttons in row 2
+            chkArmBulk.Top = 41;
+            chkArmBulk.Left = btnViewPrev.Left + 2;
+
+            // Toggle label based on width preference
+            chkArmBulk.Text = isWide ? "▶ Show Checked Accounts Only" : "▶ Show Checked";
+            chkArmBulk.ForeColor = ThemeService.Palette.SubtleFore;
+        }
 
         private void SetStatus(string text)
         {

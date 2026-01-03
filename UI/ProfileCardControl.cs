@@ -101,9 +101,6 @@ namespace GWxLauncher.UI
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            //var palette = ThemeService.Palette;
-            //var card = ThemeService.CardPalette;
-
             // Background
             var back = IsSelected
                 ? ThemeService.CardPalette.SelectedBack
@@ -113,12 +110,10 @@ namespace GWxLauncher.UI
                 g.FillRectangle(bg, ClientRectangle);
 
             // Accent stripe (left)
-            // Accent stripe: show on Selected; optionally show a subtle stripe on Hover
             if (IsSelected || _isHot)
             {
                 var stripe = new Rectangle(0, 0, ThemeService.CardMetrics.AccentWidth, Height);
 
-                // Selected = full accent; hover = lighter accent
                 var stripeColor = IsSelected
                     ? ThemeService.CardPalette.Accent
                     : ThemeService.CardPalette.AccentHover;
@@ -127,7 +122,7 @@ namespace GWxLauncher.UI
                     g.FillRectangle(stripeBrush, stripe);
             }
 
-            // Eligibility checkbox (optional; driven by IsEligible callback)
+            // Eligibility checkbox
             bool eligible = false;
             if (IsEligible != null)
             {
@@ -156,21 +151,28 @@ namespace GWxLauncher.UI
 
             g.DrawImage(icon, iconRect);
 
-            // Text layout
+            // --- Responsive Text Layout ---
             int textLeft = iconRect.Right + ThemeService.CardMetrics.TextOffsetX;
-            int textRight = Width - ThemeService.CardMetrics.BadgeRightPadding;
+
+            // ADJUSTMENT: textRight now accounts for the fixed 40px badge column width 
+            // plus a small buffer to prevent the name from touching the pills.
+            int textRight = Width - ThemeService.CardMetrics.BadgeRightPadding - 48;
 
             var nameRect = new Rectangle(textLeft, ThemeService.CardMetrics.TextOffsetY, textRight - textLeft, 22);
             var subRect = new Rectangle(textLeft, nameRect.Bottom - 2, textRight - textLeft, 18);
 
-            using (var nameBrush = new SolidBrush(ThemeService.CardPalette.NameFore))
-                g.DrawString(Profile.Name, _nameFont, nameBrush, nameRect);
+            // DRAW NAME: Using StringFormat to ensure long names truncate gracefully with "..."
+            using (var sf = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap })
+            {
+                using (var nameBrush = new SolidBrush(ThemeService.CardPalette.NameFore))
+                    g.DrawString(Profile.Name, _nameFont, nameBrush, nameRect, sf);
+            }
 
             string subText = Profile.GameType == GameType.GuildWars1 ? "Guild Wars 1" : "Guild Wars 2";
             using (var subBrush = new SolidBrush(ThemeService.CardPalette.SubFore))
                 g.DrawString(subText, _subFont, subBrush, subRect);
 
-            // --- Badges (GW1: TB/gMod/Py4, GW2: Blish) ---
+            // --- Badges (Vertical Column) ---
             var badges = BuildBadges(Profile);
             DrawBadges(g, badges);
 
@@ -178,7 +180,8 @@ namespace GWxLauncher.UI
             using (var pen = new Pen(ThemeService.Palette.Separator))
                 g.DrawLine(pen, 0, Height - 1, Width, Height - 1);
         }
-        // ADD: builds the badge list (ported from your prior listbox renderer logic)
+
+        // builds the badge list
         private static List<string> BuildBadges(GameProfile profile)
         {
             // GW1: TB, gMod, Py4
@@ -187,7 +190,7 @@ namespace GWxLauncher.UI
                 var badges = new List<string>(3);
                 if (profile.Gw1ToolboxEnabled) badges.Add("TB");
                 if (profile.Gw1GModEnabled) badges.Add("gMod");
-                if (profile.Gw1Py4GwEnabled) badges.Add("Py4");
+                if (profile.Gw1Py4GwEnabled) badges.Add("Py4GW");
                 return badges;
             }
 
@@ -214,41 +217,45 @@ namespace GWxLauncher.UI
             return new List<string>(0);
         }
 
-        // ADD: draws badge pills, right-aligned (ported from your old listbox renderer)
         private void DrawBadges(Graphics g, IReadOnlyList<string> badges)
         {
-            if (badges.Count == 0)
-                return;
+            if (badges.Count == 0) return;
 
+            // Standardized dimensions for a tight, professional column
+            const int fixedWidth = 40;
+            const int fixedHeight = 16;
+            const int spacing = 4;
+
+            // Use a slightly smaller font for the pills to increase internal margins
+            using var tinyFont = new Font(ThemeService.Typography.BadgeFont.FontFamily,
+                                         ThemeService.Typography.BadgeFont.Size - 1f,
+                                         FontStyle.Regular);
+
+            // Calculate total height of the stack to center it vertically
+            int totalStackHeight = (badges.Count * fixedHeight) + ((badges.Count - 1) * spacing);
+
+            // Vertical center calculation based on control height (64px)
+            int startY = (Height - totalStackHeight) / 2;
             int badgeRight = Width - ThemeService.CardMetrics.BadgeRightPadding;
-            int badgeTop = ThemeService.CardMetrics.BadgeTopPadding;
 
             using var badgeBg = new SolidBrush(ThemeService.CardPalette.BadgeBack);
             using var badgePen = new Pen(ThemeService.CardPalette.BadgeBorder);
 
-            // Draw right-to-left so the right edge stays aligned
-            for (int i = badges.Count - 1; i >= 0; i--)
+            for (int i = 0; i < badges.Count; i++)
             {
-                string badge = badges[i];
-
-                var sz = g.MeasureString(badge, ThemeService.Typography.BadgeFont);
-                int w = (int)sz.Width + ThemeService.CardMetrics.BadgeHorizontalPad;
-                int h = (int)sz.Height + ThemeService.CardMetrics.BadgeVerticalPad;
-
-                var rect = new Rectangle(badgeRight - w, badgeTop, w, h);
+                var rect = new Rectangle(badgeRight - fixedWidth, startY + (i * (fixedHeight + spacing)), fixedWidth, fixedHeight);
 
                 g.FillRectangle(badgeBg, rect);
                 g.DrawRectangle(badgePen, rect);
 
+                // Center text perfectly inside the uniform pill
                 TextRenderer.DrawText(
                     g,
-                    badge,
-                    ThemeService.Typography.BadgeFont,
+                    badges[i],
+                    tinyFont,
                     rect,
                     ThemeService.CardPalette.BadgeFore,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-
-                badgeRight -= w + ThemeService.CardMetrics.BadgeSpacing;
             }
         }
     }
