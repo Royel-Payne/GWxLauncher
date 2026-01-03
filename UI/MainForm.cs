@@ -1,4 +1,5 @@
-﻿using GWxLauncher.Config;
+﻿// Marker - Refactor Identifier: 01-02-26 22:18:00
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
@@ -15,6 +16,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 using System.Reflection;
+using GWxLauncher.UI.Controllers;
+
 
 
 namespace GWxLauncher
@@ -24,6 +27,8 @@ namespace GWxLauncher
         // -----------------------------
         // Fields / State
         // -----------------------------
+
+        private readonly MainFormRefresher _refresher;
 
         private LauncherConfig _config;
         private readonly ViewStateStore _views = new();
@@ -92,7 +97,7 @@ namespace GWxLauncher
             {
                 using var dlg = new GWxLauncher.UI.GlobalSettingsForm(_profileManager);
                 dlg.ImportCompleted += (_, __) => ReloadProfilesAndViewsAfterImport();
-                dlg.ProfilesBulkUpdated += (_, __) => RefreshProfileList();
+                dlg.ProfilesBulkUpdated += (_, __) => _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
                 dlg.ShowDialog(this);
             };
 
@@ -199,9 +204,19 @@ namespace GWxLauncher
             txtView.Text = _views.ActiveViewName;
             ApplyViewScopedUiState();
             _suppressViewTextEvents = false;
+
             ConfigureProfilesFlowPanel();
 
-            RefreshProfileList();
+            // Centralized refresh pipeline (coalesced + ordered)
+            _refresher = new MainFormRefresher(
+                _ui,
+                refreshProfileList: RefreshProfileList,
+                updateBulkArmingUi: UpdateBulkArmingUi,
+                applyResponsiveProfileCardLayout: ApplyResponsiveProfileCardLayout);
+
+            // Initial paint/build through the same path we’ll use everywhere else.
+            _refresher.RequestRefresh(RefreshReason.Startup);
+
         }
 
         private static AppTheme ParseTheme(string? value)
@@ -309,15 +324,16 @@ namespace GWxLauncher
 
                         if (_showCheckedOnly)
                         {
-                            RefreshProfileList(); // eligibility affects visibility
+                            // Eligibility impacts visibility when filtering; rebuild via centralized refresh path.
+                            _refresher.RequestRefresh(RefreshReason.EligibilityChanged);
                         }
                         else
                         {
+                            // No visibility change; just repaint this card and re-evaluate bulk arming state.
                             card.Invalidate(); // cheap repaint
                         }
-
-                        UpdateBulkArmingUi();
                     };
+
 
                     card.Clicked += (_, __) =>
                     {
@@ -417,7 +433,7 @@ namespace GWxLauncher
 
             // Switching view changes which profiles are checked (per-view),
             // but does not hide profiles by name.
-            RefreshProfileList();
+            _refresher.RequestRefresh(RefreshReason.ViewChanged);
         }
 
         private void CommitViewRenameIfDirty()
@@ -447,9 +463,8 @@ namespace GWxLauncher
                 SetStatus("View rename failed (name already exists).");
                 return;
             }
-
             _views.Save();
-            RefreshProfileList();
+            _refresher.RequestRefresh(RefreshReason.ViewChanged);
         }
 
         // -----------------------------
@@ -575,8 +590,7 @@ namespace GWxLauncher
             ApplyViewScopedUiState();
             _suppressViewTextEvents = false;
 
-            RefreshProfileList();
-            UpdateBulkArmingUi();
+            _refresher.RequestRefresh(RefreshReason.ImportCompleted);
 
             SetStatus("Import complete.");
         }
@@ -638,7 +652,7 @@ namespace GWxLauncher
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
                 _profileManager.Save();
-                RefreshProfileList();
+                _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
             }
         }
         private void menuCopyProfile_Click(object sender, EventArgs e)
@@ -663,7 +677,7 @@ namespace GWxLauncher
             }
 
             _selectedProfileId = copied.Id;
-            RefreshProfileList();
+            _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
             UpdateCardSelectionVisuals();
 
             SetStatus($"Copied profile: {profile.Name} → {copied.Name}");
@@ -685,7 +699,8 @@ namespace GWxLauncher
             {
                 _profileManager.RemoveProfile(profile);
                 _profileManager.Save();
-                RefreshProfileList();
+                _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
+
                 SetStatus($"Deleted account: {profile.Name}.");
             }
         }
@@ -747,7 +762,7 @@ namespace GWxLauncher
             _views.SetShowCheckedOnly(_views.ActiveViewName, _showCheckedOnly);
             _views.Save();
 
-            RefreshProfileList();
+            _refresher.RequestRefresh(RefreshReason.ShowCheckedOnlyChanged);
         }
 
         private void btnViewPrev_Click(object sender, EventArgs e)
@@ -800,7 +815,7 @@ namespace GWxLauncher
             ApplyViewScopedUiState();
             _suppressViewTextEvents = false;
 
-            RefreshProfileList();
+            _refresher.RequestRefresh(RefreshReason.ViewChanged);
         }
 
         // -----------------------------
@@ -860,8 +875,7 @@ namespace GWxLauncher
 
                 // Refresh state after saving so any subsequent checks see the latest values.
                 _config = LauncherConfig.Load();
-                RefreshProfileList();
-                UpdateBulkArmingUi();
+                _refresher.RequestRefresh(RefreshReason.BulkLaunchStateChanged);
             }
 
             if (targets.Count == 0)
@@ -995,8 +1009,7 @@ namespace GWxLauncher
                     _profileManager.AddProfile(dialog.CreatedProfile);
                     _profileManager.Save(); // persist to profiles.json
 
-                    RefreshProfileList();
-                    UpdateBulkArmingUi();
+                    _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
                     SetStatus($"Added account: {dialog.CreatedProfile.Name}");
                 }
             }
@@ -1049,13 +1062,11 @@ namespace GWxLauncher
                             return false;
                         }
                     }
-
                     profile.ExecutablePath = dialog.FileName;
                     _profileManager.Save();
 
-                    RefreshProfileList();
+                    _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
                     SetStatus($"Updated path for {profile.Name}.");
-
                     return true;
                 }
 
