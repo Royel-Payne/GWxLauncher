@@ -46,9 +46,22 @@ namespace GWxLauncher.UI.Controllers
             _trySelectProfileExecutable = trySelectProfileExecutable ?? throw new ArgumentNullException(nameof(trySelectProfileExecutable));
             _trySelectGw1ToolboxDll = trySelectGw1ToolboxDll ?? throw new ArgumentNullException(nameof(trySelectGw1ToolboxDll));
         }
+        public readonly record struct ContextMenuState(
+            bool HasSelectedProfile,
+            bool CanShowLastLaunchDetails);
 
         private GameProfile? SelectedProfile()
             => _selection.GetSelectedProfile(_profiles.Profiles);
+
+        public ContextMenuState GetContextMenuState()
+        {
+            bool hasProfile = SelectedProfile() != null;
+            bool canShowLast = _launchSession.HasAnyReports;
+
+            return new ContextMenuState(
+                HasSelectedProfile: hasProfile,
+                CanShowLastLaunchDetails: canShowLast);
+        }
 
         public void ShowLastLaunchDetails()
         {

@@ -53,19 +53,5 @@ namespace GWxLauncher.UI.Controllers
             return profiles.FirstOrDefault(p =>
                 string.Equals(p.Id, SelectedProfileId, StringComparison.Ordinal));
         }
-        public readonly record struct ContextMenuState(
-            bool HasSelectedProfile,
-            bool CanShowLastLaunchDetails);
-
-        public ContextMenuState GetContextMenuState(IEnumerable<GameProfile> profiles, bool hasAnyLaunchReports)
-        {
-            var profile = GetSelectedProfile(profiles);
-            bool hasProfile = profile != null;
-
-            return new ContextMenuState(
-                HasSelectedProfile: hasProfile,
-                CanShowLastLaunchDetails: hasAnyLaunchReports);
-        }
     }
 }
-

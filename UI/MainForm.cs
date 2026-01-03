@@ -350,10 +350,9 @@ namespace GWxLauncher
 
             SetStatus("Import complete.");
         }
-
         private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
         {
-            var state = _selection.GetContextMenuState(_profileManager.Profiles, _launchSession.HasAnyReports);
+            var state = _profileMenu.GetContextMenuState();
 
             menuLaunchProfile.Enabled = state.HasSelectedProfile;
             menuEditProfile.Enabled = state.HasSelectedProfile;
@@ -404,22 +403,18 @@ namespace GWxLauncher
         {
             _viewUi.OnShowCheckedOnlyChanged();
         }
-
         private void btnViewPrev_Click(object sender, EventArgs e)
         {
             _viewUi.StepView(-1);
         }
-
         private void btnViewNext_Click(object sender, EventArgs e)
         {
             _viewUi.StepView(+1);
         }
-
         private void txtView_TextChanged(object sender, EventArgs e)
         {
             _viewUi.OnViewTextChanged();
         }
-
         private void txtView_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
@@ -427,17 +422,14 @@ namespace GWxLauncher
                 _viewUi.OnViewKeyDown(e);
             }
         }
-
         private void txtView_Leave(object sender, EventArgs e)
         {
             _viewUi.OnViewLeave();
         }
-
         private void txtView_Enter(object sender, EventArgs e)
         {
             _viewUi.OnViewEnter();
         }
-
         private void btnNewView_Click(object sender, EventArgs e)
         {
             _viewUi.CreateNewView();
