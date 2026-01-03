@@ -2,20 +2,10 @@
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
-using System;
-using System.Collections.Generic;
+using GWxLauncher.UI.Controllers;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 using System.Reflection;
-using GWxLauncher.UI.Controllers;
 
 
 
@@ -172,7 +162,6 @@ namespace GWxLauncher
             _selection = new ProfileSelectionController(id => _profileGrid.SetSelectedProfile(id));
 
             _profileGrid.InitializePanel();
-            //_profileGrid.RefreshTheme();
             _refresher = new MainFormRefresher(
                 _ui,
                 refreshProfileList: RefreshProfileList,
