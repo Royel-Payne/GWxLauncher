@@ -12,7 +12,7 @@ namespace GWxLauncher
     {
         #region Fields / State
 
-        private ProfileGridController _profileGrid;
+        private readonly ProfileGridController _profileGrid;
         private readonly ViewUiController _viewUi;
         private readonly MainFormRefresher _refresher;
         private readonly StatusBarController _statusBar;

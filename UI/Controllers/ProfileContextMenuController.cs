@@ -6,43 +6,29 @@ using GWxLauncher.UI;
 
 namespace GWxLauncher.UI.Controllers
 {
-    internal sealed class ProfileContextMenuController
+    internal sealed class ProfileContextMenuController(
+        IWin32Window owner,
+        ProfileManager profiles,
+        ProfileSelectionController selection,
+        LaunchSessionPresenter launchSession,
+        MainFormRefresher refresher,
+        Func<bool> isShowCheckedOnly,
+        Action<string> setStatus,
+        Action<GameProfile, bool> launchProfile,
+        Func<GameProfile, bool> trySelectProfileExecutable)
     {
-        private readonly IWin32Window _owner;
-        private readonly ProfileManager _profiles;
-        private readonly ProfileSelectionController _selection;
-        private readonly LaunchSessionPresenter _launchSession;
-        private readonly MainFormRefresher _refresher;
+        private readonly IWin32Window _owner = owner;
+        private readonly ProfileManager _profiles = profiles;
+        private readonly ProfileSelectionController _selection = selection;
+        private readonly LaunchSessionPresenter _launchSession = launchSession;
+        private readonly MainFormRefresher _refresher = refresher;
 
-        private readonly Func<bool> _isShowCheckedOnly;
-        private readonly Action<string> _setStatus;
+        private readonly Func<bool> _isShowCheckedOnly = isShowCheckedOnly;
+        private readonly Action<string> _setStatus = setStatus;
 
-        private readonly Action<GameProfile, bool> _launchProfile;
-        private readonly Func<GameProfile, bool> _trySelectProfileExecutable;
+        private readonly Action<GameProfile, bool> _launchProfile = launchProfile;
+        private readonly Func<GameProfile, bool> _trySelectProfileExecutable = trySelectProfileExecutable;
 
-        public ProfileContextMenuController(
-            IWin32Window owner,
-            ProfileManager profiles,
-            ProfileSelectionController selection,
-            LaunchSessionPresenter launchSession,
-            MainFormRefresher refresher,
-            Func<bool> isShowCheckedOnly,
-            Action<string> setStatus,
-            Action<GameProfile, bool> launchProfile,
-            Func<GameProfile, bool> trySelectProfileExecutable)
-        {
-            _owner = owner ?? throw new ArgumentNullException(nameof(owner));
-            _profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
-            _selection = selection ?? throw new ArgumentNullException(nameof(selection));
-            _launchSession = launchSession ?? throw new ArgumentNullException(nameof(launchSession));
-            _refresher = refresher ?? throw new ArgumentNullException(nameof(refresher));
-
-            _isShowCheckedOnly = isShowCheckedOnly ?? throw new ArgumentNullException(nameof(isShowCheckedOnly));
-            _setStatus = setStatus ?? throw new ArgumentNullException(nameof(setStatus));
-
-            _launchProfile = launchProfile ?? throw new ArgumentNullException(nameof(launchProfile));
-            _trySelectProfileExecutable = trySelectProfileExecutable ?? throw new ArgumentNullException(nameof(trySelectProfileExecutable));
-        }
         public readonly record struct ContextMenuState(
             bool HasSelectedProfile,
             bool CanShowLastLaunchDetails);
