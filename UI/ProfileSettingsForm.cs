@@ -1,9 +1,8 @@
 ﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Properties;
-using System.Diagnostics;
 using GWxLauncher.Services;
-using GWxLauncher.UI;
+using System.Diagnostics;
 
 
 namespace GWxLauncher.UI

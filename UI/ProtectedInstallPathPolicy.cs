@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-
-namespace GWxLauncher.Services
+﻿namespace GWxLauncher.Services
 {
     internal static class ProtectedInstallPathPolicy
     {

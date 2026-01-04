@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace GWxLauncher.UI.Controllers
+﻿namespace GWxLauncher.UI.Controllers
 {
     internal enum RefreshReason
     {

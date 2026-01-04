@@ -1,8 +1,5 @@
-﻿using System;
-using System.Windows.Forms;
-using GWxLauncher.Domain;
+﻿using GWxLauncher.Domain;
 using GWxLauncher.Services;
-using GWxLauncher.UI;
 
 namespace GWxLauncher.UI.Controllers
 {

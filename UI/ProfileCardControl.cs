@@ -1,8 +1,4 @@
 ﻿using GWxLauncher.Domain;
-using GWxLauncher.Services;
-using System;
-using System.Drawing;
-using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 
 namespace GWxLauncher.UI

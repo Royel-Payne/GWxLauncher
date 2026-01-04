@@ -1,8 +1,5 @@
-﻿using System;
+﻿using GWxLauncher.Domain;
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
-using GWxLauncher.Domain;
 
 namespace GWxLauncher.Services
 {

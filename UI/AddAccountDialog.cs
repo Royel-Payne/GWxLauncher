@@ -1,7 +1,6 @@
 ﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.UI;
-using System.IO;
 
 namespace GWxLauncher
 {

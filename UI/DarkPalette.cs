@@ -1,6 +1,4 @@
-﻿using System.Drawing;
-
-namespace GWxLauncher.UI
+﻿namespace GWxLauncher.UI
 {
     internal sealed class DarkPalette : ThemePalette
     {

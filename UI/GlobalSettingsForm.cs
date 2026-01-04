@@ -1,8 +1,5 @@
 ﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
-using System;
-using System.IO;
-using System.Windows.Forms;
 
 namespace GWxLauncher.UI
 {

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using GWxLauncher.Domain;
+﻿using GWxLauncher.Domain;
 
 namespace GWxLauncher.UI.Controllers
 {

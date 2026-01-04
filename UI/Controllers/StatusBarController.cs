@@ -1,8 +1,4 @@
-﻿using System;
-using System.Drawing;
-using System.Windows.Forms;
-
-namespace GWxLauncher.UI.Controllers
+﻿namespace GWxLauncher.UI.Controllers
 {
     internal sealed class StatusBarController : IDisposable
     {
