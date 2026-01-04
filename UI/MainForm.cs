@@ -42,6 +42,8 @@ namespace GWxLauncher
 
         private readonly ProfileSelectionController _selection;
         private readonly ProfileContextMenuController _profileMenu;
+        private readonly BulkLaunchController _bulkLaunch;
+        private readonly ProfileLaunchController _launchController;
 
 
         // -----------------------------
@@ -76,6 +78,18 @@ namespace GWxLauncher
                 UpdateHeaderResponsiveness();
             };
             _ui = new WinFormsUiDispatcher(this);
+
+            _launchController = new ProfileLaunchController(
+                owner: this,
+                launchSession: _launchSession,
+                statusBar: _statusBar,
+                ui: _ui,
+                gw2Orchestrator: _gw2Orchestrator,
+                gw2Automation: _gw2Automation,
+                gw2RunAfterLauncher: _gw2RunAfterLauncher,
+                getConfig: () => _config,
+                setConfig: c => _config = c,
+                setStatus: SetStatus);
 
             var baseFont = Font;
             try
@@ -145,6 +159,7 @@ namespace GWxLauncher
             _views.Load();
             _launchPolicy = new LaunchEligibilityPolicy(_views);
             _viewUi.InitializeFromStore();
+            _selection = new ProfileSelectionController(setSelectedInGrid: null);
 
             _profileGrid = new ProfileGridController(
                 panel: flpProfiles,
@@ -156,10 +171,11 @@ namespace GWxLauncher
                     _refresher.RequestRefresh(RefreshReason.EligibilityChanged);
                 },
                 onSelected: id => _selection.Select(id),
-                onDoubleClicked: id => EditProfile(id),
+                onDoubleClicked: id => LaunchProfileFromGrid(id),
                 onRightClicked: (id, pt) => ShowProfileContextMenu(id, pt)
             );
-            _selection = new ProfileSelectionController(id => _profileGrid.SetSelectedProfile(id));
+
+            _selection.SetSelectedInGrid(id => _profileGrid.SetSelectedProfile(id));
 
             _profileGrid.InitializePanel();
             _refresher = new MainFormRefresher(
@@ -179,11 +195,26 @@ namespace GWxLauncher
                 refresher: _refresher,
                 isShowCheckedOnly: () => _showCheckedOnly,
                 setStatus: SetStatus,
-                launchProfile: (p, bulkMode) => LaunchProfile(p, bulkMode),
+                launchProfile: (p, bulkMode) => _launchController.LaunchProfile(p, bulkMode),
                 trySelectProfileExecutable: TrySelectProfileExecutable,
                 trySelectGw1ToolboxDll: TrySelectGw1ToolboxDll);
 
             this.Shown += (_, __) => _refresher.RequestRefresh(RefreshReason.Startup);
+
+            _bulkLaunch = new BulkLaunchController(
+                owner: this,
+                profiles: _profileManager,
+                views: _views,
+                policy: _launchPolicy,
+                getShowCheckedOnly: () => _showCheckedOnly,
+                getConfig: () => _config,
+                setConfig: c => _config = c,
+                requestRefresh: r => _refresher.RequestRefresh(r),
+                setStatus: SetStatus,
+                updateBulkArmingUi: UpdateBulkArmingUi,
+                setBulkInProgress: v => _bulkLaunchInProgress = v,
+                launchProfile: (p, bulkMode) => _launchController.LaunchProfile(p, bulkMode),
+                resolveEffectiveExePath: (p, cfg) => _launchController.ResolveEffectiveExePath(p, cfg));
         }
 
         private static AppTheme ParseTheme(string? value)
@@ -440,113 +471,7 @@ namespace GWxLauncher
 
         private async void btnLaunchAll_Click(object sender, EventArgs e)
         {
-            // Always evaluate the latest persisted settings (the settings form saves its own config instance).
-            _config = LauncherConfig.Load();
-
-            var eval = _launchPolicy.EvaluateBulkArming(
-                allProfiles: _profileManager.Profiles,
-                activeViewName: _views.ActiveViewName,
-                showCheckedOnly: _showCheckedOnly,
-                config: _config);
-
-            bool armed = eval.Armed;
-
-            if (!armed)
-            {
-                SetStatus($"Bulk launch not armed · View: {_views.ActiveViewName}");
-                return;
-            }
-
-            var targets = _launchPolicy.BuildBulkTargets(_profileManager.Profiles, _views.ActiveViewName);
-
-            // Guard: multiclient must be enabled for the eligible game type(s) or bulk launch won't work.
-            // Reload config first so this reflects changes made in ProfileSettingsForm without restarting MainForm.
-            if (!_launchPolicy.IsMulticlientEnabledForEligible(_profileManager.Profiles, _views.ActiveViewName, _config, out string missing))
-            {
-                string msg =
-                    "Multiclient not enabled.\n\n" +
-                    $"Not enabled for: {missing}\n\n" +
-                    "Enable it now and continue?";
-
-                var result = MessageBox.Show(this, msg, "Multiclient not enabled", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
-                if (result != DialogResult.OK)
-                {
-                    SetStatus($"Bulk launch canceled · Multiclient missing: {missing}");
-                    return;
-                }
-
-                _launchPolicy.EnableRequiredMulticlientFlagsForEligible(_profileManager.Profiles, _views.ActiveViewName, _config);
-
-                _config.Save();
-
-                // Refresh state after saving so any subsequent checks see the latest values.
-                _config = LauncherConfig.Load();
-                _refresher.RequestRefresh(RefreshReason.BulkLaunchStateChanged);
-            }
-
-            if (targets.Count == 0)
-            {
-                SetStatus($"No checked profiles in view · View: {_views.ActiveViewName}");
-                return;
-            }
-
-            _launchSession.BeginSession(bulkMode: true);
-
-            // Prevent re-entrancy while bulk launch is running.
-            _bulkLaunchInProgress = true;
-            btnLaunchAll.Enabled = false;
-            try
-            {
-                // Run GW2 launches off the UI thread to avoid paint starvation (GW2 automation contains sleeps/polling).
-                // GW1 launches remain on UI thread (fast, minimal waiting), but can be moved later if needed.
-                for (int i = 0; i < targets.Count; i++)
-                {
-                    var profile = targets[i];
-
-                    // For GW1 readiness probing, take a pre-launch snapshot so we can identify the new PID.
-                    var gw1Before = profile.GameType == GameType.GuildWars1
-                        ? CaptureProcessIdsForExePath(GetEffectiveExePathForProfile(profile))
-                        : null;
-
-                    if (profile.GameType == GameType.GuildWars2)
-                    {
-                        // Run GW2 orchestration/automation off the UI thread; return the result so UI can apply it deterministically.
-                        var gw2Result = await Task.Run(() => LaunchProfileGw2BulkWorker(profile));
-
-                        if (gw2Result.Report != null)
-                            ApplyLaunchReportToUi(gw2Result.Report);
-
-                        if (gw2Result.HasMessageBox)
-                        {
-                            MessageBox.Show(
-                                this,
-                                gw2Result.MessageBoxText,
-                                gw2Result.MessageBoxTitle,
-                                MessageBoxButtons.OK,
-                                gw2Result.MessageBoxIsError ? MessageBoxIcon.Error : MessageBoxIcon.Warning);
-                        }
-                    }
-                    else
-                    {
-                        // GW1 is fast and stays on the UI thread.
-                        LaunchProfile(profile, bulkMode: true);
-                    }
-
-                    bool hasNext = (i < targets.Count - 1);
-
-                    // Throttling is only meaningful when there is another account queued.
-                    if (hasNext)
-                        await ApplyBulkLaunchThrottlingAsync(profile, gw1Before);
-
-                    // Give WinForms a chance to repaint between profiles.
-                    await Task.Yield();
-                }
-            }
-            finally
-            {
-                _bulkLaunchInProgress = false;
-                UpdateBulkArmingUi();
-            }
+            await _bulkLaunch.LaunchAllAsync();
         }
 
         private void btnSetGw1Path_Click(object sender, EventArgs e)
@@ -714,109 +639,6 @@ namespace GWxLauncher
         }
 
         // -----------------------------
-        // Launching
-        // -----------------------------
-
-        private void LaunchProfile(GameProfile profile, bool bulkMode)
-        {
-            if (profile == null)
-                return;
-
-            // Single launch = new "session". Bulk launch session is started once in btnLaunchAll_Click.
-            if (!bulkMode)
-                _launchSession.BeginSession(bulkMode: false);
-
-            _config = LauncherConfig.Load();
-
-            string exePath = profile.ExecutablePath;
-
-            if (string.IsNullOrWhiteSpace(exePath))
-            {
-                exePath = profile.GameType == GameType.GuildWars1
-                    ? _config.Gw1Path
-                    : _config.Gw2Path;
-            }
-
-            if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
-            {
-                MessageBox.Show(
-                    "No valid executable path is configured for this profile.\n\n" +
-                    "Edit the profile or configure the game path in settings.",
-                    "Missing executable",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                return;
-            }
-
-            // Re-warn at launch time (warn-only, no elevation, user can continue)
-            if (GWxLauncher.Services.ProtectedInstallPathPolicy.IsProtectedPath(exePath))
-            {
-                bool cont = GWxLauncher.UI.ProtectedInstallPathWarningDialog.ConfirmContinue(this, exePath);
-                if (!cont)
-                {
-                    SetStatus($"Launch cancelled: protected install path for {profile.Name}.");
-                    return;
-                }
-            }
-
-            // GW1: delegate launch + injection to Gw1InjectionService
-            if (profile.GameType == GameType.GuildWars1)
-            {
-                var gw1Service = new Gw1InjectionService();
-                bool mcEnabled = _config.Gw1MulticlientEnabled;
-
-                if (gw1Service.TryLaunchGw1(profile, exePath, mcEnabled, this, out var gw1Error, out var report))
-                {
-                    ApplyLaunchReportToUi(report);
-                }
-                else
-                {
-                    MessageBox.Show(
-                        this,
-                        gw1Error,
-                        "Guild Wars 1 launch",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-
-                    ApplyLaunchReportToUi(report);
-                }
-
-                return;
-            }
-
-            if (profile.GameType == GameType.GuildWars2)
-            {
-                bool mcEnabled = _config.Gw2MulticlientEnabled;
-
-                var result = _gw2Orchestrator.Launch(
-                    profile: profile,
-                    exePath: exePath,
-                    mcEnabled: mcEnabled,
-                    bulkMode: bulkMode,
-                    automationCoordinator: _gw2Automation,
-                    runAfterInvoker: _gw2RunAfterLauncher.Start);
-
-                if (result.Report != null)
-                {
-                    GWxLauncher.Services.ProtectedInstallPathPolicy.TryAppendLaunchReportNote(result.Report, exePath);
-                    ApplyLaunchReportToUi(result.Report);
-                }
-
-                if (result.HasMessageBox)
-                {
-                    MessageBox.Show(
-                        this,
-                        result.MessageBoxText,
-                        result.MessageBoxTitle,
-                        MessageBoxButtons.OK,
-                        result.MessageBoxIsError ? MessageBoxIcon.Error : MessageBoxIcon.Warning);
-                }
-
-                return;
-            }
-        }
-
-        // -----------------------------
         // Bulk launch throttling
         // -----------------------------
 
@@ -945,6 +767,19 @@ namespace GWxLauncher
         // UI helpers
         // -----------------------------
 
+        private void LaunchProfileFromGrid(string profileId)
+        {
+            _selection.Select(profileId);
+
+            var profile = _profileManager.Profiles
+                .FirstOrDefault(p => string.Equals(p.Id, profileId, StringComparison.Ordinal));
+
+            if (profile == null)
+                return;
+
+            _launchController.LaunchProfile(profile, bulkMode: false);
+        }
+
         private void UpdateHeaderResponsiveness()
         {
             // Threshold for expansion
@@ -1003,47 +838,6 @@ namespace GWxLauncher
         {
             _launchSession.Record(report);
             SetStatus(_launchSession.BuildStatusText());
-        }
-
-        /// <summary>
-        /// Bulk-launch worker for GW2 that runs off the UI thread so the listbox/cards can repaint
-        /// while GW2 mutex handling + automation (polling/sleeps/pixel checks) are running.
-        /// UI updates (if needed) should be marshaled back via _ui.Post(...).
-        /// </summary>
-        private Gw2LaunchOrchestrator.Gw2LaunchResult LaunchProfileGw2BulkWorker(GameProfile profile)
-        {
-            if (profile == null)
-                return new Gw2LaunchOrchestrator.Gw2LaunchResult();
-
-            // Use a fresh config snapshot (ProfileSettingsForm writes and saves its own config instance).
-            var cfg = LauncherConfig.Load();
-
-            string exePath = profile.ExecutablePath;
-            if (string.IsNullOrWhiteSpace(exePath))
-                exePath = cfg.Gw2Path;
-
-            if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
-            {
-                return new Gw2LaunchOrchestrator.Gw2LaunchResult
-                {
-                    Report = null,
-                    MessageBoxText =
-                        "No valid executable path is configured for this profile.\n\n" +
-                        "Edit the profile or configure the game path in settings.",
-                    MessageBoxTitle = "Missing executable",
-                    MessageBoxIsError = false
-                };
-            }
-
-            bool mcEnabled = cfg.Gw2MulticlientEnabled;
-
-            return _gw2Orchestrator.Launch(
-                profile: profile,
-                exePath: exePath,
-                mcEnabled: mcEnabled,
-                bulkMode: true,
-                automationCoordinator: _gw2Automation,
-                runAfterInvoker: _gw2RunAfterLauncher.Start);
         }
 
         private void LaunchGame(string exePath, string gameName)

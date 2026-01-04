@@ -7,11 +7,16 @@ namespace GWxLauncher.UI.Controllers
 {
     internal sealed class ProfileSelectionController
     {
-        private readonly Action<string?> _setSelectedInGrid;
+        private Action<string?>? _setSelectedInGrid;
 
         public string? SelectedProfileId { get; private set; }
 
-        public ProfileSelectionController(Action<string?> setSelectedInGrid)
+        public ProfileSelectionController(Action<string?>? setSelectedInGrid)
+        {
+            _setSelectedInGrid = setSelectedInGrid;
+        }
+
+        public void SetSelectedInGrid(Action<string?> setSelectedInGrid)
         {
             _setSelectedInGrid = setSelectedInGrid ?? throw new ArgumentNullException(nameof(setSelectedInGrid));
         }
@@ -19,7 +24,7 @@ namespace GWxLauncher.UI.Controllers
         public void Select(string? profileId)
         {
             SelectedProfileId = profileId;
-            _setSelectedInGrid(profileId);
+            _setSelectedInGrid?.Invoke(profileId);
         }
 
         public void ClearSelection()
