@@ -19,7 +19,6 @@ namespace GWxLauncher.UI.Controllers
 
         private readonly Action<GameProfile, bool> _launchProfile;
         private readonly Func<GameProfile, bool> _trySelectProfileExecutable;
-        private readonly Func<GameProfile, bool> _trySelectGw1ToolboxDll;
 
         public ProfileContextMenuController(
             IWin32Window owner,
