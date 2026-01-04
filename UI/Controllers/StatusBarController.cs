@@ -1,216 +1,221 @@
 ﻿using System;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace GWxLauncher.UI.Controllers
 {
-    /// <summary>
-    /// Owns status label text + marquee behavior.
-    /// Keeps MainForm free of timer/marquee details.
-    /// </summary>
     internal sealed class StatusBarController : IDisposable
     {
         private readonly Label _label;
-        private readonly System.Windows.Forms.Timer _timer = new System.Windows.Forms.Timer();
+        private readonly System.Windows.Forms.Timer _timer;
 
         private string _fullText = "";
-        private int _index = 0;
-        private bool _updateQueued = false;
+        private int _scrollPx = 0;
 
-        private const int IntervalMs = 120;
-        private const string Gap = "   •   ";
+        private int _textWidthPx = 0;
+        private int _gapWidthPx = 0;
+        private bool _needsScroll = false;
+
+        // Tweak if you want faster/slower.
+        private const int IntervalMs = 40;
+        private const int StepPx = 2;
+
+        private const TextFormatFlags DrawFlags =
+            TextFormatFlags.SingleLine |
+            TextFormatFlags.NoPrefix |
+            TextFormatFlags.EndEllipsis; // only used when not scrolling
 
         public StatusBarController(Label label)
         {
             _label = label ?? throw new ArgumentNullException(nameof(label));
-            _timer.Interval = IntervalMs;
-            _timer.Tick += (_, __) => Tick();
-            _label.SizeChanged += (_, __) =>
-            {
-                _index = 0;
-                QueueUpdate();
-            };
 
-            _label.HandleCreated += (_, __) =>
-            {
-                _index = 0;
-                QueueUpdate();
-            };
+            // We do our own drawing.
+            _label.Text = "";
+            _label.AutoEllipsis = false;
+
+            _timer = new System.Windows.Forms.Timer { Interval = IntervalMs };
+            _timer.Tick += (_, __) => OnTick();
+
+            _label.Paint += Label_Paint;
+            _label.SizeChanged += (_, __) => RecomputeAndInvalidate(resetScroll: false);
+            _label.FontChanged += (_, __) => RecomputeAndInvalidate(resetScroll: true);
+            _label.PaddingChanged += (_, __) => RecomputeAndInvalidate(resetScroll: false);
+            _label.HandleCreated += (_, __) => RecomputeAndInvalidate(resetScroll: true);
+
+            RecomputeAndInvalidate(resetScroll: true);
         }
+
         public void SetText(string text)
         {
-            string newText = text ?? "";
+            var newText = text ?? "";
 
-            // If text hasn't changed, don't reset marquee position.
-            // (MainForm may call SetStatus repeatedly with the same value.)
-            bool changed = !string.Equals(_fullText, newText, StringComparison.Ordinal);
-
-            _fullText = newText;
-
-            if (changed)
+            // If text didn't change, do not reset scroll (prevents “stuck at start”).
+            if (string.Equals(_fullText, newText, StringComparison.Ordinal))
             {
-                _index = 0;
-
-                // Show immediately; label will clip if needed.
-                _label.Text = _fullText;
-
-                // Re-evaluate marquee after layout settles.
-                QueueUpdate();
+                // Still ensure scrolling state is correct if we weren't running.
+                EnsureTimerState();
                 return;
             }
 
-            // Same text: keep scrolling if already scrolling; still ensure we start if we weren't.
-            if (!_timer.Enabled)
-                QueueUpdate();
+            _fullText = newText;
+            _scrollPx = 0;
+
+            RecomputeAndInvalidate(resetScroll: true);
         }
 
-        private void QueueUpdate()
+        private void OnTick()
         {
-            if (_updateQueued)
+            if (!_needsScroll)
+            {
+                StopTimer();
+                return;
+            }
+
+            int cycle = _textWidthPx + _gapWidthPx;
+            if (cycle <= 0)
+            {
+                StopTimer();
+                return;
+            }
+
+            _scrollPx += StepPx;
+            if (_scrollPx >= cycle)
+                _scrollPx -= cycle;
+
+            _label.Invalidate();
+        }
+
+        private void Label_Paint(object? sender, PaintEventArgs e)
+        {
+            // Let the label paint its background normally.
+            // We only draw text.
+            var text = _fullText;
+            if (string.IsNullOrEmpty(text))
                 return;
 
+            var rc = _label.ClientRectangle;
+
+            // Apply padding
+            rc = new Rectangle(
+                rc.Left + _label.Padding.Left,
+                rc.Top + _label.Padding.Top,
+                Math.Max(0, rc.Width - (_label.Padding.Left + _label.Padding.Right)),
+                Math.Max(0, rc.Height - (_label.Padding.Top + _label.Padding.Bottom)));
+
+            if (rc.Width <= 0 || rc.Height <= 0)
+                return;
+
+            if (!_needsScroll)
+            {
+                // Just draw once (no scroll).
+                TextRenderer.DrawText(
+                    e.Graphics,
+                    text,
+                    _label.Font,
+                    rc,
+                    _label.ForeColor,
+                    DrawFlags);
+                return;
+            }
+
+            // Scrolling: draw two copies offset by the cycle length.
+            // Draw at x = -_scrollPx, then again at x = -_scrollPx + cycle.
+            int cycle = _textWidthPx + _gapWidthPx;
+            int x1 = rc.Left - _scrollPx;
+            int x2 = x1 + cycle;
+
+            // Draw in a “tall” rect so text stays vertically aligned.
+            var r1 = new Rectangle(x1, rc.Top, rc.Width + cycle, rc.Height);
+            var r2 = new Rectangle(x2, rc.Top, rc.Width + cycle, rc.Height);
+
+            TextRenderer.DrawText(e.Graphics, text, _label.Font, r1, _label.ForeColor, TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+            TextRenderer.DrawText(e.Graphics, text, _label.Font, r2, _label.ForeColor, TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+        }
+
+        private void RecomputeAndInvalidate(bool resetScroll)
+        {
             if (!_label.IsHandleCreated)
                 return;
 
-            _updateQueued = true;
+            if (resetScroll)
+                _scrollPx = 0;
 
-            _label.BeginInvoke((Action)(() =>
+            using var g = _label.CreateGraphics();
+
+            // Available width is the label width minus padding.
+            int available = Math.Max(0, _label.ClientSize.Width - (_label.Padding.Left + _label.Padding.Right));
+
+            if (string.IsNullOrEmpty(_fullText) || available <= 0)
             {
-                _updateQueued = false;
-                Update();
-            }));
-        }
-
-
-        private void Update()
-        {
-            var full = _fullText;
-
-            if (_label.ClientSize.Width <= 0)
-            {
-                Stop();
-                QueueUpdate(); // try again after layout settles
+                _needsScroll = false;
+                _textWidthPx = 0;
+                _gapWidthPx = 0;
+                StopTimer();
+                _label.Invalidate();
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(full))
-            {
-                Stop();
-                _label.Text = "";
-                return;
-            }
-
-            if (TextFits(full))
-            {
-                Stop();
-                _label.Text = full;
-                return;
-            }
-
-            // Need marquee
-            if (!_timer.Enabled)
-            {
-                // Only initialize the marquee display when starting.
-                Start();
-                _label.Text = BuildSlice(full, _index);
-            }
-            // If already running, Tick() owns updating the label text.
-        }
-
-        private bool TextFits(string text)
-        {
-            if (string.IsNullOrEmpty(text))
-                return true;
-
-            // Match the old MainForm behavior: single-line, no padding.
-            var size = TextRenderer.MeasureText(
-                text,
+            // Measure the full text width.
+            var textSize = TextRenderer.MeasureText(
+                g,
+                _fullText,
                 _label.Font,
-                new System.Drawing.Size(int.MaxValue, _label.Height),
-                TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
+                new Size(int.MaxValue, _label.Height),
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
 
-            int padding = _label.Padding.Left + _label.Padding.Right;
-            int available = Math.Max(0, _label.ClientSize.Width - padding);
+            _textWidthPx = textSize.Width;
 
-            return size.Width <= available;
+            // Gap between repeats (in pixels). Use a bullet-ish gap for aesthetics.
+            // You can change this string if you want a wider/narrower gap.
+            var gapSize = TextRenderer.MeasureText(
+                g,
+                "   •   ",
+                _label.Font,
+                new Size(int.MaxValue, _label.Height),
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+
+            _gapWidthPx = Math.Max(24, gapSize.Width);
+
+            _needsScroll = _textWidthPx > available;
+
+            EnsureTimerState();
+            _label.Invalidate();
         }
 
-        private void Start()
+        private void EnsureTimerState()
         {
-            if (!_timer.Enabled)
+            if (_needsScroll)
             {
-                _index = 0;
-                _timer.Start();
+                if (!_timer.Enabled)
+                    _timer.Start();
+            }
+            else
+            {
+                StopTimer();
             }
         }
 
-        private void Stop()
+        private void StopTimer()
         {
             if (_timer.Enabled)
                 _timer.Stop();
-
-            _index = 0;
-        }
-        private void Tick()
-        {
-            if (!_timer.Enabled)
-                return;
-
-            var full = _fullText ?? "";
-
-            if (string.IsNullOrWhiteSpace(full))
-            {
-                Stop();
-                _label.Text = "";
-                return;
-            }
-
-            if (TextFits(full))
-            {
-                Stop();
-                _label.Text = full;
-                return;
-            }
-
-            _index++;
-            _label.Text = BuildSlice(full, _index);
-        }
-
-
-        private static string BuildSlice(string full, int index)
-        {
-            if (string.IsNullOrEmpty(full))
-                return "";
-
-            // Create a looping marquee buffer
-            var buffer = full + Gap + full + Gap;
-
-            // Keep index in range
-            index %= buffer.Length;
-            if (index < 0) index += buffer.Length;
-
-            // Slice to a reasonable length; label will clip anyway.
-            const int sliceLen = 200;
-            if (buffer.Length <= sliceLen)
-                return buffer;
-
-            var start = index;
-            if (start + sliceLen <= buffer.Length)
-                return buffer.Substring(start, sliceLen);
-
-            // Wraparound
-            var part1 = buffer.Substring(start);
-            var part2 = buffer.Substring(0, sliceLen - part1.Length);
-            return part1 + part2;
         }
 
         public void Dispose()
         {
             try
             {
-                Stop();
+                StopTimer();
                 _timer.Dispose();
+
+                _label.Paint -= Label_Paint;
+                // SizeChanged / FontChanged / PaddingChanged were attached via lambdas,
+                // so there’s nothing to detach (safe; label lifetime == controller lifetime).
             }
-            catch { /* best-effort */ }
+            catch
+            {
+                // best-effort
+            }
         }
     }
 }
