@@ -230,8 +230,7 @@ namespace GWxLauncher
                 isShowCheckedOnly: () => _showCheckedOnly,
                 setStatus: SetStatus,
                 launchProfile: (p, bulkMode) => _launchController.LaunchProfile(p, bulkMode),
-                trySelectProfileExecutable: TrySelectProfileExecutable,
-                trySelectGw1ToolboxDll: TrySelectGw1ToolboxDll);
+                trySelectProfileExecutable: TrySelectProfileExecutable);
         }
 
         private BulkLaunchController CreateBulkLaunchController()
@@ -572,38 +571,6 @@ namespace GWxLauncher
                 }
 
                 SetStatus($"No path selected for {profile.Name}.");
-                return false;
-            }
-        }
-
-        private bool TrySelectGw1ToolboxDll(GameProfile profile)
-        {
-            using (var dialog = new OpenFileDialog())
-            {
-                dialog.Title = $"Select GW1 Toolbox DLL for {profile.Name}";
-                dialog.Filter = "DLL files (*.dll)|*.dll|All files (*.*)|*.*";
-
-                if (!string.IsNullOrWhiteSpace(profile.Gw1ToolboxDllPath))
-                {
-                    try
-                    {
-                        dialog.InitialDirectory = Path.GetDirectoryName(profile.Gw1ToolboxDllPath);
-                    }
-                    catch
-                    {
-                        // ignore bad paths
-                    }
-                }
-
-                if (dialog.ShowDialog(this) == DialogResult.OK)
-                {
-                    profile.Gw1ToolboxDllPath = dialog.FileName;
-                    _profileManager.Save();
-                    SetStatus($"Set GW1 Toolbox DLL for {profile.Name}.");
-                    return true;
-                }
-
-                SetStatus($"No Toolbox DLL selected for {profile.Name}.");
                 return false;
             }
         }

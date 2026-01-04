@@ -30,8 +30,7 @@ namespace GWxLauncher.UI.Controllers
             Func<bool> isShowCheckedOnly,
             Action<string> setStatus,
             Action<GameProfile, bool> launchProfile,
-            Func<GameProfile, bool> trySelectProfileExecutable,
-            Func<GameProfile, bool> trySelectGw1ToolboxDll)
+            Func<GameProfile, bool> trySelectProfileExecutable)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
             _profiles = profiles ?? throw new ArgumentNullException(nameof(profiles));
@@ -44,7 +43,6 @@ namespace GWxLauncher.UI.Controllers
 
             _launchProfile = launchProfile ?? throw new ArgumentNullException(nameof(launchProfile));
             _trySelectProfileExecutable = trySelectProfileExecutable ?? throw new ArgumentNullException(nameof(trySelectProfileExecutable));
-            _trySelectGw1ToolboxDll = trySelectGw1ToolboxDll ?? throw new ArgumentNullException(nameof(trySelectGw1ToolboxDll));
         }
         public readonly record struct ContextMenuState(
             bool HasSelectedProfile,
@@ -169,15 +167,6 @@ namespace GWxLauncher.UI.Controllers
                 $"GW1 Toolbox injection " +
                 (profile.Gw1ToolboxEnabled ? "enabled" : "disabled") +
                 $" for {profile.Name}.");
-        }
-
-        public void SetGw1ToolboxPath()
-        {
-            var profile = SelectedProfile();
-            if (profile == null || profile.GameType != GameType.GuildWars1)
-                return;
-
-            _trySelectGw1ToolboxDll(profile);
         }
     }
 }
