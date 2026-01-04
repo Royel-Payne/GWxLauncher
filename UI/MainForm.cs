@@ -4,18 +4,13 @@ using GWxLauncher.Services;
 using GWxLauncher.UI;
 using GWxLauncher.UI.Controllers;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Reflection;
-
-
 
 namespace GWxLauncher
 {
     public partial class MainForm : Form
     {
-        // -----------------------------
-        // Fields / State
-        // -----------------------------
+        #region Fields / State
 
         private ProfileGridController _profileGrid;
         private readonly ViewUiController _viewUi;
@@ -45,41 +40,76 @@ namespace GWxLauncher
         private readonly BulkLaunchController _bulkLaunch;
         private readonly ProfileLaunchController _launchController;
 
+        #endregion
 
-        // -----------------------------
-        // Ctor / Form lifecycle
-        // -----------------------------
+        #region Constructor
 
         public MainForm()
         {
             InitializeComponent();
-            _statusBar = new StatusBarController(lblStatus);
-            _viewUi = new ViewUiController(
+
+            _statusBar = CreateStatusBarController();
+            _viewUi = CreateViewUiController();
+
+            EnableDoubleBuffering(flpProfiles);
+
+            WireResizeHandling();
+            WireSettingsButton();
+
+            _ui = new WinFormsUiDispatcher(this);
+            _launchController = CreateProfileLaunchController();
+
+            (_nameFont, _subFont) = CreateProfileFonts(Font);
+
+            BringToFrontAndWireContextMenu();
+
+            _config = LoadConfigAndApplyTheme();
+
+            WireSeparatorPaintEvents();
+            InitializeTooltips();
+            RestoreWindowPlacementFromConfig();
+
+            LoadDataStores();
+
+            _launchPolicy = new LaunchEligibilityPolicy(_views);
+
+            _viewUi.InitializeFromStore();
+
+            _selection = CreateSelectionController();
+
+            _profileGrid = CreateProfileGridController();
+            _profileGrid.InitializePanel();
+
+            _refresher = CreateRefresher();
+            _viewUi.SetRequestRefresh(r => _refresher.RequestRefresh(r));
+
+            _profileMenu = CreateProfileContextMenuController();
+
+            WireShownRefresh();
+
+            _bulkLaunch = CreateBulkLaunchController();
+        }
+
+        #endregion
+
+        #region Constructor helpers
+
+        private StatusBarController CreateStatusBarController() => new StatusBarController(lblStatus);
+
+        private ViewUiController CreateViewUiController()
+        {
+            return new ViewUiController(
                 views: _views,
                 txtView: txtView,
                 chkShowCheckedOnly: chkArmBulk,
                 setShowCheckedOnly: v => _showCheckedOnly = v,
                 requestRefresh: null,
                 setStatus: SetStatus);
+        }
 
-            EnableDoubleBuffering(flpProfiles);
-
-            this.SizeChanged += (s, e) => { UpdateHeaderResponsiveness(); ReflowStatus(); };
-
-            btnSettings.Click += (s, e) =>
-            {
-                using var dlg = new GWxLauncher.UI.GlobalSettingsForm(_profileManager);
-                dlg.ImportCompleted += (_, __) => ReloadProfilesAndViewsAfterImport();
-                dlg.ProfilesBulkUpdated += (_, __) => _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
-                dlg.ShowDialog(this);
-
-                // Theme may have changed; route through the unified refresher pipeline.
-                _refresher.RequestRefresh(RefreshReason.ThemeChanged);
-                UpdateHeaderResponsiveness();
-            };
-            _ui = new WinFormsUiDispatcher(this);
-
-            _launchController = new ProfileLaunchController(
+        private ProfileLaunchController CreateProfileLaunchController()
+        {
+            return new ProfileLaunchController(
                 owner: this,
                 launchSession: _launchSession,
                 statusBar: _statusBar,
@@ -90,54 +120,44 @@ namespace GWxLauncher
                 getConfig: () => _config,
                 setConfig: c => _config = c,
                 setStatus: SetStatus);
+        }
 
-            var baseFont = Font;
+        private static (Font NameFont, Font SubFont) CreateProfileFonts(Font baseFont)
+        {
             try
             {
-                _nameFont = new Font("Segoe UI Variable", baseFont.Size + 1, FontStyle.Bold);
-                _subFont = new Font("Segoe UI Variable", baseFont.Size - 1, FontStyle.Regular);
+                var nameFont = new Font("Segoe UI Variable", baseFont.Size + 1, FontStyle.Bold);
+                var subFont = new Font("Segoe UI Variable", baseFont.Size - 1, FontStyle.Regular);
+                return (nameFont, subFont);
             }
             catch
             {
-                _nameFont = new Font(baseFont.FontFamily, baseFont.Size + 1, FontStyle.Bold);
-                _subFont = new Font(baseFont.FontFamily, baseFont.Size - 1, FontStyle.Regular);
+                var nameFont = new Font(baseFont.FontFamily, baseFont.Size + 1, FontStyle.Bold);
+                var subFont = new Font(baseFont.FontFamily, baseFont.Size - 1, FontStyle.Regular);
+                return (nameFont, subFont);
             }
+        }
 
+        private void BringToFrontAndWireContextMenu()
+        {
             chkArmBulk.BringToFront(); // ensure it's not obscured
             ctxProfiles.Opening += ctxProfiles_Opening;
+        }
 
-            _config = LauncherConfig.Load();
+        private LauncherConfig LoadConfigAndApplyTheme()
+        {
+            var cfg = LauncherConfig.Load();
 
-            ThemeService.SetTheme(ParseTheme(_config.Theme));
+            ThemeService.SetTheme(ParseTheme(cfg.Theme));
             ThemeService.ApplyToForm(this);
 
             UpdateHeaderResponsiveness();
 
-            // Separators
-            panelView.Paint += (s, e) =>
-            {
-                var r = panelView.ClientRectangle;
-                using var pen = new Pen(ThemeService.Palette.Separator);
-                e.Graphics.DrawLine(pen, r.Left, r.Bottom - 1, r.Right, r.Bottom - 1);
-            };
+            return cfg;
+        }
 
-            lblStatus.Paint += (s, e) =>
-            {
-                using var pen = new Pen(ThemeService.Palette.Separator);
-                e.Graphics.DrawLine(pen, 0, 0, lblStatus.Width - 1, 0);
-            };
-
-            void ReflowStatus()
-            {
-                lblStatus.Invalidate();
-            }
-
-            var tip = new ToolTip();
-            tip.SetToolTip(chkArmBulk, "Show Checked Accounts Only (Enables 'Launch All')");
-            tip.SetToolTip(btnNewView, "Create New Profile");
-            tip.SetToolTip(btnAddAccount, "Add Game Account");
-            tip.SetToolTip(btnLaunchAll, "Launch All Armed Accounts");
-
+        private void RestoreWindowPlacementFromConfig()
+        {
             if (_config.WindowX >= 0 && _config.WindowY >= 0)
             {
                 StartPosition = FormStartPosition.Manual;
@@ -153,15 +173,24 @@ namespace GWxLauncher
             {
                 WindowState = FormWindowState.Maximized;
             }
+        }
 
+        private void LoadDataStores()
+        {
             // Data load
             _profileManager.Load();
             _views.Load();
-            _launchPolicy = new LaunchEligibilityPolicy(_views);
-            _viewUi.InitializeFromStore();
-            _selection = new ProfileSelectionController(setSelectedInGrid: null);
+        }
 
-            _profileGrid = new ProfileGridController(
+        private ProfileSelectionController CreateSelectionController()
+        {
+            // Initially null (set after _profileGrid creation)
+            return new ProfileSelectionController(setSelectedInGrid: null);
+        }
+
+        private ProfileGridController CreateProfileGridController()
+        {
+            var grid = new ProfileGridController(
                 panel: flpProfiles,
                 isEligible: id => _views.IsEligible(_views.ActiveViewName, id),
                 toggleEligible: id =>
@@ -172,22 +201,27 @@ namespace GWxLauncher
                 },
                 onSelected: id => _selection.Select(id),
                 onDoubleClicked: id => LaunchProfileFromGrid(id),
-                onRightClicked: (id, pt) => ShowProfileContextMenu(id, pt)
-            );
+                onRightClicked: (id, pt) => ShowProfileContextMenu(id, pt));
 
-            _selection.SetSelectedInGrid(id => _profileGrid.SetSelectedProfile(id));
+            _selection.SetSelectedInGrid(id => grid.SetSelectedProfile(id));
 
-            _profileGrid.InitializePanel();
-            _refresher = new MainFormRefresher(
+            grid.InitializePanel();
+            return grid;
+        }
+
+        private MainFormRefresher CreateRefresher()
+        {
+            return new MainFormRefresher(
                 _ui,
                 refreshProfileList: RefreshProfileList,
                 updateBulkArmingUi: UpdateBulkArmingUi,
                 applyResponsiveProfileCardLayout: () => _profileGrid.ApplyResponsiveLayout(force: true),
                 refreshTheme: () => _profileGrid.RefreshTheme());
+        }
 
-            _viewUi.SetRequestRefresh(r => _refresher.RequestRefresh(r));
-
-            _profileMenu = new ProfileContextMenuController(
+        private ProfileContextMenuController CreateProfileContextMenuController()
+        {
+            return new ProfileContextMenuController(
                 owner: this,
                 profiles: _profileManager,
                 selection: _selection,
@@ -198,10 +232,11 @@ namespace GWxLauncher
                 launchProfile: (p, bulkMode) => _launchController.LaunchProfile(p, bulkMode),
                 trySelectProfileExecutable: TrySelectProfileExecutable,
                 trySelectGw1ToolboxDll: TrySelectGw1ToolboxDll);
+        }
 
-            this.Shown += (_, __) => _refresher.RequestRefresh(RefreshReason.Startup);
-
-            _bulkLaunch = new BulkLaunchController(
+        private BulkLaunchController CreateBulkLaunchController()
+        {
+            return new BulkLaunchController(
                 owner: this,
                 profiles: _profileManager,
                 views: _views,
@@ -217,6 +252,66 @@ namespace GWxLauncher
                 resolveEffectiveExePath: (p, cfg) => _launchController.ResolveEffectiveExePath(p, cfg));
         }
 
+        private void WireShownRefresh()
+        {
+            this.Shown += (_, __) => _refresher.RequestRefresh(RefreshReason.Startup);
+        }
+
+        private void WireResizeHandling()
+        {
+            this.SizeChanged += (s, e) =>
+            {
+                UpdateHeaderResponsiveness();
+                ReflowStatus();
+            };
+        }
+
+        private void WireSettingsButton()
+        {
+            btnSettings.Click += (s, e) =>
+            {
+                using var dlg = new GWxLauncher.UI.GlobalSettingsForm(_profileManager);
+                dlg.ImportCompleted += (_, __) => ReloadProfilesAndViewsAfterImport();
+                dlg.ProfilesBulkUpdated += (_, __) => _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
+                dlg.ShowDialog(this);
+
+                // Theme may have changed; route through the unified refresher pipeline.
+                _refresher.RequestRefresh(RefreshReason.ThemeChanged);
+                UpdateHeaderResponsiveness();
+            };
+        }
+
+        private void WireSeparatorPaintEvents()
+        {
+            panelView.Paint += (s, e) =>
+            {
+                var r = panelView.ClientRectangle;
+                using var pen = new Pen(ThemeService.Palette.Separator);
+                e.Graphics.DrawLine(pen, r.Left, r.Bottom - 1, r.Right, r.Bottom - 1);
+            };
+
+            lblStatus.Paint += (s, e) =>
+            {
+                using var pen = new Pen(ThemeService.Palette.Separator);
+                e.Graphics.DrawLine(pen, 0, 0, lblStatus.Width - 1, 0);
+            };
+        }
+
+        private void InitializeTooltips()
+        {
+            var tip = new ToolTip();
+            tip.SetToolTip(chkArmBulk, "Show Checked Accounts Only (Enables 'Launch All')");
+            tip.SetToolTip(btnNewView, "Create New Profile");
+            tip.SetToolTip(btnAddAccount, "Add Game Account");
+            tip.SetToolTip(btnLaunchAll, "Launch All Armed Accounts");
+        }
+
+        private void ReflowStatus() => lblStatus.Invalidate();
+
+        #endregion
+
+        #region Theme parsing / Form closing
+
         private static AppTheme ParseTheme(string? value)
         {
             var v = (value ?? "").Trim();
@@ -226,11 +321,6 @@ namespace GWxLauncher
 
             // Default + fallback
             return AppTheme.Light;
-        }
-
-        private void MainForm_Load(object sender, EventArgs e)
-        {
-            // Intentionally empty (kept for designer hook)
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -262,13 +352,15 @@ namespace GWxLauncher
 
             _nameFont?.Dispose();
             _subFont?.Dispose();
+
             _config.Theme = ThemeService.CurrentTheme.ToString();
             _config.Save();
         }
 
         private static void EnableDoubleBuffering(Control c)
         {
-            if (c == null) return;
+            if (c == null)
+                return;
 
             try
             {
@@ -286,9 +378,10 @@ namespace GWxLauncher
             }
         }
 
-        // -----------------------------
-        // Profile list / View logic
-        // -----------------------------
+        #endregion
+
+        #region Profile list / View logic
+
         private void RefreshProfileList()
         {
             _selection.EnsureSelectionValid(_profileManager.Profiles);
@@ -331,33 +424,6 @@ namespace GWxLauncher
             }
         }
 
-        // -----------------------------
-        // Context menu / selection helpers
-        // -----------------------------
-
-        private void EditProfile(string id)
-        {
-            var profile = _profileManager.Profiles.FirstOrDefault(p =>
-                string.Equals(p.Id, id, StringComparison.Ordinal));
-            if (profile == null)
-                return;
-
-            using var dlg = new ProfileSettingsForm(profile);
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-            {
-                _profileManager.Save();
-                _refresher.RequestRefresh(RefreshReason.ProfilesChanged);
-            }
-        }
-
-        private void ShowProfileContextMenu(string id, Point screenPos)
-        {
-            _selection.Select(id);
-
-            // Show context menu at screen position
-            ctxProfiles.Show(screenPos);
-        }
-
         private void ReloadProfilesAndViewsAfterImport()
         {
             _profileManager.Load();
@@ -367,9 +433,21 @@ namespace GWxLauncher
             _viewUi.InitializeFromStore();
 
             _refresher.RequestRefresh(RefreshReason.ImportCompleted);
-
             SetStatus("Import complete.");
         }
+
+        #endregion
+
+        #region Context menu / selection handlers
+
+        private void ShowProfileContextMenu(string id, Point screenPos)
+        {
+            _selection.Select(id);
+
+            // Show context menu at screen position
+            ctxProfiles.Show(screenPos);
+        }
+
         private void ctxProfiles_Opening(object? sender, CancelEventArgs e)
         {
             var state = _profileMenu.GetContextMenuState();
@@ -381,154 +459,45 @@ namespace GWxLauncher
             menuShowLastLaunchDetails.Enabled = state.CanShowLastLaunchDetails;
         }
 
-        private void menuShowLastLaunchDetails_Click(object sender, EventArgs e)
-        {
-            _profileMenu.ShowLastLaunchDetails();
-        }
+        private void menuShowLastLaunchDetails_Click(object sender, EventArgs e) => _profileMenu.ShowLastLaunchDetails();
 
-        private void menuLaunchProfile_Click(object sender, EventArgs e)
-        {
-            _profileMenu.LaunchSelectedProfile();
-        }
-        private void menuSetProfilePath_Click(object sender, EventArgs e)
-        {
-            _profileMenu.SetSelectedProfilePath();
-        }
-        private void menuEditProfile_Click(object sender, EventArgs e)
-        {
-            _profileMenu.EditSelectedProfile();
-        }
-        private void menuCopyProfile_Click(object sender, EventArgs e)
-        {
-            _profileMenu.CopySelectedProfile();
-        }
-        private void menuDeleteProfile_Click(object sender, EventArgs e)
-        {
-            _profileMenu.DeleteSelectedProfile();
-        }
-        private void menuGw1ToolboxToggle_Click(object sender, EventArgs e)
-        {
-            _profileMenu.ToggleGw1Toolbox();
-        }
-        private void menuGw1ToolboxPath_Click(object sender, EventArgs e)
-        {
-            _profileMenu.SetGw1ToolboxPath();
-        }
+        private void menuLaunchProfile_Click(object sender, EventArgs e) => _profileMenu.LaunchSelectedProfile();
 
-        // -----------------------------
-        // View controls
-        // -----------------------------
+        private void menuEditProfile_Click(object sender, EventArgs e) => _profileMenu.EditSelectedProfile();
 
-        private void chkArmBulk_CheckedChanged(object sender, EventArgs e)
-        {
-            _viewUi.OnShowCheckedOnlyChanged();
-        }
-        private void btnViewPrev_Click(object sender, EventArgs e)
-        {
-            _viewUi.StepView(-1);
-        }
-        private void btnViewNext_Click(object sender, EventArgs e)
-        {
-            _viewUi.StepView(+1);
-        }
-        private void txtView_TextChanged(object sender, EventArgs e)
-        {
-            _viewUi.OnViewTextChanged();
-        }
+        private void menuCopyProfile_Click(object sender, EventArgs e) => _profileMenu.CopySelectedProfile();
+
+        private void menuDeleteProfile_Click(object sender, EventArgs e) => _profileMenu.DeleteSelectedProfile();
+
+        #endregion
+
+        #region View controls
+
+        private void chkArmBulk_CheckedChanged(object sender, EventArgs e) => _viewUi.OnShowCheckedOnlyChanged();
+
+        private void btnViewPrev_Click(object sender, EventArgs e) => _viewUi.StepView(-1);
+
+        private void btnViewNext_Click(object sender, EventArgs e) => _viewUi.StepView(+1);
+
+        private void txtView_TextChanged(object sender, EventArgs e) => _viewUi.OnViewTextChanged();
+
         private void txtView_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter)
-            {
                 _viewUi.OnViewKeyDown(e);
-            }
-        }
-        private void txtView_Leave(object sender, EventArgs e)
-        {
-            _viewUi.OnViewLeave();
-        }
-        private void txtView_Enter(object sender, EventArgs e)
-        {
-            _viewUi.OnViewEnter();
-        }
-        private void btnNewView_Click(object sender, EventArgs e)
-        {
-            _viewUi.CreateNewView();
         }
 
-        // -----------------------------
-        // Toolbar buttons
-        // -----------------------------
+        private void txtView_Leave(object sender, EventArgs e) => _viewUi.OnViewLeave();
 
-        private void btnLaunchGw1_Click(object sender, EventArgs e)
-        {
-            LaunchGame(_config.Gw1Path, "Guild Wars 1");
-        }
+        private void txtView_Enter(object sender, EventArgs e) => _viewUi.OnViewEnter();
 
-        private void btnLaunchGw2_Click(object sender, EventArgs e)
-        {
-            LaunchGame(_config.Gw2Path, "Guild Wars 2");
-        }
+        private void btnNewView_Click(object sender, EventArgs e) => _viewUi.CreateNewView();
 
-        private async void btnLaunchAll_Click(object sender, EventArgs e)
-        {
-            await _bulkLaunch.LaunchAllAsync();
-        }
+        #endregion
 
-        private void btnSetGw1Path_Click(object sender, EventArgs e)
-        {
-            using (var dialog = new OpenFileDialog())
-            {
-                dialog.Title = "Select Guild Wars 1 executable";
-                dialog.Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*";
+        #region Toolbar buttons
 
-                if (!string.IsNullOrWhiteSpace(_config.Gw1Path))
-                {
-                    try
-                    {
-                        dialog.InitialDirectory = Path.GetDirectoryName(_config.Gw1Path);
-                    }
-                    catch
-                    {
-                        // ignore invalid paths
-                    }
-                }
-
-                if (dialog.ShowDialog(this) == DialogResult.OK)
-                {
-                    _config.Gw1Path = dialog.FileName;
-                    _config.Save();
-                    SetStatus("GW1 path updated.");
-                }
-            }
-        }
-
-        private void btnSetGw2Path_Click(object sender, EventArgs e)
-        {
-            using (var dialog = new OpenFileDialog())
-            {
-                dialog.Title = "Select Guild Wars 2 executable";
-                dialog.Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*";
-
-                if (!string.IsNullOrWhiteSpace(_config.Gw2Path))
-                {
-                    try
-                    {
-                        dialog.InitialDirectory = Path.GetDirectoryName(_config.Gw2Path);
-                    }
-                    catch
-                    {
-                        // ignore invalid paths
-                    }
-                }
-
-                if (dialog.ShowDialog(this) == DialogResult.OK)
-                {
-                    _config.Gw2Path = dialog.FileName;
-                    _config.Save();
-                    SetStatus("GW2 path updated.");
-                }
-            }
-        }
+        private async void btnLaunchAll_Click(object sender, EventArgs e) => await _bulkLaunch.LaunchAllAsync();
 
         private void btnAddAcount_Click(object sender, EventArgs e)
         {
@@ -546,9 +515,9 @@ namespace GWxLauncher
             }
         }
 
-        // -----------------------------
-        // File picker helpers
-        // -----------------------------
+        #endregion
+
+        #region File picker helpers
 
         // Lets the user pick an executable for a profile, then saves & refreshes the list.
         // Returns true if a path was chosen, false if the user cancelled.
@@ -593,6 +562,7 @@ namespace GWxLauncher
                             return false;
                         }
                     }
+
                     profile.ExecutablePath = dialog.FileName;
                     _profileManager.Save();
 
@@ -638,134 +608,9 @@ namespace GWxLauncher
             }
         }
 
-        // -----------------------------
-        // Bulk launch throttling
-        // -----------------------------
+        #endregion
 
-        private async Task ApplyBulkLaunchThrottlingAsync(GameProfile lastLaunchedProfile, HashSet<int>? gw1BeforePids)
-        {
-            if (lastLaunchedProfile == null)
-                return;
-
-            // Always use latest persisted settings.
-            _config = LauncherConfig.Load();
-
-            int requestedDelaySeconds = lastLaunchedProfile.GameType == GameType.GuildWars1
-                ? _config.Gw1BulkLaunchDelaySeconds
-                : _config.Gw2BulkLaunchDelaySeconds;
-
-            // Attach throttling step to the most recent attempt's report.
-            var report = _launchSession.LastReport;
-
-            Func<bool>? readiness = null;
-
-            if (lastLaunchedProfile.GameType == GameType.GuildWars1)
-            {
-                // Step 3 probe is optional; if we cannot resolve PID or init fails, policy falls back to delay-only.
-                var exePath = GetEffectiveExePathForProfile(lastLaunchedProfile);
-
-                var gw1After = CaptureProcessIdsForExePath(exePath);
-
-                Process? gwProcess = null;
-                if (gw1BeforePids != null)
-                {
-                    var newPids = gw1After.Except(gw1BeforePids).ToList();
-                    if (newPids.Count == 1)
-                    {
-                        try
-                        {
-                            gwProcess = Process.GetProcessById(newPids[0]);
-                        }
-                        catch
-                        {
-                            gwProcess = null;
-                        }
-                    }
-                }
-
-                if (gwProcess != null)
-                {
-                    var probe = new Gw1ClientStateProbe();
-                    if (probe.TryInitialize(gwProcess) && probe.IsAvailable)
-                    {
-                        readiness = probe.IsReady;
-                    }
-                    else
-                    {
-                        probe.Dispose();
-                    }
-                }
-            }
-
-            // Status callback uses the required "Throttling" language.
-            Action<string> status = s =>
-            {
-                if (!string.IsNullOrWhiteSpace(s))
-                    SetStatus(s);
-            };
-
-            await BulkLaunchThrottlingPolicy.ApplyAsync(
-                gameType: lastLaunchedProfile.GameType,
-                requestedDelaySeconds: requestedDelaySeconds,
-                readinessCheck: readiness,
-                statusCallback: status,
-                report: report);
-
-            // After throttling completes, restore the normal status text (now includes "Throttling ✓" in the summary).
-            SetStatus(_launchSession.BuildStatusText());
-        }
-
-        private string GetEffectiveExePathForProfile(GameProfile profile)
-        {
-            if (profile == null)
-                return "";
-
-            if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
-                return profile.ExecutablePath;
-
-            // _config is already loaded in the bulk entrypoint; this reload is safe and matches existing patterns.
-            _config = LauncherConfig.Load();
-
-            return profile.GameType == GameType.GuildWars1
-                ? _config.Gw1Path
-                : _config.Gw2Path;
-        }
-
-        private static HashSet<int> CaptureProcessIdsForExePath(string exePath)
-        {
-            var set = new HashSet<int>();
-
-            if (string.IsNullOrWhiteSpace(exePath))
-                return set;
-
-            foreach (var p in Process.GetProcesses())
-            {
-                try
-                {
-                    // Accessing MainModule can throw; we treat failures as "not match".
-                    string? path = p.MainModule?.FileName;
-                    if (!string.IsNullOrWhiteSpace(path) &&
-                        string.Equals(path, exePath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        set.Add(p.Id);
-                    }
-                }
-                catch
-                {
-                    // ignore
-                }
-                finally
-                {
-                    try { p.Dispose(); } catch { }
-                }
-            }
-
-            return set;
-        }
-
-        // -----------------------------
-        // UI helpers
-        // -----------------------------
+        #region UI helpers
 
         private void LaunchProfileFromGrid(string profileId)
         {
@@ -782,115 +627,175 @@ namespace GWxLauncher
 
         private void UpdateHeaderResponsiveness()
         {
-            // Threshold for expansion
-            bool isWide = this.Width > 480;
+            var layout = HeaderLayout.Compute(
+                formWidth: this.Width,
+                clientWidth: this.ClientSize.Width,
+                settingsWidth: btnSettings.Width,
+                viewNextWidth: btnViewNext.Width,
+                viewPrevWidth: btnViewPrev.Width);
 
-            // 1. Core Dimensions
-            int btnWidth = isWide ? 110 : 32;
-            int btnHeight = 28; // RESTORED: Separation gap returns when height is 28
-            int rightPadding = 12;
-            int leftPadding = 12;
-            int gap = 8;
+            btnSettings.Left = layout.SettingsLeft;
 
-            // 2. PIN THE FAR-RIGHT GROUP (Settings & Launch)
-            // Settings stays top-right
-            btnSettings.Left = this.ClientSize.Width - rightPadding - btnSettings.Width;
+            btnLaunchAll.Text = layout.LaunchAllText;
+            btnLaunchAll.Size = layout.LaunchAllSize;
+            btnLaunchAll.Left = layout.LaunchAllLeft;
 
-            // Launch All aligns flush with the right edge
-            btnLaunchAll.Text = isWide ? "▶ Launch All" : "▶";
-            btnLaunchAll.Size = new Size(isWide ? 100 : 32, btnHeight);
-            btnLaunchAll.Left = this.ClientSize.Width - rightPadding - btnLaunchAll.Width;
+            btnViewNext.Left = layout.ViewNextLeft;
 
-            // 3. POSITION THE NAVIGATION '>' (Relative to Settings)
-            btnViewNext.Left = btnSettings.Left - btnViewNext.Width - gap;
+            btnNewView.Text = layout.NewProfileText;
+            btnNewView.Size = layout.NewProfileSize;
+            btnNewView.Left = layout.NewProfileLeft;
 
-            // 4. UPDATE THE LEFT GROUP (New/Add)
-            btnNewView.Text = isWide ? "➕ New Profile" : "➕";
-            btnNewView.Size = new Size(btnWidth, btnHeight);
-            btnNewView.Left = leftPadding;
+            btnAddAccount.Text = layout.AddAccountText;
+            btnAddAccount.Size = layout.AddAccountSize;
+            btnAddAccount.Left = layout.AddAccountLeft;
 
-            btnAddAccount.Text = isWide ? "👤 Add Account" : "👤";
-            btnAddAccount.Size = new Size(btnWidth, btnHeight);
-            btnAddAccount.Left = leftPadding;
+            btnViewPrev.Left = layout.ViewPrevLeft;
 
-            // 5. CENTER NAVIGATION (Arrows & TextBox)
-            btnViewPrev.Left = btnNewView.Right + gap;
+            txtView.Left = layout.ViewTextLeft;
+            txtView.Width = layout.ViewTextWidth;
 
-            txtView.Left = btnViewPrev.Right + 4;
-            txtView.Width = Math.Max(32, btnViewNext.Left - txtView.Left - 4);
-
-            // 6. THE CHECKBOX ALIGNMENT FIX
-            // Moving Top to 41 lifts it up to align with the buttons in row 2
-            chkArmBulk.Top = 41;
-            chkArmBulk.Left = btnViewPrev.Left + 2;
-
-            // Toggle label based on width preference
-            chkArmBulk.Text = isWide ? "▶ Show Checked Accounts Only" : "▶ Show Checked";
+            chkArmBulk.Top = layout.ShowCheckedTop;
+            chkArmBulk.Left = layout.ShowCheckedLeft;
+            chkArmBulk.Text = layout.ShowCheckedText;
             chkArmBulk.ForeColor = ThemeService.Palette.SubtleFore;
         }
 
-        private void SetStatus(string text)
-        {
-            _statusBar.SetText(text);
-        }
+        private void SetStatus(string text) => _statusBar.SetText(text);
 
-        private void ApplyLaunchReportToUi(LaunchReport report)
-        {
-            _launchSession.Record(report);
-            SetStatus(_launchSession.BuildStatusText());
-        }
+        #endregion
 
-        private void LaunchGame(string exePath, string gameName)
+        #region Header layout helper
+
+        private readonly struct HeaderLayout
         {
-            try
+            public int SettingsLeft { get; }
+            public string LaunchAllText { get; }
+            public Size LaunchAllSize { get; }
+            public int LaunchAllLeft { get; }
+
+            public int ViewNextLeft { get; }
+
+            public string NewProfileText { get; }
+            public Size NewProfileSize { get; }
+            public int NewProfileLeft { get; }
+
+            public string AddAccountText { get; }
+            public Size AddAccountSize { get; }
+            public int AddAccountLeft { get; }
+
+            public int ViewPrevLeft { get; }
+            public int ViewTextLeft { get; }
+            public int ViewTextWidth { get; }
+
+            public int ShowCheckedTop { get; }
+            public int ShowCheckedLeft { get; }
+            public string ShowCheckedText { get; }
+
+            private HeaderLayout(
+                int settingsLeft,
+                string launchAllText,
+                Size launchAllSize,
+                int launchAllLeft,
+                int viewNextLeft,
+                string newProfileText,
+                Size newProfileSize,
+                int newProfileLeft,
+                string addAccountText,
+                Size addAccountSize,
+                int addAccountLeft,
+                int viewPrevLeft,
+                int viewTextLeft,
+                int viewTextWidth,
+                int showCheckedTop,
+                int showCheckedLeft,
+                string showCheckedText)
             {
-                // New: handle missing/blank path from config
-                if (string.IsNullOrWhiteSpace(exePath))
-                {
-                    MessageBox.Show(
-                        $"{gameName} path is not set.\n\n" +
-                        "Please set the correct EXE path.",
-                        "Path Not Set",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-
-                    return;
-                }
-
-                // Existing check: path is set, but file not found on disk
-                if (!File.Exists(exePath))
-                {
-                    MessageBox.Show(
-                        $"Could not find {gameName} executable.\n\nPath:\n{exePath}",
-                        "Executable Not Found",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-
-                    return;
-                }
-
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = exePath,
-                    UseShellExecute = false
-                };
-
-                _ = Process.Start(startInfo);
-
-                if (lblStatus != null)
-                    SetStatus($"{gameName} launched.");
+                SettingsLeft = settingsLeft;
+                LaunchAllText = launchAllText;
+                LaunchAllSize = launchAllSize;
+                LaunchAllLeft = launchAllLeft;
+                ViewNextLeft = viewNextLeft;
+                NewProfileText = newProfileText;
+                NewProfileSize = newProfileSize;
+                NewProfileLeft = newProfileLeft;
+                AddAccountText = addAccountText;
+                AddAccountSize = addAccountSize;
+                AddAccountLeft = addAccountLeft;
+                ViewPrevLeft = viewPrevLeft;
+                ViewTextLeft = viewTextLeft;
+                ViewTextWidth = viewTextWidth;
+                ShowCheckedTop = showCheckedTop;
+                ShowCheckedLeft = showCheckedLeft;
+                ShowCheckedText = showCheckedText;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    $"Failed to launch {gameName}.\n\n{ex.Message}",
-                    "Launch Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
 
-                if (lblStatus != null)
-                    SetStatus($"Error launching {gameName}.");
+            public static HeaderLayout Compute(int formWidth, int clientWidth, int settingsWidth, int viewNextWidth, int viewPrevWidth)
+            {
+                // Threshold for expansion
+                bool isWide = formWidth > 480;
+
+                // 1. Core Dimensions
+                int btnWidth = isWide ? 110 : 32;
+                int btnHeight = 28; // RESTORED: Separation gap returns when height is 28
+                int rightPadding = 12;
+                int leftPadding = 12;
+                int gap = 8;
+
+                // 2. PIN THE FAR-RIGHT GROUP (Settings & Launch)
+                int settingsLeft = clientWidth - rightPadding - settingsWidth;
+
+                string launchAllText = isWide ? "▶ Launch All" : "▶";
+                var launchAllSize = new Size(isWide ? 100 : 32, btnHeight);
+                int launchAllLeft = clientWidth - rightPadding - launchAllSize.Width;
+
+                // 3. POSITION THE NAVIGATION '>' (Relative to Settings)
+                int viewNextLeft = settingsLeft - viewNextWidth - gap;
+
+                // 4. UPDATE THE LEFT GROUP (New/Add)
+                string newProfileText = isWide ? "➕ New Profile" : "➕";
+                var newProfileSize = new Size(btnWidth, btnHeight);
+                int newProfileLeft = leftPadding;
+                int newProfileRight = newProfileLeft + newProfileSize.Width;
+
+                string addAccountText = isWide ? "👤 Add Account" : "👤";
+                var addAccountSize = new Size(btnWidth, btnHeight);
+                int addAccountLeft = leftPadding;
+
+                // 5. CENTER NAVIGATION (Arrows & TextBox)
+                int viewPrevLeft = newProfileRight + gap;
+                int viewPrevRight = viewPrevLeft + viewPrevWidth;
+
+                int viewTextLeft = viewPrevRight + 4;
+                int viewTextWidth = Math.Max(32, viewNextLeft - viewTextLeft - 4);
+
+                // 6. THE CHECKBOX ALIGNMENT FIX
+                int showCheckedTop = 41;
+                int showCheckedLeft = viewPrevLeft + 2;
+
+                string showCheckedText = isWide ? "▶ Show Checked Accounts Only" : "▶ Show Checked";
+
+                return new HeaderLayout(
+                    settingsLeft,
+                    launchAllText,
+                    launchAllSize,
+                    launchAllLeft,
+                    viewNextLeft,
+                    newProfileText,
+                    newProfileSize,
+                    newProfileLeft,
+                    addAccountText,
+                    addAccountSize,
+                    addAccountLeft,
+                    viewPrevLeft,
+                    viewTextLeft,
+                    viewTextWidth,
+                    showCheckedTop,
+                    showCheckedLeft,
+                    showCheckedText);
             }
         }
+
+        #endregion
     }
 }
