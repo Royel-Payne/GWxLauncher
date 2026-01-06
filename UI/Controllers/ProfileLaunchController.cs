@@ -99,14 +99,15 @@ namespace GWxLauncher.UI.Controllers
             }
 
             // GW1: delegate launch + injection to Gw1InjectionService
-            if (profile.GameType == GameType.GuildWars1 && _gw1Instances.IsRunning(profile.Id))
+            if (profile.GameType == GameType.GuildWars1)
             {
-                MessageBox.Show(_owner, $"\"{profile.Name}\" is already running.", "Already Running",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+                if (_gw1Instances.IsRunning(profile.Id))
+                {
+                    MessageBox.Show(_owner, $"\"{profile.Name}\" is already running.", "Already Running",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
 
-            {
                 var gw1Service = new Gw1InjectionService();
                 bool mcEnabled = cfg.Gw1MulticlientEnabled;
 
