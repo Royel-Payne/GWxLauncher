@@ -31,6 +31,10 @@ namespace GWxLauncher.UI
             CancelButton = btnCancel;
 
             LoadFromConfig();
+
+            rbDark.CheckedChanged += ThemeRadio_CheckedChanged;
+            rbLight.CheckedChanged += ThemeRadio_CheckedChanged;
+
             ThemeService.ApplyToForm(this);
         }
 
@@ -47,9 +51,11 @@ namespace GWxLauncher.UI
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning) == DialogResult.Yes;
         }
-
         private void btnApplyGlobalFlags_Click(object sender, EventArgs e)
         {
+            // Ensure we use the current on-screen values (not stale config).
+            CommitUiToConfigAndSave();
+
             var pm = _profileManager;
             var targets = pm.Profiles.Where(p => p.GameType == GameType.GuildWars1).ToList();
 
@@ -74,9 +80,11 @@ namespace GWxLauncher.UI
             MessageBox.Show(this, $"Updated {targets.Count} profile(s).", "Done");
             ProfilesBulkUpdated?.Invoke(this, EventArgs.Empty);
         }
-
         private void btnApplyGlobalPaths_Click(object sender, EventArgs e)
         {
+            // Ensure we use the current on-screen values (not stale config).
+            CommitUiToConfigAndSave();
+
             var pm = _profileManager;
             var targets = pm.Profiles.Where(p => p.GameType == GameType.GuildWars1).ToList();
 
@@ -330,6 +338,41 @@ namespace GWxLauncher.UI
             {
                 target.Text = dlg.FileName;
                 setConfigValue(dlg.FileName);
+            }
+        }
+                private void CommitUiToConfigAndSave()
+        {
+            // Persist theme selection (in config) — saving is needed so bulk-apply uses current values.
+            _cfg.Theme = rbDark.Checked ? "Dark" : "Light";
+
+            // Persist DLL paths
+            _cfg.LastToolboxPath = (txtToolbox.Text ?? "").Trim();
+            _cfg.LastGModPath = (txtGMod.Text ?? "").Trim();
+            _cfg.LastPy4GWPath = (txtPy4GW.Text ?? "").Trim();
+
+            // Persist global mod kill-switches
+            _cfg.GlobalToolboxEnabled = cbGlobalToolbox.Checked;
+            _cfg.GlobalPy4GwEnabled = cbGlobalPy4Gw.Checked;
+            _cfg.GlobalGModEnabled = cbGlobalGMod.Checked;
+
+            _cfg.Save();
+        }
+        private void ThemeRadio_CheckedChanged(object? sender, EventArgs e)
+        {
+            // Only act when the radio is becoming checked (avoid double-firing on uncheck)
+            if (sender is RadioButton rb && !rb.Checked)
+                return;
+
+            var theme = rbDark.Checked ? AppTheme.Dark : AppTheme.Light;
+
+            // Live preview (do NOT save here; OK will persist)
+            ThemeService.SetTheme(theme);
+
+            foreach (Form f in Application.OpenForms)
+            {
+                ThemeService.ApplyToForm(f);
+                f.Invalidate(true);
+                f.Refresh();
             }
         }
 
