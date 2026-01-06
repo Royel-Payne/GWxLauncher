@@ -26,6 +26,7 @@ namespace GWxLauncher
         private readonly Gw2LaunchOrchestrator _gw2Orchestrator = new Gw2LaunchOrchestrator();
         private readonly LaunchEligibilityPolicy _launchPolicy;
         private readonly WinFormsUiDispatcher _ui;
+        private readonly Gw1InstanceTracker _gw1Instances = new();
 
         private readonly Image _gw1Image = Properties.Resources.Gw1;
         private readonly Image _gw2Image = Properties.Resources.Gw2;
@@ -71,6 +72,8 @@ namespace GWxLauncher
 
             LoadDataStores();
 
+            _gw1Instances.RehydrateFromRunningProcesses(_profileManager.Profiles);
+
             _launchPolicy = new LaunchEligibilityPolicy(_views);
 
             _viewUi.InitializeFromStore();
@@ -81,6 +84,9 @@ namespace GWxLauncher
             _profileGrid.InitializePanel();
 
             _refresher = CreateRefresher();
+
+            _gw1Instances.RunStateChanged += (_, __) => _refresher.RequestRefresh(RefreshReason.Unknown);
+
             _viewUi.SetRequestRefresh(r => _refresher.RequestRefresh(r));
 
             _profileMenu = CreateProfileContextMenuController();
@@ -114,6 +120,7 @@ namespace GWxLauncher
                 launchSession: _launchSession,
                 statusBar: _statusBar,
                 ui: _ui,
+                gw1Instances: _gw1Instances, // ADD THIS LINE
                 gw2Orchestrator: _gw2Orchestrator,
                 gw2Automation: _gw2Automation,
                 gw2RunAfterLauncher: _gw2RunAfterLauncher,
@@ -199,6 +206,8 @@ namespace GWxLauncher
                     _views.Save();
                     _refresher.RequestRefresh(RefreshReason.EligibilityChanged);
                 },
+                // ADD THIS ARGUMENT (right after toggleEligible)
+                isRunning: id => _gw1Instances.IsRunning(id),
                 onSelected: id => _selection.Select(id),
                 onDoubleClicked: id => LaunchProfileFromGrid(id),
                 onRightClicked: (id, pt) => ShowProfileContextMenu(id, pt));
@@ -241,6 +250,7 @@ namespace GWxLauncher
                 views: _views,
                 policy: _launchPolicy,
                 getShowCheckedOnly: () => _showCheckedOnly,
+                isRunning: id => _gw1Instances.IsRunning(id),
                 getConfig: () => _config,
                 setConfig: c => _config = c,
                 requestRefresh: r => _refresher.RequestRefresh(r),
@@ -427,6 +437,7 @@ namespace GWxLauncher
         {
             _profileManager.Load();
             _views.Load();
+            _gw1Instances.RehydrateFromRunningProcesses(_profileManager.Profiles);
 
             // Re-sync view UI from the store using the controller
             _viewUi.InitializeFromStore();

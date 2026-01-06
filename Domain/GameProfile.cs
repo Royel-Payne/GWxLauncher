@@ -59,6 +59,10 @@
         public bool Gw1AutoSelectCharacterEnabled { get; set; } = false;
         public string Gw1CharacterName { get; set; } = "";
 
+        // Optional custom label used for GW1 window title renaming
+        // If empty, Profile.Name is used.
+        public string Gw1WindowTitleLabel { get; set; } = "";
+
         // -----------------------------
         // GW2 – Run-after programs
         // -----------------------------

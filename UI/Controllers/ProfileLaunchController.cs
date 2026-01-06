@@ -11,6 +11,8 @@ namespace GWxLauncher.UI.Controllers
         private readonly StatusBarController _statusBar;
         private readonly WinFormsUiDispatcher _ui;
 
+        private readonly Gw1InstanceTracker _gw1Instances;
+
         private readonly Gw2LaunchOrchestrator _gw2Orchestrator;
         private readonly Gw2AutomationCoordinator _gw2Automation;
         private readonly Gw2RunAfterLauncher _gw2RunAfterLauncher;
@@ -24,6 +26,7 @@ namespace GWxLauncher.UI.Controllers
             LaunchSessionPresenter launchSession,
             StatusBarController statusBar,
             WinFormsUiDispatcher ui,
+            Gw1InstanceTracker gw1Instances,
             Gw2LaunchOrchestrator gw2Orchestrator,
             Gw2AutomationCoordinator gw2Automation,
             Gw2RunAfterLauncher gw2RunAfterLauncher,
@@ -35,6 +38,8 @@ namespace GWxLauncher.UI.Controllers
             _launchSession = launchSession ?? throw new ArgumentNullException(nameof(launchSession));
             _statusBar = statusBar ?? throw new ArgumentNullException(nameof(statusBar));
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
+
+            _gw1Instances = gw1Instances ?? throw new ArgumentNullException(nameof(gw1Instances));
 
             _gw2Orchestrator = gw2Orchestrator ?? throw new ArgumentNullException(nameof(gw2Orchestrator));
             _gw2Automation = gw2Automation ?? throw new ArgumentNullException(nameof(gw2Automation));
@@ -94,14 +99,50 @@ namespace GWxLauncher.UI.Controllers
             }
 
             // GW1: delegate launch + injection to Gw1InjectionService
-            if (profile.GameType == GameType.GuildWars1)
+            if (profile.GameType == GameType.GuildWars1 && _gw1Instances.IsRunning(profile.Id))
+            {
+                MessageBox.Show(_owner, $"\"{profile.Name}\" is already running.", "Already Running",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             {
                 var gw1Service = new Gw1InjectionService();
                 bool mcEnabled = cfg.Gw1MulticlientEnabled;
 
-                if (gw1Service.TryLaunchGw1(profile, exePath, mcEnabled, _owner, out var gw1Error, out var report))
+                if (gw1Service.TryLaunchGw1(profile, exePath, mcEnabled, _owner,
+                    out var launchedProcess, out var gw1Error, out var report))
                 {
                     ApplyLaunchReportToUi(report);
+
+                    if (launchedProcess != null)
+                    {
+                        _gw1Instances.TrackLaunched(profile.Id, launchedProcess);
+
+                        if (cfg.Gw1WindowTitleEnabled)
+                        {
+                            var profileName = (profile.Name ?? "").Trim();
+                            var perProfile = (profile.Gw1WindowTitleLabel ?? "").Trim();
+
+                            string title;
+
+                            if (!string.IsNullOrWhiteSpace(perProfile))
+                            {
+                                // Per-profile override wins (no tokens)
+                                title = perProfile;
+                            }
+                            else
+                            {
+                                var globalDefault = (cfg.Gw1WindowTitleTemplate ?? "").Trim();
+
+                                title = string.IsNullOrWhiteSpace(globalDefault)
+                                    ? profileName
+                                    : globalDefault.Replace("{ProfileName}", profileName);
+                            }
+
+                            WindowTitleService.TrySetMainWindowTitle(launchedProcess, title, TimeSpan.FromSeconds(15));
+                        }
+                    }
                 }
                 else
                 {

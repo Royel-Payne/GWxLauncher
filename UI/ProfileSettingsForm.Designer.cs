@@ -31,6 +31,8 @@ namespace GWxLauncher.UI
         private void InitializeComponent()
         {
             txtProfileName = new TextBox();
+            lblGw1WindowTitleLabel = new Label();
+            txtGw1WindowTitleLabel = new TextBox();
             label1 = new Label();
             label2 = new Label();
             txtExecutablePath = new TextBox();
@@ -96,6 +98,22 @@ namespace GWxLauncher.UI
             txtProfileName.Size = new Size(187, 23);
             txtProfileName.TabIndex = 0;
             // 
+            // lblGw1WindowTitleLabel
+            // 
+            lblGw1WindowTitleLabel.AutoSize = true;
+            lblGw1WindowTitleLabel.Location = new Point(12, 56);
+            lblGw1WindowTitleLabel.Name = "lblGw1WindowTitleLabel";
+            lblGw1WindowTitleLabel.Size = new Size(116, 15);
+            lblGw1WindowTitleLabel.TabIndex = 10;
+            lblGw1WindowTitleLabel.Text = "Title Label (optional)";
+            // 
+            // txtGw1WindowTitleLabel
+            // 
+            txtGw1WindowTitleLabel.Location = new Point(129, 52);
+            txtGw1WindowTitleLabel.Name = "txtGw1WindowTitleLabel";
+            txtGw1WindowTitleLabel.Size = new Size(156, 23);
+            txtGw1WindowTitleLabel.TabIndex = 11;
+            // 
             // label1
             // 
             label1.AutoSize = true;
@@ -145,7 +163,7 @@ namespace GWxLauncher.UI
             grpGw1Mods.Controls.Add(lvGw1GModPlugins);
             grpGw1Mods.Controls.Add(btnGw1AddPlugin);
             grpGw1Mods.Controls.Add(btnGw1RemovePlugin);
-            grpGw1Mods.Location = new Point(309, 86);
+            grpGw1Mods.Location = new Point(309, 97);
             grpGw1Mods.Name = "grpGw1Mods";
             grpGw1Mods.Size = new Size(400, 257);
             grpGw1Mods.TabIndex = 5;
@@ -279,7 +297,7 @@ namespace GWxLauncher.UI
             // chkGw1Multiclient
             // 
             chkGw1Multiclient.AutoSize = true;
-            chkGw1Multiclient.Location = new Point(328, 48);
+            chkGw1Multiclient.Location = new Point(328, 59);
             chkGw1Multiclient.Name = "chkGw1Multiclient";
             chkGw1Multiclient.Size = new Size(83, 19);
             chkGw1Multiclient.TabIndex = 9;
@@ -293,7 +311,7 @@ namespace GWxLauncher.UI
             grpGw2RunAfter.Controls.Add(lvGw2RunAfter);
             grpGw2RunAfter.Controls.Add(btnGw2AddProgram);
             grpGw2RunAfter.Controls.Add(btnGw2RemoveProgram);
-            grpGw2RunAfter.Location = new Point(309, 86);
+            grpGw2RunAfter.Location = new Point(309, 97);
             grpGw2RunAfter.Name = "grpGw2RunAfter";
             grpGw2RunAfter.Size = new Size(400, 257);
             grpGw2RunAfter.TabIndex = 5;
@@ -390,7 +408,7 @@ namespace GWxLauncher.UI
             grpGw1Login.Controls.Add(txtGw1Email);
             grpGw1Login.Controls.Add(lblGw1Email);
             grpGw1Login.Controls.Add(chkGw1AutoLogin);
-            grpGw1Login.Location = new Point(12, 86);
+            grpGw1Login.Location = new Point(12, 97);
             grpGw1Login.Name = "grpGw1Login";
             grpGw1Login.Size = new Size(273, 257);
             grpGw1Login.TabIndex = 5;
@@ -517,7 +535,7 @@ namespace GWxLauncher.UI
             grpGw2Login.Controls.Add(txtGw2Password);
             grpGw2Login.Controls.Add(lblGw2PasswordSaved);
             grpGw2Login.Controls.Add(chkGw2AutoPlay);
-            grpGw2Login.Location = new Point(12, 86);
+            grpGw2Login.Location = new Point(12, 97);
             grpGw2Login.Name = "grpGw2Login";
             grpGw2Login.Size = new Size(273, 257);
             grpGw2Login.TabIndex = 5;
@@ -614,8 +632,9 @@ namespace GWxLauncher.UI
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(721, 406);
-            Controls.Add(grpGw2RunAfter);
             Controls.Add(grpGw1Mods);
+            Controls.Add(grpGw1Login);
+            Controls.Add(grpGw2RunAfter);
             Controls.Add(chkGw1Multiclient);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
@@ -625,9 +644,8 @@ namespace GWxLauncher.UI
             Controls.Add(label1);
             Controls.Add(txtProfileName);
             Controls.Add(grpGw2Login);
-            Controls.Add(grpGw1Login);
-            FormBorderStyle = FormBorderStyle.Sizable;
-            MaximizeBox = true;
+            Controls.Add(txtGw1WindowTitleLabel);
+            Controls.Add(lblGw1WindowTitleLabel);
             Name = "ProfileSettingsForm";
             Text = "ProfileSettingsForm";
             grpGw1Mods.ResumeLayout(false);
@@ -645,6 +663,8 @@ namespace GWxLauncher.UI
         #endregion
 
         private TextBox txtProfileName;
+        private Label lblGw1WindowTitleLabel;
+        private TextBox txtGw1WindowTitleLabel;
         private Label label1;
         private Label label2;
         private TextBox txtExecutablePath;

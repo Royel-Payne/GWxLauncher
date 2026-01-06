@@ -21,6 +21,12 @@ namespace GWxLauncher.Config
         public bool Gw1MulticlientEnabled { get; set; } = true;
         public bool Gw2MulticlientEnabled { get; set; } = true;
         // -----------------------------
+        // GW1 window title renaming
+        // -----------------------------
+        public bool Gw1WindowTitleEnabled { get; set; } = false;
+        // Template supports: {ProfileName}
+        public string Gw1WindowTitleTemplate { get; set; } = "GW1 · {ProfileName}";
+        // -----------------------------
         // Global mod kill-switches
         // -----------------------------
 

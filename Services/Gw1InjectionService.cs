@@ -459,10 +459,12 @@ namespace GWxLauncher.Services
             string exePath,
             bool gw1MulticlientEnabled,
             IWin32Window owner,
+            out Process? launchedProcess,
             out string errorMessage,
             out LaunchReport report)
         {
             errorMessage = string.Empty;
+            launchedProcess = null;
 
             report = new LaunchReport
             {
@@ -876,6 +878,8 @@ namespace GWxLauncher.Services
                     stepPy4Gw.Detail = "Disabled";
                 }
             }
+
+            launchedProcess = process;
 
             report.Succeeded = true;
             return true;

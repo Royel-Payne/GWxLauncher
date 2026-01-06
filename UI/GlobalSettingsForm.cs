@@ -32,6 +32,11 @@ namespace GWxLauncher.UI
 
             LoadFromConfig();
 
+            cbGw1RenameWindowTitle.CheckedChanged += (_, __) =>
+            {
+                txtGw1TitleTemplate.Enabled = cbGw1RenameWindowTitle.Checked;
+            };
+
             rbDark.CheckedChanged += ThemeRadio_CheckedChanged;
             rbLight.CheckedChanged += ThemeRadio_CheckedChanged;
 
@@ -132,6 +137,13 @@ namespace GWxLauncher.UI
             cbGlobalPy4Gw.Checked = _cfg.GlobalPy4GwEnabled;
             cbGlobalGMod.Checked = _cfg.GlobalGModEnabled;
 
+            cbGw1RenameWindowTitle.Checked = _cfg.Gw1WindowTitleEnabled;
+
+            txtGw1TitleTemplate.Text = string.IsNullOrWhiteSpace(_cfg.Gw1WindowTitleTemplate)
+                ? "GW1 · {ProfileName}"
+                : _cfg.Gw1WindowTitleTemplate;
+
+            txtGw1TitleTemplate.Enabled = cbGw1RenameWindowTitle.Checked;
         }
 
         private void SaveAndClose()
@@ -147,6 +159,13 @@ namespace GWxLauncher.UI
             _cfg.GlobalToolboxEnabled = cbGlobalToolbox.Checked;
             _cfg.GlobalPy4GwEnabled = cbGlobalPy4Gw.Checked;
             _cfg.GlobalGModEnabled = cbGlobalGMod.Checked;
+
+            _cfg.Gw1WindowTitleEnabled = cbGw1RenameWindowTitle.Checked;
+
+            var template = (txtGw1TitleTemplate.Text ?? "").Trim();
+            _cfg.Gw1WindowTitleTemplate = string.IsNullOrWhiteSpace(template)
+                ? "GW1 · {ProfileName}"
+                : template;
 
             _cfg.Save();
 

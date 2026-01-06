@@ -22,6 +22,9 @@ namespace GWxLauncher.UI
         public Func<string, bool>? IsEligible { get; set; }
         public Action<string>? ToggleEligible { get; set; }
 
+        // Provided by MainForm (runtime-only). True if this profile is currently running.
+        public Func<string, bool>? IsRunning { get; set; }
+
         public ProfileCardControl(
             GameProfile profile,
             Image gw1Image,
@@ -164,9 +167,28 @@ namespace GWxLauncher.UI
                     g.DrawString(Profile.Name, _nameFont, nameBrush, nameRect, sf);
             }
 
-            string subText = Profile.GameType == GameType.GuildWars1 ? "Guild Wars 1" : "Guild Wars 2";
-            using (var subBrush = new SolidBrush(ThemeService.CardPalette.SubFore))
-                g.DrawString(subText, _subFont, subBrush, subRect);
+            var subText = Profile.GameType == GameType.GuildWars1 ? "Guild Wars 1" : "Guild Wars 2";
+
+            bool isRunning = false;
+            try
+            {
+                if (Profile.GameType == GameType.GuildWars1 && IsRunning != null)
+                    isRunning = IsRunning(Profile.Id);
+            }
+            catch { /* best-effort */ }
+
+            if (isRunning)
+            {
+                // No dot. Just a subtle color shift.
+                using (var subBrush = new SolidBrush(ThemeService.CardPalette.Accent))
+                    g.DrawString(subText, _subFont, subBrush, subRect);
+            }
+            else
+            {
+                using (var subBrush = new SolidBrush(ThemeService.CardPalette.SubFore))
+                    g.DrawString(subText, _subFont, subBrush, subRect);
+            }
+
 
             // --- Badges (Vertical Column) ---
             var badges = BuildBadges(Profile);

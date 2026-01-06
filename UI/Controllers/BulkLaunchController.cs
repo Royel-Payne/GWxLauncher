@@ -12,6 +12,7 @@ namespace GWxLauncher.UI.Controllers
         private readonly ViewStateStore _views;
         private readonly LaunchEligibilityPolicy _policy;
         private readonly Func<bool> _getShowCheckedOnly;
+        private readonly Func<string, bool> _isRunning;
         private readonly Func<LauncherConfig> _getConfig;
         private readonly Action<LauncherConfig> _setConfig;
 
@@ -29,6 +30,7 @@ namespace GWxLauncher.UI.Controllers
             ViewStateStore views,
             LaunchEligibilityPolicy policy,
             Func<bool> getShowCheckedOnly,
+            Func<string, bool> isRunning,
             Func<LauncherConfig> getConfig,
             Action<LauncherConfig> setConfig,
             Action<RefreshReason> requestRefresh,
@@ -44,6 +46,7 @@ namespace GWxLauncher.UI.Controllers
             _policy = policy ?? throw new ArgumentNullException(nameof(policy));
 
             _getShowCheckedOnly = getShowCheckedOnly ?? throw new ArgumentNullException(nameof(getShowCheckedOnly));
+            _isRunning = isRunning ?? throw new ArgumentNullException(nameof(isRunning));
             _getConfig = getConfig ?? throw new ArgumentNullException(nameof(getConfig));
             _setConfig = setConfig ?? throw new ArgumentNullException(nameof(setConfig));
 
@@ -124,6 +127,13 @@ namespace GWxLauncher.UI.Controllers
 
                     if (profile.GameType == GameType.GuildWars1)
                         gw1Before ??= CaptureProcessIdsForExePath(_resolveEffectiveExePath(profile, _getConfig()));
+
+                    if (_isRunning(profile.Id))
+                    {
+                        // Skip already-running profiles (bulk launch should be best-effort).
+                        _setStatus($"Skipping running: {profile.Name}");
+                        continue;
+                    }
 
                     _launchProfile(profile, true);
 

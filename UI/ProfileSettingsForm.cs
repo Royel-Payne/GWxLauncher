@@ -276,6 +276,7 @@ namespace GWxLauncher.UI
             // ---- Load values first ----
             txtProfileName.Text = _profile.Name;
             txtExecutablePath.Text = _profile.ExecutablePath;
+            txtGw1WindowTitleLabel.Text = (_profile.Gw1WindowTitleLabel ?? "").Trim();
 
             chkGw1AutoLogin.Checked = _profile.Gw1AutoLoginEnabled;
             txtGw1Email.Text = _profile.Gw1Email;
@@ -338,6 +339,9 @@ namespace GWxLauncher.UI
 
             if (isGw1)
             {
+                lblGw1WindowTitleLabel.Visible = true;
+                txtGw1WindowTitleLabel.Visible = true;
+
                 chkGw1Multiclient.Visible = true;
                 chkGw1Multiclient.Checked = _cfg.Gw1MulticlientEnabled;
 
@@ -354,6 +358,10 @@ namespace GWxLauncher.UI
             }
             else if (isGw2)
             {
+
+                lblGw1WindowTitleLabel.Visible = false;
+                txtGw1WindowTitleLabel.Visible = false;
+
                 grpGw2RunAfter.Visible = true;
                 grpGw2RunAfter.Enabled = true;
 
@@ -396,6 +404,12 @@ namespace GWxLauncher.UI
         {
             _profile.Name = txtProfileName.Text.Trim();
             _profile.ExecutablePath = txtExecutablePath.Text.Trim();
+
+            if (_profile.GameType == GameType.GuildWars1)
+            {
+                var label = (txtGw1WindowTitleLabel.Text ?? "").Trim();
+                _profile.Gw1WindowTitleLabel = string.IsNullOrWhiteSpace(label) ? null : label;
+            }
 
             // GW1 login
             _profile.Gw1AutoLoginEnabled = chkGw1AutoLogin.Checked;

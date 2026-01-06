@@ -7,6 +7,8 @@ namespace GWxLauncher.UI.Controllers
         private readonly Func<string, bool> _isEligible;
         private readonly Action<string> _toggleEligible;
 
+        private readonly Func<string, bool> _isRunning;
+
         private readonly Action<string> _onSelected;
         private readonly Action<string> _onDoubleClicked;
         private readonly Action<string, Point> _onRightClicked;
@@ -19,6 +21,7 @@ namespace GWxLauncher.UI.Controllers
             FlowLayoutPanel panel,
             Func<string, bool> isEligible,
             Action<string> toggleEligible,
+            Func<string, bool> isRunning,
             Action<string> onSelected,
             Action<string> onDoubleClicked,
             Action<string, Point> onRightClicked)
@@ -26,6 +29,7 @@ namespace GWxLauncher.UI.Controllers
             _panel = panel ?? throw new ArgumentNullException(nameof(panel));
             _isEligible = isEligible ?? throw new ArgumentNullException(nameof(isEligible));
             _toggleEligible = toggleEligible ?? throw new ArgumentNullException(nameof(toggleEligible));
+            _isRunning = isRunning ?? throw new ArgumentNullException(nameof(isRunning));
 
             _onSelected = onSelected ?? throw new ArgumentNullException(nameof(onSelected));
             _onDoubleClicked = onDoubleClicked ?? throw new ArgumentNullException(nameof(onDoubleClicked));
@@ -90,7 +94,8 @@ namespace GWxLauncher.UI.Controllers
                         subFont)
                     {
                         IsEligible = id => _isEligible(id),
-                        ToggleEligible = id => _toggleEligible(id)
+                        ToggleEligible = id => _toggleEligible(id),
+                        IsRunning = id => _isRunning(id)
                     };
 
                     card.Clicked += (_, __) => _onSelected(profile.Id);

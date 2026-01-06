@@ -44,14 +44,19 @@ namespace GWxLauncher.UI
             rbLight = new RadioButton();
             rbDark = new RadioButton();
             label4 = new Label();
+            cbGw1RenameWindowTitle = new CheckBox();
+            txtGw1TitleTemplate = new TextBox();
+            labelGw1TitleHelp = new Label();
             btnOk = new Button();
             btnCancel = new Button();
             grpImport = new GroupBox();
             label6 = new Label();
             btnImportAccountsJson = new Button();
+            groupBox1 = new GroupBox();
             grpDll.SuspendLayout();
             grpGeneral.SuspendLayout();
             grpImport.SuspendLayout();
+            groupBox1.SuspendLayout();
             SuspendLayout();
             // 
             // btnApplyGlobalFlags
@@ -225,7 +230,7 @@ namespace GWxLauncher.UI
             grpGeneral.Controls.Add(label4);
             grpGeneral.Location = new Point(12, 13);
             grpGeneral.Name = "grpGeneral";
-            grpGeneral.Size = new Size(273, 113);
+            grpGeneral.Size = new Size(273, 80);
             grpGeneral.TabIndex = 7;
             grpGeneral.TabStop = false;
             grpGeneral.Text = "General";
@@ -261,6 +266,32 @@ namespace GWxLauncher.UI
             label4.TabIndex = 0;
             label4.Text = "Theme";
             // 
+            // cbGw1RenameWindowTitle
+            // 
+            cbGw1RenameWindowTitle.AutoSize = true;
+            cbGw1RenameWindowTitle.Location = new Point(17, 22);
+            cbGw1RenameWindowTitle.Name = "cbGw1RenameWindowTitle";
+            cbGw1RenameWindowTitle.Size = new Size(109, 19);
+            cbGw1RenameWindowTitle.TabIndex = 3;
+            cbGw1RenameWindowTitle.Text = "Set Titlebar Text";
+            cbGw1RenameWindowTitle.UseVisualStyleBackColor = true;
+            // 
+            // txtGw1TitleTemplate
+            // 
+            txtGw1TitleTemplate.Location = new Point(17, 47);
+            txtGw1TitleTemplate.Name = "txtGw1TitleTemplate";
+            txtGw1TitleTemplate.Size = new Size(170, 23);
+            txtGw1TitleTemplate.TabIndex = 5;
+            // 
+            // labelGw1TitleHelp
+            // 
+            labelGw1TitleHelp.ForeColor = Color.Goldenrod;
+            labelGw1TitleHelp.Location = new Point(17, 75);
+            labelGw1TitleHelp.Name = "labelGw1TitleHelp";
+            labelGw1TitleHelp.Size = new Size(250, 34);
+            labelGw1TitleHelp.TabIndex = 6;
+            labelGw1TitleHelp.Text = "Default window title used when a profile\r\n does not define a custom Title Label.";
+            // 
             // btnOk
             // 
             btnOk.Location = new Point(530, 369);
@@ -285,9 +316,9 @@ namespace GWxLauncher.UI
             // 
             grpImport.Controls.Add(label6);
             grpImport.Controls.Add(btnImportAccountsJson);
-            grpImport.Location = new Point(12, 153);
+            grpImport.Location = new Point(12, 247);
             grpImport.Name = "grpImport";
-            grpImport.Size = new Size(273, 117);
+            grpImport.Size = new Size(273, 96);
             grpImport.TabIndex = 10;
             grpImport.TabStop = false;
             grpImport.Text = "Import";
@@ -295,7 +326,7 @@ namespace GWxLauncher.UI
             // label6
             // 
             label6.AutoSize = true;
-            label6.Location = new Point(6, 29);
+            label6.Location = new Point(17, 28);
             label6.Name = "label6";
             label6.Size = new Size(187, 30);
             label6.TabIndex = 1;
@@ -304,7 +335,7 @@ namespace GWxLauncher.UI
             // 
             // btnImportAccountsJson
             // 
-            btnImportAccountsJson.Location = new Point(183, 78);
+            btnImportAccountsJson.Location = new Point(183, 61);
             btnImportAccountsJson.Name = "btnImportAccountsJson";
             btnImportAccountsJson.Size = new Size(75, 23);
             btnImportAccountsJson.TabIndex = 0;
@@ -312,11 +343,24 @@ namespace GWxLauncher.UI
             btnImportAccountsJson.UseVisualStyleBackColor = true;
             btnImportAccountsJson.Click += btnImportAccountsJson_Click;
             // 
+            // groupBox1
+            // 
+            groupBox1.Controls.Add(txtGw1TitleTemplate);
+            groupBox1.Controls.Add(labelGw1TitleHelp);
+            groupBox1.Controls.Add(cbGw1RenameWindowTitle);
+            groupBox1.Location = new Point(12, 114);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(273, 112);
+            groupBox1.TabIndex = 11;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "Game Window Title";
+            // 
             // GlobalSettingsForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(721, 406);
+            Controls.Add(groupBox1);
             Controls.Add(grpImport);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
@@ -330,6 +374,8 @@ namespace GWxLauncher.UI
             grpGeneral.PerformLayout();
             grpImport.ResumeLayout(false);
             grpImport.PerformLayout();
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
             ResumeLayout(false);
 
         }
@@ -353,11 +399,15 @@ namespace GWxLauncher.UI
         private Label label4;
         private RadioButton rbDark;
         private RadioButton rbLight;
+        private CheckBox cbGw1RenameWindowTitle;
+        private TextBox txtGw1TitleTemplate;
+        private Label labelGw1TitleHelp;
         private Button btnOk;
         private Button btnCancel;
         private Label label5;
         private GroupBox grpImport;
         private Label label6;
         private Button btnImportAccountsJson;
+        private GroupBox groupBox1;
     }
 }
