@@ -40,6 +40,46 @@ namespace GWxLauncher.Services
                 return true;
             }
         }
+        public bool TryGetProfileIdByProcessId(int processId, out string profileId)
+        {
+            profileId = "";
+
+            if (processId <= 0)
+                return false;
+
+            lock (_gate)
+            {
+                foreach (var kvp in _instancesByProfileId)
+                {
+                    var inst = kvp.Value;
+                    if (inst.ProcessId == processId && inst.IsAlive())
+                    {
+                        profileId = kvp.Key;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+        public bool TryGetProcessIdByProfileId(string profileId, out int processId)
+        {
+            processId = 0;
+
+            if (string.IsNullOrWhiteSpace(profileId))
+                return false;
+
+            lock (_gate)
+            {
+                if (_instancesByProfileId.TryGetValue(profileId, out var inst) && inst.IsAlive())
+                {
+                    processId = inst.ProcessId;
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         public void TrackLaunched(string profileId, Process process)
         {

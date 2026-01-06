@@ -27,6 +27,8 @@ namespace GWxLauncher
         private readonly LaunchEligibilityPolicy _launchPolicy;
         private readonly WinFormsUiDispatcher _ui;
         private readonly Gw1InstanceTracker _gw1Instances = new();
+        private readonly Gw1ForegroundFollower _gw1ForegroundFollower;
+
 
         private readonly Image _gw1Image = Properties.Resources.Gw1;
         private readonly Image _gw2Image = Properties.Resources.Gw2;
@@ -82,6 +84,15 @@ namespace GWxLauncher
 
             _profileGrid = CreateProfileGridController();
             _profileGrid.InitializePanel();
+
+            _gw1ForegroundFollower = new Gw1ForegroundFollower(
+                tracker: _gw1Instances,
+                getSelectedProfileId: () => _selection.SelectedProfileId,
+                selectProfile: id => _selection.Select(id),
+                intervalMs: 300);
+
+            _gw1ForegroundFollower.Start();
+
 
             _refresher = CreateRefresher();
 
@@ -206,9 +217,12 @@ namespace GWxLauncher
                     _views.Save();
                     _refresher.RequestRefresh(RefreshReason.EligibilityChanged);
                 },
-                // ADD THIS ARGUMENT (right after toggleEligible)
                 isRunning: id => _gw1Instances.IsRunning(id),
-                onSelected: id => _selection.Select(id),
+                onSelected: id =>
+                {
+                    _selection.Select(id);
+                    TryFocusRunningGw1Window(id);
+                },
                 onDoubleClicked: id => LaunchProfileFromGrid(id),
                 onRightClicked: (id, pt) => ShowProfileContextMenu(id, pt));
 
@@ -338,6 +352,7 @@ namespace GWxLauncher
             // values saved by other forms (e.g., GlobalSettingsForm saving Last*Path).
             _config = LauncherConfig.Load();
             _statusBar.Dispose();
+            _gw1ForegroundFollower?.Dispose();
 
             if (WindowState == FormWindowState.Normal)
             {
@@ -589,6 +604,48 @@ namespace GWxLauncher
         #endregion
 
         #region UI helpers
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_RESTORE = 9;
+
+        private void TryFocusRunningGw1Window(string profileId)
+        {
+            if (string.IsNullOrWhiteSpace(profileId))
+                return;
+
+            // Resolve profile to confirm game type (GW1 only)
+            var profile = _profileManager.Profiles
+                .FirstOrDefault(p => string.Equals(p.Id, profileId, StringComparison.Ordinal));
+
+            if (profile == null || profile.GameType != GameType.GuildWars1)
+                return;
+
+            // Must be a GW1 instance launched/tracked by us
+            if (!_gw1Instances.TryGetProcessIdByProfileId(profile.Id, out int pid))
+                return;
+
+            try
+            {
+                var proc = System.Diagnostics.Process.GetProcessById(pid);
+                var hwnd = proc.MainWindowHandle;
+
+                if (hwnd == IntPtr.Zero)
+                    return;
+
+                // Best-effort: restore if minimized, then bring to foreground.
+                ShowWindow(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+            }
+            catch
+            {
+                // best-effort: if process exited or handle invalid, do nothing
+            }
+        }
 
         private void LaunchProfileFromGrid(string profileId)
         {
