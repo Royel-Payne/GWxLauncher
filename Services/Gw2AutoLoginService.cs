@@ -1,7 +1,7 @@
-﻿using GWxLauncher.Domain;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using GWxLauncher.Domain;
 
 namespace GWxLauncher.Services
 {

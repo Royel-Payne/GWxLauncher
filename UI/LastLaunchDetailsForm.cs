@@ -1,5 +1,5 @@
-﻿using GWxLauncher.Services;
-using System.Text;
+﻿using System.Text;
+using GWxLauncher.Services;
 
 namespace GWxLauncher.UI
 {

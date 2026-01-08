@@ -1,14 +1,14 @@
-﻿using GWxLauncher.Config;
-using GWxLauncher.Domain;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using GWxLauncher.Config;
+using GWxLauncher.Domain;
 using static GWxLauncher.Services.NativeMethods;
+using PEB_MIN = GWxLauncher.Services.NativeMethods.PEB_MIN;
 using PROCESS_BASIC_INFORMATION = GWxLauncher.Services.NativeMethods.PROCESS_BASIC_INFORMATION;
 using PROCESS_INFORMATION = GWxLauncher.Services.NativeMethods.PROCESS_INFORMATION;
-using STARTUPINFO = GWxLauncher.Services.NativeMethods.STARTUPINFO;
 using ProcessAccessFlags = GWxLauncher.Services.NativeMethods.ProcessAccessFlags;
-using PEB_MIN = GWxLauncher.Services.NativeMethods.PEB_MIN;
+using STARTUPINFO = GWxLauncher.Services.NativeMethods.STARTUPINFO;
 
 namespace GWxLauncher.Services
 {

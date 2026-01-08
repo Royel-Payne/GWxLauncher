@@ -359,7 +359,7 @@ namespace GWxLauncher.UI
                 setConfigValue(dlg.FileName);
             }
         }
-                private void CommitUiToConfigAndSave()
+        private void CommitUiToConfigAndSave()
         {
             // Persist theme selection (in config) — saving is needed so bulk-apply uses current values.
             _cfg.Theme = rbDark.Checked ? "Dark" : "Light";

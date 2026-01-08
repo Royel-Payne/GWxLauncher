@@ -1,10 +1,10 @@
-﻿using GWxLauncher.Config;
+﻿using System.ComponentModel;
+using System.Reflection;
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
 using GWxLauncher.UI.Controllers;
-using System.ComponentModel;
-using System.Reflection;
 
 namespace GWxLauncher
 {

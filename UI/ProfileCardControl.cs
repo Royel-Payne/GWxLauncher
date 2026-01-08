@@ -1,5 +1,5 @@
-﻿using GWxLauncher.Domain;
-using System.Windows.Forms.VisualStyles;
+﻿using System.Windows.Forms.VisualStyles;
+using GWxLauncher.Domain;
 
 namespace GWxLauncher.UI
 {

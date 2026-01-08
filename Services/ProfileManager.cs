@@ -1,7 +1,7 @@
-﻿using GWxLauncher.Config;
-using GWxLauncher.Domain;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using GWxLauncher.Config;
+using GWxLauncher.Domain;
 
 namespace GWxLauncher.Services
 {

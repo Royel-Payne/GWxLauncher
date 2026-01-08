@@ -1,5 +1,5 @@
-﻿using GWxLauncher.Domain;
-using System.Text;
+﻿using System.Text;
+using GWxLauncher.Domain;
 
 namespace GWxLauncher.Services
 {

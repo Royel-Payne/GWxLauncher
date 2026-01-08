@@ -1,6 +1,6 @@
 ﻿// File: Services/Gw2RunAfterLauncher.cs
-using GWxLauncher.Domain;
 using System.Diagnostics;
+using GWxLauncher.Domain;
 
 namespace GWxLauncher.Services
 {

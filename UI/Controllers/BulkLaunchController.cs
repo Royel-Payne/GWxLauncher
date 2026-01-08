@@ -1,7 +1,7 @@
-﻿using GWxLauncher.Config;
+﻿using System.Diagnostics;
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
-using System.Diagnostics;
 
 namespace GWxLauncher.UI.Controllers
 {
