@@ -141,7 +141,11 @@ namespace GWxLauncher.Services
             if (File.Exists(linkPath))
                 File.Delete(linkPath);
 
-            File.Copy(canonical, linkPath, overwrite: true);
+            // Try hardlink first (per decisions.md), fallback to copy if it fails (e.g. cross-volume)
+            if (!CreateHardLinkW(linkPath, canonical, IntPtr.Zero))
+            {
+                File.Copy(canonical, linkPath, overwrite: true);
+            }
 
             // Generate modlist.txt deterministically.
             string modlist = Path.Combine(folder, "modlist.txt");
@@ -462,7 +466,7 @@ namespace GWxLauncher.Services
                 // 2) Normal launch (with or without multiclient patch)
                 if (gw1MulticlientEnabled)
                 {
-                    report.UsedSuspendedLaunch = true; // <-- MOVE THIS UP
+                    report.UsedSuspendedLaunch = true;
                     stepLaunch.Outcome = StepOutcome.Pending;
                     stepLaunch.Detail = "Starting (suspended CreateProcessW + multiclient patch)";
 
@@ -557,7 +561,7 @@ namespace GWxLauncher.Services
                     }
                     finally
                     {
-                        // NEW: kill orphaned suspended GW if we failed after CreateProcessW
+                        // kill orphaned suspended GW if we failed after CreateProcessW
                         if (!launchedOk)
                             KillProcessIfCreatedButFailed(procInfo);
 
@@ -914,7 +918,7 @@ namespace GWxLauncher.Services
             }
             finally
             {
-                // NEW: kill orphaned suspended GW if we failed after CreateProcessW
+                // kill orphaned suspended GW if we failed after CreateProcessW
                 if (!launchedOk)
                     KillProcessIfCreatedButFailed(procInfo);
 
