@@ -1,4 +1,5 @@
-﻿using GWxLauncher.Config;
+﻿using System.Diagnostics;
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 
@@ -61,7 +62,7 @@ namespace GWxLauncher.UI.Controllers
             return profile.GameType == GameType.GuildWars1 ? cfg.Gw1Path : cfg.Gw2Path;
         }
 
-        public void LaunchProfile(GameProfile profile, bool bulkMode)
+        public async Task LaunchProfileAsync(GameProfile profile, bool bulkMode)
         {
             if (profile == null)
                 return;
@@ -98,6 +99,8 @@ namespace GWxLauncher.UI.Controllers
                 }
             }
 
+            var stopwatch = Stopwatch.StartNew();
+
             // GW1: delegate launch + injection to Gw1InjectionService
             if (profile.GameType == GameType.GuildWars1)
             {
@@ -108,41 +111,69 @@ namespace GWxLauncher.UI.Controllers
                     return;
                 }
 
-                var gw1Service = new Gw1InjectionService();
                 bool mcEnabled = cfg.Gw1MulticlientEnabled;
+                bool winTitleEnabled = cfg.Gw1WindowTitleEnabled;
+                string profileName = (profile.Name ?? "").Trim();
+                string titleLabel = (profile.Gw1WindowTitleLabel ?? "").Trim();
+                string titleTemplate = (cfg.Gw1WindowTitleTemplate ?? "").Trim();
+                
+                // Define UI-safe message callback
+                Action<string, string, bool> showMessage = (msg, title, isError) =>
+                {
+                    _ui.Post(() => MessageBox.Show(
+                        _owner, 
+                        msg, 
+                        title, 
+                        MessageBoxButtons.OK, 
+                        isError ? MessageBoxIcon.Error : MessageBoxIcon.Warning));
+                };
 
-                if (gw1Service.TryLaunchGw1(profile, exePath, mcEnabled, _owner,
-                    out var launchedProcess, out var gw1Error, out var report))
+                // Move heavy work to background
+                var (success, launchedProcess, gw1Error, report) = await Task.Run(() =>
+                {
+                    var gw1Service = new Gw1InjectionService();
+                    
+                    bool ok = gw1Service.TryLaunchGw1(
+                        profile, exePath, mcEnabled, _owner,
+                        out var proc, out var err, out var rep, showMessage); // Pass showMessage delegate
+
+                    if (ok && proc != null && winTitleEnabled)
+                    {
+                        string title;
+                        if (!string.IsNullOrWhiteSpace(titleLabel))
+                        {
+                            title = titleLabel;
+                        }
+                        else
+                        {
+                            title = string.IsNullOrWhiteSpace(titleTemplate)
+                                ? profileName
+                                : titleTemplate.Replace("{ProfileName}", profileName);
+                        }
+                        // This waits/retries, so do it in background
+                        WindowTitleService.TrySetMainWindowTitle(proc, title, TimeSpan.FromSeconds(15));
+                    }
+                    
+                    return (ok, proc, err, rep);
+                });
+
+                stopwatch.Stop();
+                
+                // Record timing in report
+                report.Steps.Add(new LaunchStep 
+                { 
+                    Label = "Performance", 
+                    Outcome = StepOutcome.Success, 
+                    Detail = $"Launch sequence took {stopwatch.ElapsedMilliseconds}ms" 
+                });
+
+                // Back on UI thread
+                if (success)
                 {
                     ApplyLaunchReportToUi(report);
-
                     if (launchedProcess != null)
                     {
                         _gw1Instances.TrackLaunched(profile.Id, launchedProcess);
-
-                        if (cfg.Gw1WindowTitleEnabled)
-                        {
-                            var profileName = (profile.Name ?? "").Trim();
-                            var perProfile = (profile.Gw1WindowTitleLabel ?? "").Trim();
-
-                            string title;
-
-                            if (!string.IsNullOrWhiteSpace(perProfile))
-                            {
-                                // Per-profile override wins (no tokens)
-                                title = perProfile;
-                            }
-                            else
-                            {
-                                var globalDefault = (cfg.Gw1WindowTitleTemplate ?? "").Trim();
-
-                                title = string.IsNullOrWhiteSpace(globalDefault)
-                                    ? profileName
-                                    : globalDefault.Replace("{ProfileName}", profileName);
-                            }
-
-                            WindowTitleService.TrySetMainWindowTitle(launchedProcess, title, TimeSpan.FromSeconds(15));
-                        }
                     }
                 }
                 else
@@ -156,6 +187,9 @@ namespace GWxLauncher.UI.Controllers
 
                     ApplyLaunchReportToUi(report);
                 }
+                
+                // Optional: Log timing
+                // _setStatus($"Launch took {stopwatch.ElapsedMilliseconds}ms");
 
                 return;
             }
@@ -164,16 +198,26 @@ namespace GWxLauncher.UI.Controllers
             {
                 bool mcEnabled = cfg.Gw2MulticlientEnabled;
 
-                var result = _gw2Orchestrator.Launch(
+                // Move heavy work to background
+                var result = await Task.Run(() => _gw2Orchestrator.Launch(
                     profile: profile,
                     exePath: exePath,
                     mcEnabled: mcEnabled,
                     bulkMode: bulkMode,
                     automationCoordinator: _gw2Automation,
-                    runAfterInvoker: _gw2RunAfterLauncher.Start);
+                    runAfterInvoker: _gw2RunAfterLauncher.Start));
+
+                stopwatch.Stop();
 
                 if (result.Report != null)
                 {
+                    result.Report.Steps.Add(new LaunchStep 
+                    { 
+                        Label = "Performance", 
+                        Outcome = StepOutcome.Success, 
+                        Detail = $"Launch sequence took {stopwatch.ElapsedMilliseconds}ms" 
+                    });
+
                     ProtectedInstallPathPolicy.TryAppendLaunchReportNote(result.Report, exePath);
                     ApplyLaunchReportToUi(result.Report);
                 }
@@ -191,6 +235,13 @@ namespace GWxLauncher.UI.Controllers
                 return;
             }
         }
+        
+        // This worker is used by BulkLaunchController independently? 
+        // NOTE: BulkLaunchController calls _launchProfile delegate which now points to LaunchProfileAsync.
+        // But let's check if this method is still used or if we should deprecate it.
+        // It seems BulkLaunchController uses the delegate passed from MainForm.
+        // This method was public. Let's keep it but it's likely unused or legacy now.
+        // Actually, let's leave it as is, it's synchronous helper.
         public Gw2LaunchOrchestrator.Gw2LaunchResult LaunchProfileGw2BulkWorker(GameProfile profile)
         {
             if (profile == null)

@@ -315,7 +315,8 @@ namespace GWxLauncher.Services
             IWin32Window owner,
             out Process? launchedProcess,
             out string errorMessage,
-            out LaunchReport report)
+            out LaunchReport report,
+            Action<string, string, bool>? showMessage = null)
         {
             errorMessage = string.Empty;
             launchedProcess = null;
@@ -656,13 +657,11 @@ namespace GWxLauncher.Services
                     stepToolbox.Outcome = StepOutcome.Failed;
                     stepToolbox.Detail = "Enabled, but DLL path missing or file not found";
 
-                    MessageBox.Show(
-                        owner,
+                    showMessage?.Invoke(
                         "GW1 Toolbox is enabled for this profile, but the DLL path is not configured " +
                         "or the file does not exist.\n\nThe game will launch without Toolbox.",
                         "GW1 Toolbox injection",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
+                        false); // Warning
                 }
                 else
                 {
@@ -671,12 +670,10 @@ namespace GWxLauncher.Services
                         stepToolbox.Outcome = StepOutcome.Failed;
                         stepToolbox.Detail = injectError;
 
-                        MessageBox.Show(
-                            owner,
+                        showMessage?.Invoke(
                             $"Failed to inject GW1 Toolbox DLL:\n\n{injectError}\n\nThe game will continue without Toolbox.",
                             "GW1 Toolbox injection",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
+                            false); // Warning
                     }
                     else
                     {

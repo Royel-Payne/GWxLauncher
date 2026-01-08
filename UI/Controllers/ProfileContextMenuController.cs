@@ -11,7 +11,7 @@ namespace GWxLauncher.UI.Controllers
         MainFormRefresher refresher,
         Func<bool> isShowCheckedOnly,
         Action<string> setStatus,
-        Action<GameProfile, bool> launchProfile,
+        Func<GameProfile, bool, Task> launchProfile,
         Func<GameProfile, bool> trySelectProfileExecutable)
     {
         private readonly IWin32Window _owner = owner;
@@ -23,7 +23,7 @@ namespace GWxLauncher.UI.Controllers
         private readonly Func<bool> _isShowCheckedOnly = isShowCheckedOnly;
         private readonly Action<string> _setStatus = setStatus;
 
-        private readonly Action<GameProfile, bool> _launchProfile = launchProfile;
+        private readonly Func<GameProfile, bool, Task> _launchProfile = launchProfile;
         private readonly Func<GameProfile, bool> _trySelectProfileExecutable = trySelectProfileExecutable;
 
         public readonly record struct ContextMenuState(
@@ -52,13 +52,13 @@ namespace GWxLauncher.UI.Controllers
             dlg.ShowDialog(_owner);
         }
 
-        public void LaunchSelectedProfile()
+        public async Task LaunchSelectedProfile()
         {
             var profile = SelectedProfile();
             if (profile == null)
                 return;
 
-            _launchProfile(profile, false);
+            await _launchProfile(profile, false);
         }
 
         public void SetSelectedProfilePath()

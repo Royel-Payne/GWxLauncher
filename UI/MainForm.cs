@@ -252,7 +252,7 @@ namespace GWxLauncher
                 refresher: _refresher,
                 isShowCheckedOnly: () => _showCheckedOnly,
                 setStatus: SetStatus,
-                launchProfile: (p, bulkMode) => _launchController.LaunchProfile(p, bulkMode),
+                launchProfile: (p, bulkMode) => _launchController.LaunchProfileAsync(p, bulkMode),
                 trySelectProfileExecutable: TrySelectProfileExecutable);
         }
 
@@ -271,7 +271,7 @@ namespace GWxLauncher
                 setStatus: SetStatus,
                 updateBulkArmingUi: UpdateBulkArmingUi,
                 setBulkInProgress: v => _bulkLaunchInProgress = v,
-                launchProfile: (p, bulkMode) => _launchController.LaunchProfile(p, bulkMode),
+                launchProfile: (p, bulkMode) => _launchController.LaunchProfileAsync(p, bulkMode),
                 resolveEffectiveExePath: (p, cfg) => _launchController.ResolveEffectiveExePath(p, cfg));
         }
 
@@ -486,7 +486,7 @@ namespace GWxLauncher
 
         private void menuShowLastLaunchDetails_Click(object sender, EventArgs e) => _profileMenu.ShowLastLaunchDetails();
 
-        private void menuLaunchProfile_Click(object sender, EventArgs e) => _profileMenu.LaunchSelectedProfile();
+        private async void menuLaunchProfile_Click(object sender, EventArgs e) => await _profileMenu.LaunchSelectedProfile();
 
         private void menuEditProfile_Click(object sender, EventArgs e) => _profileMenu.EditSelectedProfile();
 
@@ -647,7 +647,7 @@ namespace GWxLauncher
             }
         }
 
-        private void LaunchProfileFromGrid(string profileId)
+        private async void LaunchProfileFromGrid(string profileId)
         {
             _selection.Select(profileId);
 
@@ -657,7 +657,7 @@ namespace GWxLauncher
             if (profile == null)
                 return;
 
-            _launchController.LaunchProfile(profile, bulkMode: false);
+            await _launchController.LaunchProfileAsync(profile, bulkMode: false);
         }
 
         private void UpdateHeaderResponsiveness()

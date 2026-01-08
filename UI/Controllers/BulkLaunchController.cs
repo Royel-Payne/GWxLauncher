@@ -21,7 +21,7 @@ namespace GWxLauncher.UI.Controllers
         private readonly Action _updateBulkArmingUi;
         private readonly Action<bool> _setBulkInProgress;
 
-        private readonly Action<GameProfile, bool> _launchProfile;
+        private readonly Func<GameProfile, bool, Task> _launchProfile;
         private readonly Func<GameProfile, LauncherConfig, string> _resolveEffectiveExePath;
 
         public BulkLaunchController(
@@ -37,7 +37,7 @@ namespace GWxLauncher.UI.Controllers
             Action<string> setStatus,
             Action updateBulkArmingUi,
             Action<bool> setBulkInProgress,
-            Action<GameProfile, bool> launchProfile,
+            Func<GameProfile, bool, Task> launchProfile,
             Func<GameProfile, LauncherConfig, string> resolveEffectiveExePath)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
@@ -135,7 +135,7 @@ namespace GWxLauncher.UI.Controllers
                         continue;
                     }
 
-                    _launchProfile(profile, true);
+                    await _launchProfile(profile, true);
 
                     if (hasNext)
                         await ApplyBulkLaunchThrottlingAsync(profile, gw1Before);
