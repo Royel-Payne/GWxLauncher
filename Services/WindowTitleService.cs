@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using static GWxLauncher.Services.NativeMethods;
 
 namespace GWxLauncher.Services
 {
@@ -115,14 +116,5 @@ namespace GWxLauncher.Services
                 return null;
             }
         }
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern bool SetWindowText(IntPtr hWnd, string lpString);
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        private static extern int GetWindowTextLength(IntPtr hWnd);
     }
 }

@@ -3,6 +3,12 @@ using GWxLauncher.Domain;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using static GWxLauncher.Services.NativeMethods;
+using PROCESS_BASIC_INFORMATION = GWxLauncher.Services.NativeMethods.PROCESS_BASIC_INFORMATION;
+using PROCESS_INFORMATION = GWxLauncher.Services.NativeMethods.PROCESS_INFORMATION;
+using STARTUPINFO = GWxLauncher.Services.NativeMethods.STARTUPINFO;
+using ProcessAccessFlags = GWxLauncher.Services.NativeMethods.ProcessAccessFlags;
+using PEB_MIN = GWxLauncher.Services.NativeMethods.PEB_MIN;
 
 namespace GWxLauncher.Services
 {
@@ -16,160 +22,6 @@ namespace GWxLauncher.Services
     /// </summary>
     internal class Gw1InjectionService
     {
-        #region Win32 Interop
-
-        [Flags]
-        private enum ProcessAccessFlags : uint
-        {
-            PROCESS_CREATE_THREAD = 0x0002,
-            PROCESS_QUERY_INFORMATION = 0x0400,
-            PROCESS_VM_OPERATION = 0x0008,
-            PROCESS_VM_WRITE = 0x0020,
-            PROCESS_VM_READ = 0x0010,
-            PROCESS_ALL_ACCESS = 0x001F0FFF
-        }
-
-        private const uint MEM_COMMIT = 0x1000;
-        private const uint MEM_RESERVE = 0x2000;
-        private const uint PAGE_READWRITE = 0x04;
-
-        private const uint WAIT_OBJECT_0 = 0x00000000;
-        private const uint INFINITE = 0xFFFFFFFF;
-
-        private const uint CREATE_SUSPENDED = 0x00000004;
-
-        [DllImport("Kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern bool CreateHardLinkW(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool ReadProcessMemory(
-            IntPtr hProcess,
-            IntPtr lpBaseAddress,
-            [Out] byte[] lpBuffer,
-            int dwSize,
-            out IntPtr lpNumberOfBytesRead);
-
-        [DllImport("ntdll.dll")]
-        private static extern int NtQueryInformationProcess(
-            IntPtr processHandle,
-            int processInformationClass,
-            ref PROCESS_BASIC_INFORMATION processInformation,
-            int processInformationLength,
-            out int returnLength);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct PROCESS_BASIC_INFORMATION
-        {
-            public IntPtr Reserved1;
-            public IntPtr PebBaseAddress;
-            public IntPtr Reserved2_0;
-            public IntPtr Reserved2_1;
-            public IntPtr UniqueProcessId;
-            public IntPtr Reserved3;
-        }
-
-        // Minimal PEB read: ImageBaseAddress appears early.
-        // We only read enough bytes to cover ImageBaseAddress.
-        [StructLayout(LayoutKind.Sequential)]
-        private struct PEB_MIN
-        {
-            public IntPtr Reserved0;
-            public IntPtr Reserved1;
-            public IntPtr ImageBaseAddress;
-        }
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr OpenProcess(ProcessAccessFlags processAccess, bool bInheritHandle, int processId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr VirtualAllocEx(
-            IntPtr hProcess,
-            IntPtr lpAddress,
-            uint dwSize,
-            uint flAllocationType,
-            uint flProtect);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool WriteProcessMemory(
-            IntPtr hProcess,
-            IntPtr lpBaseAddress,
-            byte[] lpBuffer,
-            uint nSize,
-            out IntPtr lpNumberOfBytesWritten);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr CreateRemoteThread(
-            IntPtr hProcess,
-            IntPtr lpThreadAttributes,
-            uint dwStackSize,
-            IntPtr lpStartAddress,
-            IntPtr lpParameter,
-            uint dwCreationFlags,
-            out IntPtr lpThreadId);
-
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetModuleHandle(string lpModuleName);
-
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
-        private static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool CloseHandle(IntPtr hObject);
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        private struct STARTUPINFO
-        {
-            public uint cb;
-            public string lpReserved;
-            public string lpDesktop;
-            public string lpTitle;
-            public uint dwX;
-            public uint dwY;
-            public uint dwXSize;
-            public uint dwYSize;
-            public uint dwXCountChars;
-            public uint dwYCountChars;
-            public uint dwFillAttribute;
-            public uint dwFlags;
-            public short wShowWindow;
-            public short cbReserved2;
-            public IntPtr lpReserved2;
-            public IntPtr hStdInput;
-            public IntPtr hStdOutput;
-            public IntPtr hStdError;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct PROCESS_INFORMATION
-        {
-            public IntPtr hProcess;
-            public IntPtr hThread;
-            public int dwProcessId;
-            public int dwThreadId;
-        }
-
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern bool CreateProcessW(
-            string lpApplicationName,
-            string lpCommandLine,
-            IntPtr lpProcessAttributes,
-            IntPtr lpThreadAttributes,
-            bool bInheritHandles,
-            uint dwCreationFlags,
-            IntPtr lpEnvironment,
-            string lpCurrentDirectory,
-            ref STARTUPINFO lpStartupInfo,
-            out PROCESS_INFORMATION lpProcessInformation);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern uint ResumeThread(IntPtr hThread);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
-
         private static void KillProcessIfCreatedButFailed(PROCESS_INFORMATION procInfo)
         {
             try
@@ -185,8 +37,6 @@ namespace GWxLauncher.Services
                 // Best-effort only. We still close handles in the caller.
             }
         }
-
-        #endregion
 
         #region GW1 Auto-Login Args (GW.exe flags)
 
@@ -1171,9 +1021,11 @@ namespace GWxLauncher.Services
             {
                 if (hThread != IntPtr.Zero) CloseHandle(hThread);
 
-                // NOTE: This is in your original code; it’s incorrect API-wise (VirtualFreeEx is ideal),
-                // but we do NOT change behavior in this housekeeping pass.
-                if (remoteMemory != IntPtr.Zero) CloseHandle(remoteMemory);
+                if (remoteMemory != IntPtr.Zero)
+                {
+                    // Correctly free the memory allocated in the target process.
+                    VirtualFreeEx(hProcess, remoteMemory, 0, MEM_RELEASE);
+                }
 
                 if (hProcess != IntPtr.Zero) CloseHandle(hProcess);
             }
