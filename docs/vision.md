@@ -69,25 +69,18 @@ This project is intentionally built for learning and maintainability, not rapid 
 
 ## Planned core features (sequenced)
 
-- **Bulk launch (future, explicit, opt-in)**
+- **Bulk launch (explicit, opt-in)**
   - Bulk launch operates only on explicitly eligible profiles (checked)
   - Filters and selection do not imply launch intent
   - Bulk launch is “armed” via a deliberate focused view (e.g., Show Checked Only)
 
-The following features are part of GWxLauncher’s core vision, but are
-**intentionally implemented later** to avoid premature complexity and security risk:
-- Per-account login automation
-- Store usernames/emails per profile
-- Optional encrypted password storage
-- Optional auto-login flows
-- Option to stop at character select instead of full auto-login
+- **Per-profile Login Automation**
+  - Store usernames/emails per profile
+  - Optional encrypted password storage (DPAPI)
+  - Optional auto-login flows (GW1 arguments, GW2 input automation)
+  - Option to stop at character select (GW2 Auto-Play toggle)
 
-These features are deferred until:
-- Profile and launch behavior is stable
-- Multiclient behavior is well-defined
-- Failure modes are observable and debuggable
-
-All login automation features must be:
+All login automation features are:
 - Opt-in
 - Clearly scoped
 - Designed with explicit security and UX considerations

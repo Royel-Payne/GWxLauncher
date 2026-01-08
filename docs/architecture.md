@@ -11,13 +11,14 @@ GWxLauncher is structured into four main layers:
 
 - `/Domain` → Pure data models (profiles, DLL entries, enums)
 - `/Services` → Logic for launching games, DLL injection, persistence
+- `/UI` → WinForms views and their Interaction Controllers
 - `/Config` → App-wide configuration (window state, legacy paths)
-- `/UI` → WinForms views with minimal logic
 
 ### Layering rules
 
-- UI never contains business logic
-- Services never depend on UI except for owner handles (e.g. window ownership)
+- UI Views never contain business logic
+- UI Controllers mediate between Views and Services
+- Services never depend on UI logic (except for window handles where required)
 - Domain never depends on anything except .NET built-ins
 
 This separation keeps the launcher stable, testable, and easy to extend without regressions.
@@ -82,6 +83,7 @@ Any app-level configuration belongs here.
 
 This service encapsulates **all Guild Wars 1 launch and injection behavior**.
 It is intentionally isolated due to its use of Win32 interop.
+Refactored to use `NativeMethods` for cleaner P/Invoke separation.
 
 Implemented injection strategies:
 
@@ -110,38 +112,59 @@ This service is the **only place** where injection logic exists and is safe to e
 
 ---
 
+### 3.4 Gw2LaunchOrchestrator
+
+This service encapsulates **all Guild Wars 2 launch logic**, including:
+- Mutex detection and clearing (multiclient support)
+- Launch argument construction
+- Auto-login coordination
+- Launch reporting and diagnostics
+
+It is isolated from UI to support both single-profile and bulk-launch scenarios.
+
+### 3.5 Gw1InstanceTracker
+
+Responsible for:
+- Tracking running GW1 process IDs mapped to Profile IDs
+- Preventing duplicate launches of the same profile
+- Re-hydrating tracking state from running processes on startup
+
+---
+
 ## 4. UI Layer
 
-The UI layer is intentionally thin and declarative.
+The UI layer is split between **Views** (WinForms) and **Controllers** (logic).
 
-### 4.1 MainForm
-Responsibilities:
-- Display the profile list (owner-drawn cards)
-- Context menu actions
-- Launch a selected profile
-- Delegate GW1 launching to `Gw1InjectionService`
-- Restore and persist window state
-- Add / edit / delete profiles
-- Apply dark-mode styling and titlebar configuration
+### 4.1 Views (Forms & Controls)
 
-`MainForm` never performs injection or low-level process logic.
+**MainForm**
+- Hosts the profile grid and main toolbar
+- Delegates all user actions to the `MainFormController` or specific sub-controllers
+- Does not contain launch or profile management logic
 
----
+**ProfileSettingsForm**
+- Edit display name, paths, and mod settings
+- Validates input
 
-### 4.2 ProfileSettingsForm
-Responsibilities:
-- Edit display name
-- Edit executable path
-- Configure GW1 DLLs (Toolbox, Py4GW, gMod)
-- Validate required input
-- Save changes back into the `GameProfile`
+**AddAccountDialog**
+- Minimal UI for creating profiles
 
-This form does not start processes or inspect DLL contents.
+### 4.2 Controllers
 
----
+Controllers handle user interaction and coordinate services.
 
-### 4.3 AddAccountDialog
-Minimal UI for creating or renaming profiles.
+**ProfileLaunchController**
+- Orchestrates the launch workflow
+- Resolves executable paths and checks permissions
+- Delegates to `Gw1InjectionService` or `Gw2LaunchOrchestrator`
+- Updates the UI status bar (via `LaunchSessionPresenter`)
+
+**ProfileGridController**
+- Manages the grid of profile cards
+- Handles selection, filtering, and click events
+
+**Gw1ForegroundFollower** & others
+- Handle specific UI-service bindings (e.g. updating window titles)
 
 ---
 
@@ -149,9 +172,10 @@ Minimal UI for creating or renaming profiles.
 
 ### A. Startup
 
-- `MainForm` → `LauncherConfig.Load()` → apply window state
-- `MainForm` → `ProfileManager.Load()` → populate profiles
-- `MainForm` → `RefreshProfileList()`
+- `MainForm` initializes controllers
+- `MainFormRefresher` triggers initial load
+- `ProfileManager.Load()` → populate profiles
+- Grid is rendered
 
 ### B. Launching a profile
 
@@ -162,7 +186,7 @@ User action (double-click or context menu)
 Executable path resolved (profile override → global fallback)
 ↓
 - If GW1 → `Gw1InjectionService.TryLaunchGw1(...)`
-- If GW2 → `Process.Start(exePath)`
+- If GW2 → `Gw2LaunchOrchestrator.Launch(...)`
 
 ### C. Editing a profile
 
@@ -173,35 +197,9 @@ Executable path resolved (profile override → global fallback)
 
 ---
 
-## 6. Extensibility Philosophy
-
-The architecture is designed to **bend without breaking**.
-
-Extension-friendly areas include:
-- Additional GW1 injection strategies
-- GW2 companion process launching (e.g. Blish HUD)
-- Centralized logging and diagnostics
-- UI feature expansion without touching injection code
-
-Key safety properties:
-- Injection logic is fully isolated
-- UI remains thin and replaceable
-- JSON persistence uses stable, readable models
-
----
-
 ## 7. Future Architecture Directions (Illustrative)
 
 These items describe *possible* directions, not commitments.
-
-### Bulk launch intent (planned)
-
-Bulk launch will be driven by an explicit per-profile eligibility flag (e.g., `BulkLaunchEnabled`)
-and a UI “arming” filter (e.g., “Show Checked Accounts Only”).
-
-Key rule: **selection and visibility never imply launch intent** — only explicit eligibility does.
-
-This keeps batch actions safe while allowing UI-only filters that do not change underlying profile data.
 
 ### Theme service
 A centralized styling helper:
