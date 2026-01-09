@@ -12,6 +12,30 @@ namespace GWxLauncher.Services
         private readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);
         private readonly Gw2AutoLoginService _service = new Gw2AutoLoginService();
 
+        public async Task<(bool success, string error)> TryAutomateLoginAsync(
+            Process? gw2Process, 
+            GameProfile profile, 
+            LaunchReport report, 
+            bool bulkMode)
+        {
+            await _gate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                // The actual automation work is CPU/IO bound (pixel sampling, SendInput, Thread.Sleep)
+                // Run it on a background thread to avoid blocking the caller's context
+                return await Task.Run(() =>
+                {
+                    bool ok = _service.TryAutomateLogin(gw2Process, profile, report, bulkMode, out var error);
+                    return (ok, error);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        // Keep synchronous version for backward compatibility (called from Task.Run contexts)
         public bool TryAutomateLogin(Process? gw2Process, GameProfile profile, LaunchReport report, bool bulkMode, out string error)
         {
             _gate.Wait();

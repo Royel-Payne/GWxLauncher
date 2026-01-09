@@ -118,6 +118,7 @@ namespace GWxLauncher.UI.Controllers
             try
             {
                 // Track GW1 PIDs for throttling detection (GW1 only).
+                // Capture initial PIDs on background thread to avoid blocking UI
                 HashSet<int>? gw1Before = null;
 
                 for (int i = 0; i < targets.Count; i++)
@@ -126,7 +127,11 @@ namespace GWxLauncher.UI.Controllers
                     bool hasNext = i + 1 < targets.Count;
 
                     if (profile.GameType == GameType.GuildWars1)
-                        gw1Before ??= CaptureProcessIdsForExePath(_resolveEffectiveExePath(profile, _getConfig()));
+                    {
+                        // Capture process IDs on background thread
+                        var exePath = _resolveEffectiveExePath(profile, _getConfig());
+                        gw1Before ??= await Task.Run(() => CaptureProcessIdsForExePath(exePath)).ConfigureAwait(false);
+                    }
 
                     if (_isRunning(profile.Id))
                     {
@@ -135,10 +140,10 @@ namespace GWxLauncher.UI.Controllers
                         continue;
                     }
 
-                    await _launchProfile(profile, true);
+                    await _launchProfile(profile, true).ConfigureAwait(false);
 
                     if (hasNext)
-                        await ApplyBulkLaunchThrottlingAsync(profile, gw1Before);
+                        await ApplyBulkLaunchThrottlingAsync(profile, gw1Before).ConfigureAwait(false);
 
                     // Give WinForms a chance to repaint between profiles.
                     await Task.Yield();
@@ -150,6 +155,7 @@ namespace GWxLauncher.UI.Controllers
                 _updateBulkArmingUi();
             }
         }
+
         private async Task ApplyBulkLaunchThrottlingAsync(GameProfile lastLaunchedProfile, HashSet<int>? gw1BeforePids)
         {
             if (lastLaunchedProfile == null)
@@ -168,7 +174,8 @@ namespace GWxLauncher.UI.Controllers
                 // Step 3 probe is optional; if we cannot resolve PID or init fails, policy falls back to delay-only.
                 var exePath = _resolveEffectiveExePath(lastLaunchedProfile, cfg);
 
-                var gw1After = CaptureProcessIdsForExePath(exePath);
+                // Capture process IDs on background thread
+                var gw1After = await Task.Run(() => CaptureProcessIdsForExePath(exePath)).ConfigureAwait(false);
 
                 Process? gwProcess = null;
                 if (gw1BeforePids != null)
@@ -203,7 +210,7 @@ namespace GWxLauncher.UI.Controllers
                 requestedDelaySeconds: requestedDelaySeconds,
                 readinessCheck: readiness,
                 statusCallback: status,
-                report: null);
+                report: null).ConfigureAwait(false);
         }
 
         private static HashSet<int> CaptureProcessIdsForExePath(string exePath)

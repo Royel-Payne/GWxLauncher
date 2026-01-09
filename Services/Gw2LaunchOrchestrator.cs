@@ -26,7 +26,7 @@ namespace GWxLauncher.Services
             public bool HasMessageBox => !string.IsNullOrWhiteSpace(MessageBoxText);
         }
 
-        public Gw2LaunchResult Launch(
+        public async Task<Gw2LaunchResult> LaunchAsync(
             GameProfile profile,
             string exePath,
             bool mcEnabled,
@@ -110,7 +110,7 @@ namespace GWxLauncher.Services
                         }
 
                         if (i < attempts - 1 && delayMs > 0)
-                            Thread.Sleep(delayMs);
+                            await Task.Delay(delayMs).ConfigureAwait(false);
                     }
 
                     if (!cleared)
@@ -181,10 +181,14 @@ namespace GWxLauncher.Services
                 if (bulkMode && mcEnabled)
                 {
                     // Wait until GW2 recreates its mutex, so the next bulk launch can reliably clear it again.
-                    if (!WaitForGw2MutexToExist(timeoutMs: 8000, out int waited))
-                        mcStep.Detail += $" (Warning: GW2 mutex did not appear within {waited}ms)";
+                    if (!await WaitForGw2MutexToExistAsync(timeoutMs: 8000))
+                    {
+                        mcStep.Detail += $" (Warning: GW2 mutex did not appear within 8000ms)";
+                    }
                     else
-                        mcStep.Detail += $" (GW2 mutex observed after {waited}ms)";
+                    {
+                        mcStep.Detail += $" (GW2 mutex observed)";
+                    }
                 }
 
                 // If multiclient enabled, keep the step success but add the arg note.
@@ -204,10 +208,12 @@ namespace GWxLauncher.Services
 
                     if (shouldCallAutomation)
                     {
-                        if (!automationCoordinator.TryAutomateLogin(process, profile, report, bulkMode: bulkMode, out var autoLoginError))
+                        var (success, autoLoginError) = await automationCoordinator.TryAutomateLoginAsync(
+                            process, profile, report, bulkMode: bulkMode).ConfigureAwait(false);
+                        
+                        if (!success && !string.IsNullOrWhiteSpace(autoLoginError))
                         {
-                            if (!string.IsNullOrWhiteSpace(autoLoginError))
-                                report.FailureMessage = $"Auto-login failed: {autoLoginError}";
+                            report.FailureMessage = $"Auto-login failed: {autoLoginError}";
                         }
                     }
                 }
@@ -235,6 +241,48 @@ namespace GWxLauncher.Services
             }
         }
 
+        // Keep synchronous version for backward compatibility
+        public Gw2LaunchResult Launch(
+            GameProfile profile,
+            string exePath,
+            bool mcEnabled,
+            bool bulkMode,
+            Gw2AutomationCoordinator automationCoordinator,
+            Action<GameProfile> runAfterInvoker)
+        {
+            return LaunchAsync(profile, exePath, mcEnabled, bulkMode, automationCoordinator, runAfterInvoker)
+                .GetAwaiter().GetResult();
+        }
+
+        private static async Task<bool> WaitForGw2MutexToExistAsync(int timeoutMs)
+        {
+            int waitedMs = 0;
+            const int stepMs = 50;
+
+            while (waitedMs < timeoutMs)
+            {
+                try
+                {
+                    // If this succeeds, GW2 has created its mutex again.
+                    using var _ = Mutex.OpenExisting(Gw2MutexKiller.Gw2MutexLeafName);
+                    return true;
+                }
+                catch (WaitHandleCannotBeOpenedException)
+                {
+                    // Not created yet, keep waiting.
+                }
+                catch
+                {
+                    // Any other failure: keep waiting a bit (don't hard-fail over transient issues).
+                }
+
+                await Task.Delay(stepMs).ConfigureAwait(false);
+                waitedMs += stepMs;
+            }
+
+            return false;
+        }
+
         private static bool WaitForGw2MutexToExist(int timeoutMs, out int waitedMs)
         {
             waitedMs = 0;
@@ -254,7 +302,7 @@ namespace GWxLauncher.Services
                 }
                 catch
                 {
-                    // Any other failure: keep waiting a bit (don’t hard-fail over transient issues).
+                    // Any other failure: keep waiting a bit (don't hard-fail over transient issues).
                 }
 
                 Thread.Sleep(stepMs);

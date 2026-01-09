@@ -105,15 +105,15 @@ namespace GWxLauncher.UI
             lblGw1WindowTitleLabel.AutoSize = true;
             lblGw1WindowTitleLabel.Location = new Point(12, 56);
             lblGw1WindowTitleLabel.Name = "lblGw1WindowTitleLabel";
-            lblGw1WindowTitleLabel.Size = new Size(116, 15);
+            lblGw1WindowTitleLabel.Size = new Size(78, 15);
             lblGw1WindowTitleLabel.TabIndex = 10;
-            lblGw1WindowTitleLabel.Text = "Title Label (optional)";
+            lblGw1WindowTitleLabel.Text = "Titlebar Label";
             // 
             // txtGw1WindowTitleLabel
             // 
-            txtGw1WindowTitleLabel.Location = new Point(129, 52);
+            txtGw1WindowTitleLabel.Location = new Point(98, 52);
             txtGw1WindowTitleLabel.Name = "txtGw1WindowTitleLabel";
-            txtGw1WindowTitleLabel.Size = new Size(156, 23);
+            txtGw1WindowTitleLabel.Size = new Size(187, 23);
             txtGw1WindowTitleLabel.TabIndex = 11;
             // 
             // label1
@@ -130,15 +130,15 @@ namespace GWxLauncher.UI
             label2.AutoSize = true;
             label2.Location = new Point(309, 27);
             label2.Name = "label2";
-            label2.Size = new Size(97, 15);
+            label2.Size = new Size(87, 15);
             label2.TabIndex = 2;
-            label2.Text = "Game executable";
+            label2.Text = "Game EXE path";
             // 
             // txtExecutablePath
             // 
-            txtExecutablePath.Location = new Point(418, 23);
+            txtExecutablePath.Location = new Point(403, 23);
             txtExecutablePath.Name = "txtExecutablePath";
-            txtExecutablePath.Size = new Size(187, 23);
+            txtExecutablePath.Size = new Size(202, 23);
             txtExecutablePath.TabIndex = 3;
             // 
             // btnBrowseExe
@@ -155,15 +155,15 @@ namespace GWxLauncher.UI
             lblLaunchArgs.AutoSize = true;
             lblLaunchArgs.Location = new Point(309, 56);
             lblLaunchArgs.Name = "lblLaunchArgs";
-            lblLaunchArgs.Size = new Size(118, 15);
+            lblLaunchArgs.Size = new Size(66, 15);
             lblLaunchArgs.TabIndex = 12;
-            lblLaunchArgs.Text = "Arguments (optional)";
+            lblLaunchArgs.Text = "Arguments\r\n";
             // 
             // txtLaunchArgs
             // 
-            txtLaunchArgs.Location = new Point(418, 52);
+            txtLaunchArgs.Location = new Point(403, 52);
             txtLaunchArgs.Name = "txtLaunchArgs";
-            txtLaunchArgs.Size = new Size(272, 23);
+            txtLaunchArgs.Size = new Size(202, 23);
             txtLaunchArgs.TabIndex = 13;
             // 
             // grpGw1Mods
@@ -181,7 +181,7 @@ namespace GWxLauncher.UI
             grpGw1Mods.Controls.Add(lvGw1GModPlugins);
             grpGw1Mods.Controls.Add(btnGw1AddPlugin);
             grpGw1Mods.Controls.Add(btnGw1RemovePlugin);
-            grpGw1Mods.Location = new Point(309, 97);
+            grpGw1Mods.Location = new Point(309, 105);
             grpGw1Mods.Name = "grpGw1Mods";
             grpGw1Mods.Size = new Size(400, 257);
             grpGw1Mods.TabIndex = 5;
@@ -199,9 +199,9 @@ namespace GWxLauncher.UI
             // 
             // txtGModDll
             // 
-            txtGModDll.Location = new Point(109, 85);
+            txtGModDll.Location = new Point(87, 85);
             txtGModDll.Name = "txtGModDll";
-            txtGModDll.Size = new Size(187, 23);
+            txtGModDll.Size = new Size(209, 23);
             txtGModDll.TabIndex = 7;
             // 
             // chkGMod
@@ -225,9 +225,9 @@ namespace GWxLauncher.UI
             // 
             // txtPy4GwDll
             // 
-            txtPy4GwDll.Location = new Point(109, 53);
+            txtPy4GwDll.Location = new Point(87, 53);
             txtPy4GwDll.Name = "txtPy4GwDll";
-            txtPy4GwDll.Size = new Size(187, 23);
+            txtPy4GwDll.Size = new Size(209, 23);
             txtPy4GwDll.TabIndex = 4;
             // 
             // chkPy4Gw
@@ -251,9 +251,9 @@ namespace GWxLauncher.UI
             // 
             // txtToolboxDll
             // 
-            txtToolboxDll.Location = new Point(109, 21);
+            txtToolboxDll.Location = new Point(87, 21);
             txtToolboxDll.Name = "txtToolboxDll";
-            txtToolboxDll.Size = new Size(187, 23);
+            txtToolboxDll.Size = new Size(209, 23);
             txtToolboxDll.TabIndex = 1;
             // 
             // chkToolbox
@@ -329,7 +329,7 @@ namespace GWxLauncher.UI
             grpGw2RunAfter.Controls.Add(lvGw2RunAfter);
             grpGw2RunAfter.Controls.Add(btnGw2AddProgram);
             grpGw2RunAfter.Controls.Add(btnGw2RemoveProgram);
-            grpGw2RunAfter.Location = new Point(309, 97);
+            grpGw2RunAfter.Location = new Point(309, 105);
             grpGw2RunAfter.Name = "grpGw2RunAfter";
             grpGw2RunAfter.Size = new Size(400, 257);
             grpGw2RunAfter.TabIndex = 5;
@@ -426,7 +426,7 @@ namespace GWxLauncher.UI
             grpGw1Login.Controls.Add(txtGw1Email);
             grpGw1Login.Controls.Add(lblGw1Email);
             grpGw1Login.Controls.Add(chkGw1AutoLogin);
-            grpGw1Login.Location = new Point(12, 97);
+            grpGw1Login.Location = new Point(12, 105);
             grpGw1Login.Name = "grpGw1Login";
             grpGw1Login.Size = new Size(273, 257);
             grpGw1Login.TabIndex = 5;
@@ -553,7 +553,7 @@ namespace GWxLauncher.UI
             grpGw2Login.Controls.Add(txtGw2Password);
             grpGw2Login.Controls.Add(lblGw2PasswordSaved);
             grpGw2Login.Controls.Add(chkGw2AutoPlay);
-            grpGw2Login.Location = new Point(12, 97);
+            grpGw2Login.Location = new Point(12, 105);
             grpGw2Login.Name = "grpGw2Login";
             grpGw2Login.Size = new Size(273, 257);
             grpGw2Login.TabIndex = 5;
@@ -652,9 +652,9 @@ namespace GWxLauncher.UI
             ClientSize = new Size(721, 406);
             Controls.Add(txtLaunchArgs);
             Controls.Add(lblLaunchArgs);
+            Controls.Add(grpGw2RunAfter);
             Controls.Add(grpGw1Mods);
             Controls.Add(grpGw1Login);
-            Controls.Add(grpGw2RunAfter);
             Controls.Add(chkGw1Multiclient);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);

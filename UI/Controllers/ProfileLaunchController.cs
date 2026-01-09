@@ -198,14 +198,14 @@ namespace GWxLauncher.UI.Controllers
             {
                 bool mcEnabled = cfg.Gw2MulticlientEnabled;
 
-                // Move heavy work to background
-                var result = await Task.Run(() => _gw2Orchestrator.Launch(
+                // Use async version - heavy work runs on background threads internally
+                var result = await _gw2Orchestrator.LaunchAsync(
                     profile: profile,
                     exePath: exePath,
                     mcEnabled: mcEnabled,
                     bulkMode: bulkMode,
                     automationCoordinator: _gw2Automation,
-                    runAfterInvoker: _gw2RunAfterLauncher.Start));
+                    runAfterInvoker: _gw2RunAfterLauncher.Start).ConfigureAwait(false);
 
                 stopwatch.Stop();
 
