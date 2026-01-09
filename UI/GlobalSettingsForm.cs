@@ -1,5 +1,6 @@
 ﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
+using GWxLauncher.UI.Helpers;
 
 namespace GWxLauncher.UI
 {
@@ -340,24 +341,14 @@ namespace GWxLauncher.UI
 
         private void PickDllIntoGlobalSetting(TextBox target, string title, Action<string> setConfigValue)
         {
-            using var dlg = new OpenFileDialog
-            {
-                Filter = "DLL files (*.dll)|*.dll|All files (*.*)|*.*",
-                Title = title
-            };
+            if (target == null) throw new ArgumentNullException(nameof(target));
+            if (setConfigValue == null) throw new ArgumentNullException(nameof(setConfigValue));
 
-            // best-effort starting folder
-            var current = (target.Text ?? "").Trim();
-            if (!string.IsNullOrWhiteSpace(current) && File.Exists(current))
-            {
-                dlg.FileName = current;
-            }
+            if (!string.IsNullOrWhiteSpace((target.Text ?? "").Trim()))
+                return;
 
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-            {
-                target.Text = dlg.FileName;
-                setConfigValue(dlg.FileName);
-            }
+            if (FilePickerHelper.TryPickDll(this, target, title))
+                setConfigValue((target.Text ?? "").Trim());
         }
         private void CommitUiToConfigAndSave()
         {
@@ -423,27 +414,7 @@ namespace GWxLauncher.UI
 
         private void BrowseDllInto(TextBox target, string title)
         {
-            using var dlg = new OpenFileDialog
-            {
-                Filter = "DLL files (*.dll)|*.dll|All files (*.*)|*.*",
-                Title = title
-            };
-
-            var current = (target.Text ?? "").Trim();
-            if (!string.IsNullOrWhiteSpace(current) && File.Exists(current))
-            {
-                dlg.FileName = current;
-                try
-                {
-                    var dir = Path.GetDirectoryName(current);
-                    if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
-                        dlg.InitialDirectory = dir;
-                }
-                catch { /* best-effort */ }
-            }
-
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-                target.Text = dlg.FileName;
+            _ = FilePickerHelper.TryPickDll(this, target, title);
         }
 
         private void GlobalSettingsForm_Load_1(object sender, EventArgs e)
@@ -462,3 +433,7 @@ namespace GWxLauncher.UI
         }
     }
 }
+
+
+
+

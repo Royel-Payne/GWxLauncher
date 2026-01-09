@@ -235,48 +235,6 @@ namespace GWxLauncher.UI.Controllers
                 return;
             }
         }
-        
-        // This worker is used by BulkLaunchController independently? 
-        // NOTE: BulkLaunchController calls _launchProfile delegate which now points to LaunchProfileAsync.
-        // But let's check if this method is still used or if we should deprecate it.
-        // It seems BulkLaunchController uses the delegate passed from MainForm.
-        // This method was public. Let's keep it but it's likely unused or legacy now.
-        // Actually, let's leave it as is, it's synchronous helper.
-        public Gw2LaunchOrchestrator.Gw2LaunchResult LaunchProfileGw2BulkWorker(GameProfile profile)
-        {
-            if (profile == null)
-                return new Gw2LaunchOrchestrator.Gw2LaunchResult();
-
-            // Use a fresh config snapshot (ProfileSettingsForm writes and saves its own config instance).
-            var cfg = LauncherConfig.Load();
-
-            string exePath = profile.ExecutablePath;
-            if (string.IsNullOrWhiteSpace(exePath))
-                exePath = cfg.Gw2Path;
-
-            if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
-            {
-                return new Gw2LaunchOrchestrator.Gw2LaunchResult
-                {
-                    Report = null,
-                    MessageBoxText =
-                        "No valid executable path is configured for this profile.\n\n" +
-                        "Edit the profile or configure the game path in settings.",
-                    MessageBoxTitle = "Missing executable",
-                    MessageBoxIsError = false
-                };
-            }
-
-            bool mcEnabled = cfg.Gw2MulticlientEnabled;
-
-            return _gw2Orchestrator.Launch(
-                profile: profile,
-                exePath: exePath,
-                mcEnabled: mcEnabled,
-                bulkMode: true,
-                automationCoordinator: _gw2Automation,
-                runAfterInvoker: _gw2RunAfterLauncher.Start);
-        }
 
         private void ApplyLaunchReportToUi(LaunchReport report)
         {

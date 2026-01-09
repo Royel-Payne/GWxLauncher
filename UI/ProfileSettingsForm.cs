@@ -5,6 +5,8 @@ using GWxLauncher.Properties;
 using GWxLauncher.Services;
 
 
+using GWxLauncher.UI.Helpers;
+
 namespace GWxLauncher.UI
 {
     public partial class ProfileSettingsForm : Form
@@ -436,9 +438,9 @@ namespace GWxLauncher.UI
                 _profile.Gw1GModDllPath = txtGModDll.Text.Trim();
 
                 // Remember last-known good tool paths (silent; no UI)
-                TryRememberLastToolPath(_profile.Gw1ToolboxDllPath, p => _cfg.LastToolboxPath = p);
-                TryRememberLastToolPath(_profile.Gw1Py4GwDllPath, p => _cfg.LastPy4GWPath = p);
-                TryRememberLastToolPath(_profile.Gw1GModDllPath, p => _cfg.LastGModPath = p);
+                TryRememberLastToolPath(_profile.Gw1ToolboxDllPath, () => _cfg.LastToolboxPath, v => _cfg.LastToolboxPath = v);
+                TryRememberLastToolPath(_profile.Gw1Py4GwDllPath, () => _cfg.LastPy4GWPath, v => _cfg.LastPy4GWPath = v);
+                TryRememberLastToolPath(_profile.Gw1GModDllPath, () => _cfg.LastGModPath, v => _cfg.LastGModPath = v);
 
                 _cfg.Gw1MulticlientEnabled = chkGw1Multiclient.Checked;
                 _cfg.Save();
@@ -1022,7 +1024,7 @@ namespace GWxLauncher.UI
             }
         }
 
-        private void TryRememberLastToolPath(string path, Action<string> assign)
+        private void TryRememberLastToolPath(string path, Func<string> getCurrent, Action<string> setValue)
         {
             path = (path ?? "").Trim();
             if (string.IsNullOrWhiteSpace(path))
@@ -1030,8 +1032,14 @@ namespace GWxLauncher.UI
 
             try
             {
-                if (File.Exists(path))
-                    assign(path);
+                if (!File.Exists(path))
+                    return;
+
+                var current = (getCurrent?.Invoke() ?? "").Trim();
+                if (!string.IsNullOrWhiteSpace(current))
+                    return;
+
+                setValue?.Invoke(path);
             }
             catch
             {
@@ -1041,55 +1049,26 @@ namespace GWxLauncher.UI
 
         private void BrowseDllInto(TextBox textBox)
         {
-            using var dlg = new OpenFileDialog
+            var exe = (txtExecutablePath.Text ?? "").Trim();
+            string? fallbackDir = null;
+
+            try
             {
-                Filter = "DLL files (*.dll)|*.dll|All files (*.*)|*.*",
-                Title = "Select DLL"
-            };
-
-            var current = textBox.Text?.Trim();
-
-            if (!string.IsNullOrWhiteSpace(current) && File.Exists(current))
-            {
-                dlg.FileName = current;
-
-                try
+                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
                 {
-                    var dir = Path.GetDirectoryName(current);
+                    var dir = Path.GetDirectoryName(exe);
                     if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
-                        dlg.InitialDirectory = dir;
+                        fallbackDir = dir;
                 }
-                catch { /* best-effort */ }
-            }
-            else
-            {
-                var exe = txtExecutablePath.Text?.Trim();
 
-                try
-                {
-                    if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
-                    {
-                        var dir = Path.GetDirectoryName(exe);
-                        if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
-                            dlg.InitialDirectory = dir;
-                        else
-                            dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                    }
-                    else
-                    {
-                        dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                    }
-                }
-                catch
-                {
-                    dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                }
+                fallbackDir ??= Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            }
+            catch
+            {
+                fallbackDir = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
             }
 
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-            {
-                textBox.Text = dlg.FileName;
-            }
+            _ = FilePickerHelper.TryPickDll(this, textBox, "Select DLL", fallbackDir);
         }
 
         private void btnBrowseToolboxDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtToolboxDll);
@@ -1102,3 +1081,5 @@ namespace GWxLauncher.UI
         }
     }
 }
+
+
