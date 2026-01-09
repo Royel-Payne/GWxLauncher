@@ -351,7 +351,16 @@ namespace GWxLauncher.Services
 
             stepLaunch.Outcome = StepOutcome.Pending;
             stepLaunch.Detail = "Launching Guild Wars 1";
+
+            var extraArgs = (profile.LaunchArguments ?? "").Trim();
+            report.LaunchArguments = extraArgs;
+            report.FullCommandLine = string.IsNullOrWhiteSpace(extraArgs)
+                ? $"\"{exePath}\""
+                : $"\"{exePath}\" {extraArgs}";
+
             string gwArgs = BuildGw1AutoLoginArgs(profile, report);
+            if (!string.IsNullOrWhiteSpace(extraArgs))
+                gwArgs = string.IsNullOrWhiteSpace(gwArgs) ? extraArgs : (gwArgs + " " + extraArgs);
 
             if (profile.GameType != GameType.GuildWars1)
             {

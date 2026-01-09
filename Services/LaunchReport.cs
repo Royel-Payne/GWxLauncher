@@ -7,6 +7,9 @@
         public string GameName { get; init; } = "Guild Wars 1";
         public string ExecutablePath { get; init; } = "";
 
+        public string LaunchArguments { get; set; } = "";
+        public string FullCommandLine { get; set; } = "";
+
         public bool UsedSuspendedLaunch { get; set; } = false;
 
         // Per-step outcomes (in the real order we attempted)
@@ -44,6 +47,8 @@
                 $"Timestamp: {Timestamp}",
                 $"Game: {GameName}",
                 $"Executable: {ExecutablePath}",
+                $"Arguments: {LaunchArguments}",
+                $"Command line: {FullCommandLine}",
                 $"Launch mode: {(UsedSuspendedLaunch ? "Suspended (gMod early injection)" : "Normal (Process.Start)")}",
                 $"Result: {(Succeeded ? "SUCCESS" : "FAILURE")}"
             };

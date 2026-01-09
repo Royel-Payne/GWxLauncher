@@ -46,6 +46,8 @@ namespace GWxLauncher.Services
                 ExecutablePath = exePath
             };
 
+            report.LaunchArguments = (profile.LaunchArguments ?? "").Trim();
+
             var mcStep = new LaunchStep { Label = "Multiclient" };
             report.Steps.Add(mcStep);
 
@@ -151,12 +153,20 @@ namespace GWxLauncher.Services
                 if (!string.IsNullOrWhiteSpace(mumbleName))
                     args.Add($"-mumble \"{mumbleName}\"");
 
+                var extraArgs = (profile.LaunchArguments ?? "").Trim();
+                if (!string.IsNullOrWhiteSpace(extraArgs))
+                    args.Add(extraArgs);
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = exePath,
                     WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
                     Arguments = string.Join(" ", args)
                 };
+
+                report.FullCommandLine = string.IsNullOrWhiteSpace(startInfo.Arguments)
+                    ? $"\"{exePath}\""
+                    : $"\"{exePath}\" {startInfo.Arguments}";
 
                 // Safety: if we got this far and mc is enabled, the step must not remain "NotAttempted".
                 if (mcEnabled && mcStep.Outcome == StepOutcome.NotAttempted)

@@ -31,6 +31,8 @@
 
         public bool BulkLaunchEnabled { get; set; } = false;
 
+        public string LaunchArguments { get; set; } = "";
+
         // -----------------------------
         // GW1 – Mods / Injection
         // -----------------------------

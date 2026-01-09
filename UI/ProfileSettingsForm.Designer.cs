@@ -37,6 +37,8 @@ namespace GWxLauncher.UI
             label2 = new Label();
             txtExecutablePath = new TextBox();
             btnBrowseExe = new Button();
+            lblLaunchArgs = new Label();
+            txtLaunchArgs = new TextBox();
             grpGw1Mods = new GroupBox();
             btnBrowseGModDll = new Button();
             txtGModDll = new TextBox();
@@ -147,6 +149,22 @@ namespace GWxLauncher.UI
             btnBrowseExe.TabIndex = 4;
             btnBrowseExe.Text = "Browse...";
             btnBrowseExe.UseVisualStyleBackColor = true;
+            // 
+            // lblLaunchArgs
+            // 
+            lblLaunchArgs.AutoSize = true;
+            lblLaunchArgs.Location = new Point(309, 56);
+            lblLaunchArgs.Name = "lblLaunchArgs";
+            lblLaunchArgs.Size = new Size(118, 15);
+            lblLaunchArgs.TabIndex = 12;
+            lblLaunchArgs.Text = "Arguments (optional)";
+            // 
+            // txtLaunchArgs
+            // 
+            txtLaunchArgs.Location = new Point(418, 52);
+            txtLaunchArgs.Name = "txtLaunchArgs";
+            txtLaunchArgs.Size = new Size(272, 23);
+            txtLaunchArgs.TabIndex = 13;
             // 
             // grpGw1Mods
             // 
@@ -297,7 +315,7 @@ namespace GWxLauncher.UI
             // chkGw1Multiclient
             // 
             chkGw1Multiclient.AutoSize = true;
-            chkGw1Multiclient.Location = new Point(328, 59);
+            chkGw1Multiclient.Location = new Point(328, 81);
             chkGw1Multiclient.Name = "chkGw1Multiclient";
             chkGw1Multiclient.Size = new Size(83, 19);
             chkGw1Multiclient.TabIndex = 9;
@@ -632,6 +650,8 @@ namespace GWxLauncher.UI
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(721, 406);
+            Controls.Add(txtLaunchArgs);
+            Controls.Add(lblLaunchArgs);
             Controls.Add(grpGw1Mods);
             Controls.Add(grpGw1Login);
             Controls.Add(grpGw2RunAfter);
@@ -669,6 +689,8 @@ namespace GWxLauncher.UI
         private Label label2;
         private TextBox txtExecutablePath;
         private Button btnBrowseExe;
+        private Label lblLaunchArgs;
+        private TextBox txtLaunchArgs;
         private GroupBox grpGw1Mods;
         private TextBox txtToolboxDll;
         private CheckBox chkToolbox;

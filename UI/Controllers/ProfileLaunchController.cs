@@ -162,9 +162,9 @@ namespace GWxLauncher.UI.Controllers
                 // Record timing in report
                 report.Steps.Add(new LaunchStep 
                 { 
-                    Label = "Performance", 
+                    Label = "Launch timing", 
                     Outcome = StepOutcome.Success, 
-                    Detail = $"Launch sequence took {stopwatch.ElapsedMilliseconds}ms" 
+                    Detail = $"Launcher measured elapsed time: {stopwatch.ElapsedMilliseconds}ms" 
                 });
 
                 // Back on UI thread
@@ -213,9 +213,9 @@ namespace GWxLauncher.UI.Controllers
                 {
                     result.Report.Steps.Add(new LaunchStep 
                     { 
-                        Label = "Performance", 
+                        Label = "Launch timing", 
                         Outcome = StepOutcome.Success, 
-                        Detail = $"Launch sequence took {stopwatch.ElapsedMilliseconds}ms" 
+                        Detail = $"Launcher measured elapsed time: {stopwatch.ElapsedMilliseconds}ms" 
                     });
 
                     ProtectedInstallPathPolicy.TryAppendLaunchReportNote(result.Report, exePath);

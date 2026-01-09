@@ -278,6 +278,7 @@ namespace GWxLauncher.UI
             // ---- Load values first ----
             txtProfileName.Text = _profile.Name;
             txtExecutablePath.Text = _profile.ExecutablePath;
+            txtLaunchArgs.Text = (_profile.LaunchArguments ?? "").Trim();
             txtGw1WindowTitleLabel.Text = (_profile.Gw1WindowTitleLabel ?? "").Trim();
 
             chkGw1AutoLogin.Checked = _profile.Gw1AutoLoginEnabled;
@@ -406,7 +407,7 @@ namespace GWxLauncher.UI
         {
             _profile.Name = txtProfileName.Text.Trim();
             _profile.ExecutablePath = txtExecutablePath.Text.Trim();
-
+            _profile.LaunchArguments = (txtLaunchArgs.Text ?? "").Trim();
             if (_profile.GameType == GameType.GuildWars1)
             {
                 var label = (txtGw1WindowTitleLabel.Text ?? "").Trim();
@@ -1081,5 +1082,6 @@ namespace GWxLauncher.UI
         }
     }
 }
+
 
 
