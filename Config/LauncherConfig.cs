@@ -51,14 +51,10 @@ namespace GWxLauncher.Config
         // Profile Settings window placement
         public int ProfileSettingsX { get; set; } = -1;
         public int ProfileSettingsY { get; set; } = -1;
-        public int ProfileSettingsWidth { get; set; } = -1;
-        public int ProfileSettingsHeight { get; set; } = -1;
 
         // Global Settings window placement
         public int GlobalSettingsX { get; set; } = -1;
         public int GlobalSettingsY { get; set; } = -1;
-        public int GlobalSettingsWidth { get; set; } = -1;
-        public int GlobalSettingsHeight { get; set; } = -1;
 
 
         private static readonly string ConfigFilePath =

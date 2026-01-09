@@ -280,8 +280,8 @@ namespace GWxLauncher.UI
             {
                 _cfg.GlobalSettingsX = Left;
                 _cfg.GlobalSettingsY = Top;
-                _cfg.GlobalSettingsWidth = Width;
-                _cfg.GlobalSettingsHeight = Height;
+                //_cfg.GlobalSettingsWidth = Width;
+                //_cfg.GlobalSettingsHeight = Height;
                 _cfg.Save();
             }
             else
@@ -289,8 +289,8 @@ namespace GWxLauncher.UI
                 var b = RestoreBounds;
                 _cfg.GlobalSettingsX = b.Left;
                 _cfg.GlobalSettingsY = b.Top;
-                _cfg.GlobalSettingsWidth = b.Width;
-                _cfg.GlobalSettingsHeight = b.Height;
+                //_cfg.GlobalSettingsWidth = b.Width;
+                //_cfg.GlobalSettingsHeight = b.Height;
                 _cfg.Save();
             }
         }
@@ -303,11 +303,12 @@ namespace GWxLauncher.UI
                 Location = new Point(_cfg.GlobalSettingsX, _cfg.GlobalSettingsY);
                 _restoredFromSavedPlacement = true;
             }
-            if (_cfg.GlobalSettingsWidth > 0 && _cfg.GlobalSettingsHeight > 0)
+            if (false) // was size check
             {
-                Size = new Size(_cfg.GlobalSettingsWidth, _cfg.GlobalSettingsHeight);
+                // Size = new Size(_cfg.GlobalSettingsWidth, _cfg.GlobalSettingsHeight);
             }
         }
     }
 }
+
 
