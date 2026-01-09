@@ -1,6 +1,8 @@
-﻿using GWxLauncher.Config;
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
+using GWxLauncher.Services;
 using GWxLauncher.UI.Helpers;
+using GWxLauncher.UI.TabControls;
 
 namespace GWxLauncher.UI
 {
@@ -9,21 +11,48 @@ namespace GWxLauncher.UI
         private readonly LauncherConfig _cfg;
         private readonly Services.ProfileManager _profileManager;
         private bool _restoredFromSavedPlacement;
+        
         public event EventHandler? ImportCompleted;
-        public event EventHandler? ProfilesBulkUpdated;
+        public event EventHandler? ProfilesBulkUpdated; // Bubbled up from tab
+
+        // Tab infrastructure
+        private Panel? _pnlButtonBar;
+        private Panel? _pnlSidebar;
+        private Panel? _pnlSplitter;
+        private Panel? _pnlContentViewport;
+        private ListBox? _lstTabs;
+
+        // Tab content UserControls
+        private GlobalGeneralTabContent? _generalTab;
+        private GlobalGw1TabContent? _gw1Tab;
 
         public GlobalSettingsForm(Services.ProfileManager? profileManager = null)
         {
-            InitializeComponent();
-
             _cfg = LauncherConfig.Load();
             _profileManager = profileManager ?? new Services.ProfileManager();
 
-            // If we created it locally, make sure it’s loaded for Step 4 actions.
-            // (MainForm’s instance is already loaded, so this is cheap/no-op for most cases.)
             if (_profileManager.Profiles.Count == 0)
                 _profileManager.Load();
 
+            // Step 1: Designer
+            InitializeComponent();
+
+            // Step 2: Create tab infrastructure
+            CreateTabInfrastructure();
+
+            // Step 3: Create UserControl instances
+            CreateTabControls();
+
+            // Step 4: Reparent buttons
+            ReparentControlsToTabs();
+
+            // Step 5: Wire up tab switching
+            InitTabSidebar();
+
+            // Step 6: Apply theme
+            ThemeService.ApplyToForm(this);
+            
+            // Events
             TryRestoreSavedPlacement();
             Shown += GlobalSettingsForm_Shown;
             FormClosing += GlobalSettingsForm_FormClosing;
@@ -33,179 +62,193 @@ namespace GWxLauncher.UI
 
             LoadFromConfig();
 
-            cbGw1RenameWindowTitle.CheckedChanged += (_, __) =>
+            if (_lstTabs != null) _lstTabs.SelectedIndex = 0;
+        }
+
+        private void CreateTabInfrastructure()
+        {
+            // Button bar (bottom)
+            _pnlButtonBar = new Panel
             {
-                txtGw1TitleTemplate.Enabled = cbGw1RenameWindowTitle.Checked;
+                Dock = DockStyle.Bottom,
+                Height = 55,
+                BackColor = ThemeService.Palette.WindowBack
             };
+            this.Controls.Add(_pnlButtonBar);
 
-            rbDark.CheckedChanged += ThemeRadio_CheckedChanged;
-            rbLight.CheckedChanged += ThemeRadio_CheckedChanged;
+            // Content viewport
+            _pnlContentViewport = new Panel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                BackColor = ThemeService.Palette.WindowBack,
+                Padding = new Padding(0)
+            };
+            this.Controls.Add(_pnlContentViewport);
+            _pnlContentViewport.MouseEnter += (s, e) => _pnlContentViewport?.Focus();
 
-            ThemeService.ApplyToForm(this);
+            // Splitter
+            _pnlSplitter = new Panel
+            {
+                Dock = DockStyle.Left,
+                Width = 1,
+                BackColor = ThemeService.Palette.Separator
+            };
+            this.Controls.Add(_pnlSplitter);
+
+            // Sidebar
+            _pnlSidebar = new Panel
+            {
+                Dock = DockStyle.Left,
+                Width = 150,
+                BackColor = ThemeService.Palette.SurfaceBack
+            };
+            this.Controls.Add(_pnlSidebar);
+
+            // Tab list
+            _lstTabs = new ListBox
+            {
+                Dock = DockStyle.Fill,
+                DrawMode = DrawMode.OwnerDrawFixed,
+                ItemHeight = 48,
+                BorderStyle = BorderStyle.None,
+                SelectionMode = SelectionMode.One,
+                IntegralHeight = false,
+                BackColor = ThemeService.Palette.SurfaceBack,
+                ForeColor = ThemeService.Palette.WindowFore
+            };
+            _lstTabs.Items.AddRange(new object[] { "General", "Guild Wars 1" });
+            _pnlSidebar.Controls.Add(_lstTabs);
         }
 
-        private void GlobalSettingsForm_Load(object sender, EventArgs e)
+        private void CreateTabControls()
         {
-            // Intentionally empty (kept for designer hook)
+            if (_pnlContentViewport == null) return;
+
+            _generalTab = new GlobalGeneralTabContent
+            {
+                Dock = DockStyle.Fill,
+                Visible = false
+            };
+            _generalTab.ImportCompleted += (s, e) => this.ImportCompleted?.Invoke(this, e);
+            _generalTab.MouseEnter += (s, e) => _generalTab?.Focus();
+            _pnlContentViewport.Controls.Add(_generalTab);
+
+            _gw1Tab = new GlobalGw1TabContent
+            {
+                Dock = DockStyle.Top,
+                Visible = false
+            };
+            _gw1Tab.ProfilesBulkUpdated += (s, e) => this.ProfilesBulkUpdated?.Invoke(this, e);
+            _gw1Tab.MouseEnter += (s, e) => _gw1Tab?.Focus();
+            _pnlContentViewport.Controls.Add(_gw1Tab);
         }
-        private bool ConfirmBulkApply(string action, int count)
+
+        private void ReparentControlsToTabs()
         {
-            return MessageBox.Show(
-                this,
-                $"This will update {count} profile(s).\n\n{action}\n\nContinue?",
-                "Confirm bulk update",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning) == DialogResult.Yes;
+            if (_pnlButtonBar == null) return;
+
+            this.Controls.Remove(btnOk);
+            this.Controls.Remove(btnCancel);
+
+            _pnlButtonBar.Controls.Add(btnOk);
+            _pnlButtonBar.Controls.Add(btnCancel);
+
+            btnOk.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnCancel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnOk.Location = new Point(_pnlButtonBar.Width - 170, 15);
+            btnCancel.Location = new Point(_pnlButtonBar.Width - 85, 15);
         }
-        private void btnApplyGlobalFlags_Click(object sender, EventArgs e)
+
+        private void InitTabSidebar()
         {
-            // Ensure we use the current on-screen values (not stale config).
-            CommitUiToConfigAndSave();
-
-            var pm = _profileManager;
-            var targets = pm.Profiles.Where(p => p.GameType == GameType.GuildWars1).ToList();
-
-            if (targets.Count == 0)
-            {
-                MessageBox.Show(this, "No Guild Wars 1 profiles found.", "Nothing to do");
-                return;
-            }
-
-            if (!ConfirmBulkApply("Apply global mod enable/disable state to all Guild Wars 1 profiles.", targets.Count))
-                return;
-
-            foreach (var p in targets)
-            {
-                p.Gw1ToolboxEnabled = _cfg.GlobalToolboxEnabled;
-                p.Gw1Py4GwEnabled = _cfg.GlobalPy4GwEnabled;
-                p.Gw1GModEnabled = _cfg.GlobalGModEnabled;
-            }
-
-            pm.Save();
-
-            MessageBox.Show(this, $"Updated {targets.Count} profile(s).", "Done");
-            ProfilesBulkUpdated?.Invoke(this, EventArgs.Empty);
+            if (_lstTabs == null) return;
+            _lstTabs.SelectedIndexChanged += lstTabs_SelectedIndexChanged;
+            _lstTabs.DrawItem += lstTabs_DrawItem;
         }
-        private void btnApplyGlobalPaths_Click(object sender, EventArgs e)
+
+        private void lstTabs_SelectedIndexChanged(object? sender, EventArgs e)
         {
-            // Ensure we use the current on-screen values (not stale config).
-            CommitUiToConfigAndSave();
+            if (_lstTabs == null || _lstTabs.SelectedIndex < 0) return;
+            if (_generalTab == null || _gw1Tab == null) return;
 
-            var pm = _profileManager;
-            var targets = pm.Profiles.Where(p => p.GameType == GameType.GuildWars1).ToList();
+            _generalTab.Visible = false;
+            _gw1Tab.Visible = false;
 
-            if (targets.Count == 0)
+            switch (_lstTabs.SelectedIndex)
             {
-                MessageBox.Show(this, "No Guild Wars 1 profiles found.", "Nothing to do");
-                return;
+                case 0: // General
+                    _generalTab.Visible = true;
+                    _generalTab.Focus();
+                    _generalTab.RefreshTheme(); // Ensure theme is fresh
+                    break;
+                case 1: // Guild Wars 1
+                    _gw1Tab.Visible = true;
+                    _gw1Tab.Focus();
+                    _gw1Tab.RefreshTheme();
+                    break;
             }
 
-            if (!ConfirmBulkApply("Apply global DLL paths to all Guild Wars 1 profiles.", targets.Count))
-                return;
+            if (_pnlContentViewport != null)
+                _pnlContentViewport.AutoScrollPosition = new Point(0, 0);
+        }
+        
+        private void lstTabs_DrawItem(object? sender, DrawItemEventArgs e)
+        {
+            if (_lstTabs == null || e.Index < 0) return;
 
-            foreach (var p in targets)
+            bool isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            Color backColor = isSelected ? ThemeService.Palette.ButtonBack : ThemeService.Palette.SurfaceBack;
+
+            using (var brush = new SolidBrush(backColor))
+                e.Graphics.FillRectangle(brush, e.Bounds);
+
+            if (isSelected)
             {
-                if (!string.IsNullOrWhiteSpace(_cfg.LastToolboxPath))
-                    p.Gw1ToolboxDllPath = _cfg.LastToolboxPath;
-
-                if (!string.IsNullOrWhiteSpace(_cfg.LastPy4GWPath))
-                    p.Gw1Py4GwDllPath = _cfg.LastPy4GWPath;
-
-                if (!string.IsNullOrWhiteSpace(_cfg.LastGModPath))
-                    p.Gw1GModDllPath = _cfg.LastGModPath;
+                using (var accentBrush = new SolidBrush(ThemeService.CardPalette.Accent))
+                {
+                    var accentRect = new Rectangle(e.Bounds.Left, e.Bounds.Top, 4, e.Bounds.Height);
+                    e.Graphics.FillRectangle(accentBrush, accentRect);
+                }
             }
 
-            pm.Save();
+            string text = _lstTabs.Items[e.Index].ToString() ?? "";
+            Color textColor = isSelected ? ThemeService.Palette.WindowFore : ThemeService.Palette.SubtleFore;
 
-            MessageBox.Show(this, $"Updated {targets.Count} profile(s).", "Done");
-            ProfilesBulkUpdated?.Invoke(this, EventArgs.Empty);
+            TextRenderer.DrawText(
+                e.Graphics, text, _lstTabs.Font,
+                new Rectangle(e.Bounds.Left + 16, e.Bounds.Top, e.Bounds.Width - 16, e.Bounds.Height),
+                textColor, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
         }
 
         private void LoadFromConfig()
         {
-            // Theme
-            var t = (_cfg.Theme ?? "Light").Trim();
-            bool isDark = string.Equals(t, "Dark", StringComparison.OrdinalIgnoreCase);
-            rbDark.Checked = isDark;
-            rbLight.Checked = !isDark;
-
-            // DLL paths (last known good)
-            txtToolbox.Text = (_cfg.LastToolboxPath ?? "").Trim();
-            txtGMod.Text = (_cfg.LastGModPath ?? "").Trim();
-            txtPy4GW.Text = (_cfg.LastPy4GWPath ?? "").Trim();
-            // Global mod kill-switches
-            cbGlobalToolbox.Checked = _cfg.GlobalToolboxEnabled;
-            cbGlobalPy4Gw.Checked = _cfg.GlobalPy4GwEnabled;
-            cbGlobalGMod.Checked = _cfg.GlobalGModEnabled;
-
-            cbGw1RenameWindowTitle.Checked = _cfg.Gw1WindowTitleEnabled;
-
-            txtGw1TitleTemplate.Text = string.IsNullOrWhiteSpace(_cfg.Gw1WindowTitleTemplate)
-                ? "GW1 · {ProfileName}"
-                : _cfg.Gw1WindowTitleTemplate;
-
-            txtGw1TitleTemplate.Enabled = cbGw1RenameWindowTitle.Checked;
+            _generalTab?.BindConfig(_cfg);
+            _gw1Tab?.BindConfig(_cfg, _profileManager);
         }
 
         private void SaveAndClose()
         {
-            // Persist theme selection
-            _cfg.Theme = rbDark.Checked ? "Dark" : "Light";
-
-            // Persist DLL paths
-            _cfg.LastToolboxPath = (txtToolbox.Text ?? "").Trim();
-            _cfg.LastGModPath = (txtGMod.Text ?? "").Trim();
-            _cfg.LastPy4GWPath = (txtPy4GW.Text ?? "").Trim();
-            // Persist global mod kill-switches (runtime gating only; does not modify profiles)
-            _cfg.GlobalToolboxEnabled = cbGlobalToolbox.Checked;
-            _cfg.GlobalPy4GwEnabled = cbGlobalPy4Gw.Checked;
-            _cfg.GlobalGModEnabled = cbGlobalGMod.Checked;
-
-            _cfg.Gw1WindowTitleEnabled = cbGw1RenameWindowTitle.Checked;
-
-            var template = (txtGw1TitleTemplate.Text ?? "").Trim();
-            _cfg.Gw1WindowTitleTemplate = string.IsNullOrWhiteSpace(template)
-                ? "GW1 · {ProfileName}"
-                : template;
-
+            _generalTab?.SaveConfig(_cfg);
+            _gw1Tab?.SaveConfig(_cfg);
             _cfg.Save();
-
-            // Apply theme immediately
-            ThemeService.SetTheme(rbDark.Checked ? AppTheme.Dark : AppTheme.Light);
-
-            foreach (Form f in Application.OpenForms)
-            {
-                ThemeService.ApplyToForm(f);
-                f.Invalidate(true);
-                f.Refresh();
-            }
 
             DialogResult = DialogResult.OK;
             Close();
         }
 
-        private void TryRestoreSavedPlacement()
+        private void btnOk_Click(object sender, EventArgs e) => SaveAndClose();
+        private void btnCancel_Click(object sender, EventArgs e)
         {
-            if (_cfg.GlobalSettingsX >= 0 && _cfg.GlobalSettingsY >= 0)
-            {
-                StartPosition = FormStartPosition.Manual;
-                Location = new Point(_cfg.GlobalSettingsX, _cfg.GlobalSettingsY);
-                _restoredFromSavedPlacement = true;
-            }
-
-            if (_cfg.GlobalSettingsWidth > 0 && _cfg.GlobalSettingsHeight > 0)
-            {
-                Size = new Size(_cfg.GlobalSettingsWidth, _cfg.GlobalSettingsHeight);
-            }
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
 
         private void GlobalSettingsForm_Shown(object? sender, EventArgs e)
         {
-            // If we restored from saved placement, don't override it.
             if (_restoredFromSavedPlacement)
                 return;
 
-            // Match ProfileSettingsForm behavior: anchor near Owner when possible.
             if (Owner != null)
             {
                 var ownerBounds = Owner.Bounds;
@@ -230,7 +273,7 @@ namespace GWxLauncher.UI
                 StartPosition = FormStartPosition.CenterScreen;
             }
         }
-
+        
         private void GlobalSettingsForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
             if (WindowState == FormWindowState.Normal)
@@ -252,188 +295,18 @@ namespace GWxLauncher.UI
             }
         }
 
-        private void btnImportAccountsJson_Click(object sender, EventArgs e)
+        private void TryRestoreSavedPlacement()
         {
-            using var dlg = new OpenFileDialog
+            if (_cfg.GlobalSettingsX >= 0 && _cfg.GlobalSettingsY >= 0)
             {
-                Title = "Select accounts.json",
-                Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*"
-            };
-
-            if (dlg.ShowDialog(this) != DialogResult.OK)
-                return;
-
-            try
-            {
-                var importer = new Services.AccountsJsonImportService();
-                var result = importer.ImportFromFile(dlg.FileName, _cfg);
-
-                if (result.ImportedCount == 0)
-                {
-                    MessageBox.Show(
-                        this,
-                        "No accounts were imported.\n\nThe file may be empty or missing required fields like gw_path.",
-                        "Import complete",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    return;
-                }
-
-                // Post-import prompt: only if source wanted tools enabled but we don't know the DLLs yet.
-                bool needsAny =
-                    result.MissingToolboxPath || result.MissingGModPath || result.MissingPy4GwPath;
-
-                if (needsAny)
-                {
-                    var msg =
-                        "This accounts file indicates one or more injection tools are enabled, " +
-                        "but GWxLauncher doesn’t know where those DLLs are yet.\n\n" +
-                        "Select them now?";
-
-                    var pickNow = MessageBox.Show(
-                        this,
-                        msg,
-                        "Missing DLL paths",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Warning) == DialogResult.Yes;
-
-                    if (pickNow)
-                    {
-                        // Let user pick missing DLLs, update config + UI immediately
-                        if (result.MissingToolboxPath)
-                            PickDllIntoGlobalSetting(txtToolbox, "Select Toolbox DLL", v => _cfg.LastToolboxPath = v);
-
-                        if (result.MissingGModPath)
-                            PickDllIntoGlobalSetting(txtGMod, "Select gMod DLL", v => _cfg.LastGModPath = v);
-
-                        if (result.MissingPy4GwPath)
-                            PickDllIntoGlobalSetting(txtPy4GW, "Select Py4GW DLL", v => _cfg.LastPy4GWPath = v);
-
-                        _cfg.Save();
-
-                        // Re-apply tool enables for the just-imported profiles now that paths exist
-                        importer.ApplyNewlySelectedDllPathsToImportedProfiles(
-                            result.ImportedProfileIds,
-                            result.ToolWantsByProfileId,
-                            _cfg);
-                    }
-                }
-                ImportCompleted?.Invoke(this, EventArgs.Empty);
-                MessageBox.Show(
-                    this,
-                    $"Imported {result.ImportedCount} profile(s).\n\n" +
-                    "Imported profiles start unchecked in all views.",
-                    "Import complete",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(_cfg.GlobalSettingsX, _cfg.GlobalSettingsY);
+                _restoredFromSavedPlacement = true;
             }
-            catch (Exception ex)
+            if (_cfg.GlobalSettingsWidth > 0 && _cfg.GlobalSettingsHeight > 0)
             {
-                MessageBox.Show(
-                    this,
-                    $"Import failed:\n\n{ex.Message}",
-                    "Import error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                Size = new Size(_cfg.GlobalSettingsWidth, _cfg.GlobalSettingsHeight);
             }
-        }
-
-
-        private void PickDllIntoGlobalSetting(TextBox target, string title, Action<string> setConfigValue)
-        {
-            if (target == null) throw new ArgumentNullException(nameof(target));
-            if (setConfigValue == null) throw new ArgumentNullException(nameof(setConfigValue));
-
-            if (!string.IsNullOrWhiteSpace((target.Text ?? "").Trim()))
-                return;
-
-            if (FilePickerHelper.TryPickDll(this, target, title))
-                setConfigValue((target.Text ?? "").Trim());
-        }
-        private void CommitUiToConfigAndSave()
-        {
-            // Persist theme selection (in config) — saving is needed so bulk-apply uses current values.
-            _cfg.Theme = rbDark.Checked ? "Dark" : "Light";
-
-            // Persist DLL paths
-            _cfg.LastToolboxPath = (txtToolbox.Text ?? "").Trim();
-            _cfg.LastGModPath = (txtGMod.Text ?? "").Trim();
-            _cfg.LastPy4GWPath = (txtPy4GW.Text ?? "").Trim();
-
-            // Persist global mod kill-switches
-            _cfg.GlobalToolboxEnabled = cbGlobalToolbox.Checked;
-            _cfg.GlobalPy4GwEnabled = cbGlobalPy4Gw.Checked;
-            _cfg.GlobalGModEnabled = cbGlobalGMod.Checked;
-
-            _cfg.Save();
-        }
-        private void ThemeRadio_CheckedChanged(object? sender, EventArgs e)
-        {
-            // Only act when the radio is becoming checked (avoid double-firing on uncheck)
-            if (sender is RadioButton rb && !rb.Checked)
-                return;
-
-            var theme = rbDark.Checked ? AppTheme.Dark : AppTheme.Light;
-
-            // Live preview (do NOT save here; OK will persist)
-            ThemeService.SetTheme(theme);
-
-            foreach (Form f in Application.OpenForms)
-            {
-                ThemeService.ApplyToForm(f);
-                f.Invalidate(true);
-                f.Refresh();
-            }
-        }
-
-        private void btnOk_Click(object sender, EventArgs e)
-        {
-            SaveAndClose();
-        }
-
-        private void btnCancel_Click(object sender, EventArgs e)
-        {
-            DialogResult = DialogResult.Cancel;
-            Close();
-        }
-
-        private void btnBrowseToolbox_Click(object sender, EventArgs e)
-        {
-            BrowseDllInto(txtToolbox, "Select Toolbox DLL");
-        }
-
-        private void btnBrowseGMod_Click(object sender, EventArgs e)
-        {
-            BrowseDllInto(txtGMod, "Select gMod DLL");
-        }
-
-        private void btnBrowsePy4GW_Click(object sender, EventArgs e)
-        {
-            BrowseDllInto(txtPy4GW, "Select Py4GW DLL");
-        }
-
-        private void BrowseDllInto(TextBox target, string title)
-        {
-            _ = FilePickerHelper.TryPickDll(this, target, title);
-        }
-
-        private void GlobalSettingsForm_Load_1(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label6_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label5_Click(object sender, EventArgs e)
-        {
-
         }
     }
 }
-
-
-
-

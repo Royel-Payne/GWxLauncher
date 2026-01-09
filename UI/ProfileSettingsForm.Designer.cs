@@ -33,7 +33,6 @@ namespace GWxLauncher.UI
             btnOk = new Button();
             btnCancel = new Button();
             SuspendLayout();
-            
             // 
             // btnOk
             // 
@@ -62,10 +61,11 @@ namespace GWxLauncher.UI
             ClientSize = new Size(721, 406);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
             Name = "ProfileSettingsForm";
             Text = "ProfileSettingsForm";
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
