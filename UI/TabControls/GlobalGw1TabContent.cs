@@ -46,9 +46,29 @@ namespace GWxLauncher.UI.TabControls
             txtGw1TitleTemplate.Enabled = cbGw1RenameWindowTitle.Checked;
 
             // DLLs
-            txtToolbox.Text = (_cfg.LastToolboxPath ?? "").Trim();
-            txtPy4GW.Text = (_cfg.LastPy4GWPath ?? "").Trim();
-            txtGMod.Text = (_cfg.LastGModPath ?? "").Trim();
+            string tbPath = (_cfg.LastToolboxPath ?? "").Trim();
+            if (string.IsNullOrEmpty(tbPath))
+            {
+                var p = _profileManager.Profiles.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Gw1ToolboxDllPath));
+                if (p != null) tbPath = p.Gw1ToolboxDllPath.Trim();
+            }
+            txtToolbox.Text = tbPath;
+
+            string pyPath = (_cfg.LastPy4GWPath ?? "").Trim();
+            if (string.IsNullOrEmpty(pyPath))
+            {
+                var p = _profileManager.Profiles.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Gw1Py4GwDllPath));
+                if (p != null) pyPath = p.Gw1Py4GwDllPath.Trim();
+            }
+            txtPy4GW.Text = pyPath;
+
+            string gmPath = (_cfg.LastGModPath ?? "").Trim();
+            if (string.IsNullOrEmpty(gmPath))
+            {
+                var p = _profileManager.Profiles.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Gw1GModDllPath));
+                if (p != null) gmPath = p.Gw1GModDllPath.Trim();
+            }
+            txtGMod.Text = gmPath;
 
             // Kill-switches
             cbGlobalToolbox.Checked = _cfg.GlobalToolboxEnabled;
