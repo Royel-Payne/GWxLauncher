@@ -28,32 +28,32 @@ namespace GWxLauncher.UI.TabControls
         /// </summary>
         private void InitializeComponent()
         {
-            this.lblPlaceholder = new System.Windows.Forms.Label();
-            this.SuspendLayout();
+            lblPlaceholder = new Label();
+            SuspendLayout();
             // 
             // lblPlaceholder
             // 
-            this.lblPlaceholder.AutoSize = true;
-            this.lblPlaceholder.Dock = System.Windows.Forms.DockStyle.Top;
-            this.lblPlaceholder.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.lblPlaceholder.Location = new System.Drawing.Point(10, 10);
-            this.lblPlaceholder.Name = "lblPlaceholder";
-            this.lblPlaceholder.Padding = new System.Windows.Forms.Padding(0, 10, 0, 10);
-            this.lblPlaceholder.Size = new System.Drawing.Size(285, 39);
-            this.lblPlaceholder.TabIndex = 0;
-            this.lblPlaceholder.Text = "Windowed mode settings will appear here.";
+            lblPlaceholder.AutoSize = true;
+            lblPlaceholder.Dock = DockStyle.Top;
+            lblPlaceholder.Font = new Font("Segoe UI", 10F);
+            lblPlaceholder.Location = new Point(10, 10);
+            lblPlaceholder.Name = "lblPlaceholder";
+            lblPlaceholder.Padding = new Padding(0, 10, 0, 10);
+            lblPlaceholder.Size = new Size(268, 39);
+            lblPlaceholder.TabIndex = 0;
+            lblPlaceholder.Text = "Windowed mode settings will appear here.";
             // 
             // WindowTabContent
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoScroll = true;
-            this.Controls.Add(this.lblPlaceholder);
-            this.Name = "WindowTabContent";
-            this.Padding = new System.Windows.Forms.Padding(10);
-            this.Size = new System.Drawing.Size(550, 400);
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            AutoScroll = true;
+            Controls.Add(lblPlaceholder);
+            Name = "WindowTabContent";
+            Padding = new Padding(10);
+            Size = new Size(550, 400);
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion

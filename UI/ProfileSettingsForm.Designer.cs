@@ -30,15 +30,6 @@ namespace GWxLauncher.UI
         /// </summary>
         private void InitializeComponent()
         {
-            txtProfileName = new TextBox();
-            lblGw1WindowTitleLabel = new Label();
-            txtGw1WindowTitleLabel = new TextBox();
-            label1 = new Label();
-            label2 = new Label();
-            txtExecutablePath = new TextBox();
-            btnBrowseExe = new Button();
-            lblLaunchArgs = new Label();
-            txtLaunchArgs = new TextBox();
             grpGw1Mods = new GroupBox();
             btnBrowseGModDll = new Button();
             txtGModDll = new TextBox();
@@ -54,7 +45,6 @@ namespace GWxLauncher.UI
             colGw1GModPlugin = new ColumnHeader();
             btnGw1AddPlugin = new Button();
             btnGw1RemovePlugin = new Button();
-            chkGw1Multiclient = new CheckBox();
             grpGw2RunAfter = new GroupBox();
             label3 = new Label();
             chkGw2RunAfterEnabled = new CheckBox();
@@ -64,107 +54,11 @@ namespace GWxLauncher.UI
             btnGw2AddProgram = new Button();
             btnGw2RemoveProgram = new Button();
             colGw2RunAfterPath = new ColumnHeader();
-            grpGw1Login = new GroupBox();
-            lblGw1LoginWarning = new Label();
-            lblGw1PasswordSaved = new Label();
-            txtGw1CharacterName = new TextBox();
-            lblGw1CharacterName = new Label();
-            chkGw1AutoSelectCharacter = new CheckBox();
-            txtGw1Password = new TextBox();
-            lblGw1Password = new Label();
-            txtGw1Email = new TextBox();
-            lblGw1Email = new Label();
-            chkGw1AutoLogin = new CheckBox();
             btnOk = new Button();
             btnCancel = new Button();
-            grpGw2Login = new GroupBox();
-            lblGw2Warning = new Label();
-            chkGw2AutoLogin = new CheckBox();
-            lblGw2LoginInfo = new Label();
-            lblGw2Email = new Label();
-            txtGw2Email = new TextBox();
-            lblGw2Password = new Label();
-            txtGw2Password = new TextBox();
-            lblGw2PasswordSaved = new Label();
-            chkGw2AutoPlay = new CheckBox();
             grpGw1Mods.SuspendLayout();
             grpGw2RunAfter.SuspendLayout();
-            grpGw1Login.SuspendLayout();
-            grpGw2Login.SuspendLayout();
             SuspendLayout();
-            // 
-            // txtProfileName
-            // 
-            txtProfileName.Location = new Point(98, 23);
-            txtProfileName.Name = "txtProfileName";
-            txtProfileName.Size = new Size(187, 23);
-            txtProfileName.TabIndex = 0;
-            // 
-            // lblGw1WindowTitleLabel
-            // 
-            lblGw1WindowTitleLabel.AutoSize = true;
-            lblGw1WindowTitleLabel.Location = new Point(12, 56);
-            lblGw1WindowTitleLabel.Name = "lblGw1WindowTitleLabel";
-            lblGw1WindowTitleLabel.Size = new Size(78, 15);
-            lblGw1WindowTitleLabel.TabIndex = 10;
-            lblGw1WindowTitleLabel.Text = "Titlebar Label";
-            // 
-            // txtGw1WindowTitleLabel
-            // 
-            txtGw1WindowTitleLabel.Location = new Point(98, 52);
-            txtGw1WindowTitleLabel.Name = "txtGw1WindowTitleLabel";
-            txtGw1WindowTitleLabel.Size = new Size(187, 23);
-            txtGw1WindowTitleLabel.TabIndex = 11;
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new Point(12, 27);
-            label1.Name = "label1";
-            label1.Size = new Size(80, 15);
-            label1.TabIndex = 1;
-            label1.Text = "Display Name";
-            // 
-            // label2
-            // 
-            label2.AutoSize = true;
-            label2.Location = new Point(309, 27);
-            label2.Name = "label2";
-            label2.Size = new Size(87, 15);
-            label2.TabIndex = 2;
-            label2.Text = "Game EXE path";
-            // 
-            // txtExecutablePath
-            // 
-            txtExecutablePath.Location = new Point(403, 23);
-            txtExecutablePath.Name = "txtExecutablePath";
-            txtExecutablePath.Size = new Size(202, 23);
-            txtExecutablePath.TabIndex = 3;
-            // 
-            // btnBrowseExe
-            // 
-            btnBrowseExe.Location = new Point(615, 23);
-            btnBrowseExe.Name = "btnBrowseExe";
-            btnBrowseExe.Size = new Size(75, 23);
-            btnBrowseExe.TabIndex = 4;
-            btnBrowseExe.Text = "Browse...";
-            btnBrowseExe.UseVisualStyleBackColor = true;
-            // 
-            // lblLaunchArgs
-            // 
-            lblLaunchArgs.AutoSize = true;
-            lblLaunchArgs.Location = new Point(309, 56);
-            lblLaunchArgs.Name = "lblLaunchArgs";
-            lblLaunchArgs.Size = new Size(66, 15);
-            lblLaunchArgs.TabIndex = 12;
-            lblLaunchArgs.Text = "Arguments\r\n";
-            // 
-            // txtLaunchArgs
-            // 
-            txtLaunchArgs.Location = new Point(403, 52);
-            txtLaunchArgs.Name = "txtLaunchArgs";
-            txtLaunchArgs.Size = new Size(202, 23);
-            txtLaunchArgs.TabIndex = 13;
             // 
             // grpGw1Mods
             // 
@@ -312,16 +206,6 @@ namespace GWxLauncher.UI
             btnGw1RemovePlugin.Text = "Remove";
             btnGw1RemovePlugin.UseVisualStyleBackColor = true;
             // 
-            // chkGw1Multiclient
-            // 
-            chkGw1Multiclient.AutoSize = true;
-            chkGw1Multiclient.Location = new Point(328, 81);
-            chkGw1Multiclient.Name = "chkGw1Multiclient";
-            chkGw1Multiclient.Size = new Size(83, 19);
-            chkGw1Multiclient.TabIndex = 9;
-            chkGw1Multiclient.Text = "Multiclient";
-            chkGw1Multiclient.UseVisualStyleBackColor = true;
-            // 
             // grpGw2RunAfter
             // 
             grpGw2RunAfter.Controls.Add(label3);
@@ -414,114 +298,6 @@ namespace GWxLauncher.UI
             colGw2RunAfterPath.Text = "Path";
             colGw2RunAfterPath.Width = 180;
             // 
-            // grpGw1Login
-            // 
-            grpGw1Login.Controls.Add(lblGw1LoginWarning);
-            grpGw1Login.Controls.Add(lblGw1PasswordSaved);
-            grpGw1Login.Controls.Add(txtGw1CharacterName);
-            grpGw1Login.Controls.Add(lblGw1CharacterName);
-            grpGw1Login.Controls.Add(chkGw1AutoSelectCharacter);
-            grpGw1Login.Controls.Add(txtGw1Password);
-            grpGw1Login.Controls.Add(lblGw1Password);
-            grpGw1Login.Controls.Add(txtGw1Email);
-            grpGw1Login.Controls.Add(lblGw1Email);
-            grpGw1Login.Controls.Add(chkGw1AutoLogin);
-            grpGw1Login.Location = new Point(12, 105);
-            grpGw1Login.Name = "grpGw1Login";
-            grpGw1Login.Size = new Size(273, 257);
-            grpGw1Login.TabIndex = 5;
-            grpGw1Login.TabStop = false;
-            grpGw1Login.Text = "GW1 Login";
-            // 
-            // lblGw1LoginWarning
-            // 
-            lblGw1LoginWarning.AutoSize = true;
-            lblGw1LoginWarning.Location = new Point(16, 45);
-            lblGw1LoginWarning.Name = "lblGw1LoginWarning";
-            lblGw1LoginWarning.Size = new Size(205, 15);
-            lblGw1LoginWarning.TabIndex = 9;
-            lblGw1LoginWarning.Text = "Auto-login stores credentials (DPAPI).";
-            lblGw1LoginWarning.Visible = false;
-            // 
-            // lblGw1PasswordSaved
-            // 
-            lblGw1PasswordSaved.AutoSize = true;
-            lblGw1PasswordSaved.Location = new Point(16, 153);
-            lblGw1PasswordSaved.Name = "lblGw1PasswordSaved";
-            lblGw1PasswordSaved.Size = new Size(105, 15);
-            lblGw1PasswordSaved.TabIndex = 5;
-            lblGw1PasswordSaved.Text = "🔒 Password saved";
-            lblGw1PasswordSaved.Visible = false;
-            // 
-            // txtGw1CharacterName
-            // 
-            txtGw1CharacterName.Location = new Point(16, 218);
-            txtGw1CharacterName.Name = "txtGw1CharacterName";
-            txtGw1CharacterName.Size = new Size(241, 23);
-            txtGw1CharacterName.TabIndex = 8;
-            // 
-            // lblGw1CharacterName
-            // 
-            lblGw1CharacterName.AutoSize = true;
-            lblGw1CharacterName.Location = new Point(16, 200);
-            lblGw1CharacterName.Name = "lblGw1CharacterName";
-            lblGw1CharacterName.Size = new Size(93, 15);
-            lblGw1CharacterName.TabIndex = 7;
-            lblGw1CharacterName.Text = "Character Name";
-            // 
-            // chkGw1AutoSelectCharacter
-            // 
-            chkGw1AutoSelectCharacter.AutoSize = true;
-            chkGw1AutoSelectCharacter.Location = new Point(16, 176);
-            chkGw1AutoSelectCharacter.Name = "chkGw1AutoSelectCharacter";
-            chkGw1AutoSelectCharacter.Size = new Size(141, 19);
-            chkGw1AutoSelectCharacter.TabIndex = 6;
-            chkGw1AutoSelectCharacter.Text = "Auto-select Character";
-            chkGw1AutoSelectCharacter.UseVisualStyleBackColor = true;
-            // 
-            // txtGw1Password
-            // 
-            txtGw1Password.Location = new Point(16, 127);
-            txtGw1Password.Name = "txtGw1Password";
-            txtGw1Password.Size = new Size(241, 23);
-            txtGw1Password.TabIndex = 4;
-            txtGw1Password.UseSystemPasswordChar = true;
-            // 
-            // lblGw1Password
-            // 
-            lblGw1Password.AutoSize = true;
-            lblGw1Password.Location = new Point(16, 109);
-            lblGw1Password.Name = "lblGw1Password";
-            lblGw1Password.Size = new Size(57, 15);
-            lblGw1Password.TabIndex = 3;
-            lblGw1Password.Text = "Password";
-            // 
-            // txtGw1Email
-            // 
-            txtGw1Email.Location = new Point(16, 77);
-            txtGw1Email.Name = "txtGw1Email";
-            txtGw1Email.Size = new Size(241, 23);
-            txtGw1Email.TabIndex = 2;
-            // 
-            // lblGw1Email
-            // 
-            lblGw1Email.AutoSize = true;
-            lblGw1Email.Location = new Point(16, 59);
-            lblGw1Email.Name = "lblGw1Email";
-            lblGw1Email.Size = new Size(36, 15);
-            lblGw1Email.TabIndex = 1;
-            lblGw1Email.Text = "Email";
-            // 
-            // chkGw1AutoLogin
-            // 
-            chkGw1AutoLogin.AutoSize = true;
-            chkGw1AutoLogin.Location = new Point(16, 25);
-            chkGw1AutoLogin.Name = "chkGw1AutoLogin";
-            chkGw1AutoLogin.Size = new Size(153, 19);
-            chkGw1AutoLogin.TabIndex = 0;
-            chkGw1AutoLogin.Text = "Enable GW1 Auto-Login";
-            chkGw1AutoLogin.UseVisualStyleBackColor = true;
-            // 
             // btnOk
             // 
             btnOk.DialogResult = DialogResult.OK;
@@ -542,155 +318,27 @@ namespace GWxLauncher.UI
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = true;
             // 
-            // grpGw2Login
-            // 
-            grpGw2Login.Controls.Add(lblGw2Warning);
-            grpGw2Login.Controls.Add(chkGw2AutoLogin);
-            grpGw2Login.Controls.Add(lblGw2LoginInfo);
-            grpGw2Login.Controls.Add(lblGw2Email);
-            grpGw2Login.Controls.Add(txtGw2Email);
-            grpGw2Login.Controls.Add(lblGw2Password);
-            grpGw2Login.Controls.Add(txtGw2Password);
-            grpGw2Login.Controls.Add(lblGw2PasswordSaved);
-            grpGw2Login.Controls.Add(chkGw2AutoPlay);
-            grpGw2Login.Location = new Point(12, 105);
-            grpGw2Login.Name = "grpGw2Login";
-            grpGw2Login.Size = new Size(273, 257);
-            grpGw2Login.TabIndex = 5;
-            grpGw2Login.TabStop = false;
-            grpGw2Login.Text = "GW2 Login";
-            grpGw2Login.Visible = false;
-            // 
-            // lblGw2Warning
-            // 
-            lblGw2Warning.AutoSize = true;
-            lblGw2Warning.Font = new System.Drawing.Font("Segoe UI", 10F);
-            lblGw2Warning.ForeColor = Color.Crimson;
-            lblGw2Warning.Location = new Point(16, 226);
-            lblGw2Warning.Name = "lblGw2Warning";
-            lblGw2Warning.Size = new Size(212, 19);
-            lblGw2Warning.TabIndex = 8;
-            lblGw2Warning.Text = "Experimental Feature (best effort)";
-            lblGw2Warning.Click += lblGw2Warning_Click;
-            // 
-            // chkGw2AutoLogin
-            // 
-            chkGw2AutoLogin.AutoSize = true;
-            chkGw2AutoLogin.Location = new Point(16, 25);
-            chkGw2AutoLogin.Name = "chkGw2AutoLogin";
-            chkGw2AutoLogin.Size = new Size(153, 19);
-            chkGw2AutoLogin.TabIndex = 0;
-            chkGw2AutoLogin.Text = "Enable GW2 Auto-Login";
-            chkGw2AutoLogin.UseVisualStyleBackColor = true;
-            // 
-            // lblGw2LoginInfo
-            // 
-            lblGw2LoginInfo.AutoSize = true;
-            lblGw2LoginInfo.Location = new Point(16, 45);
-            lblGw2LoginInfo.Name = "lblGw2LoginInfo";
-            lblGw2LoginInfo.Size = new Size(205, 15);
-            lblGw2LoginInfo.TabIndex = 1;
-            lblGw2LoginInfo.Text = "Auto-login stores credentials (DPAPI).";
-            // 
-            // lblGw2Email
-            // 
-            lblGw2Email.AutoSize = true;
-            lblGw2Email.Location = new Point(16, 64);
-            lblGw2Email.Name = "lblGw2Email";
-            lblGw2Email.Size = new Size(36, 15);
-            lblGw2Email.TabIndex = 2;
-            lblGw2Email.Text = "Email";
-            // 
-            // txtGw2Email
-            // 
-            txtGw2Email.Location = new Point(16, 82);
-            txtGw2Email.Name = "txtGw2Email";
-            txtGw2Email.Size = new Size(241, 23);
-            txtGw2Email.TabIndex = 3;
-            // 
-            // lblGw2Password
-            // 
-            lblGw2Password.AutoSize = true;
-            lblGw2Password.Location = new Point(16, 112);
-            lblGw2Password.Name = "lblGw2Password";
-            lblGw2Password.Size = new Size(57, 15);
-            lblGw2Password.TabIndex = 4;
-            lblGw2Password.Text = "Password";
-            // 
-            // txtGw2Password
-            // 
-            txtGw2Password.Location = new Point(16, 130);
-            txtGw2Password.Name = "txtGw2Password";
-            txtGw2Password.Size = new Size(241, 23);
-            txtGw2Password.TabIndex = 5;
-            txtGw2Password.UseSystemPasswordChar = true;
-            // 
-            // lblGw2PasswordSaved
-            // 
-            lblGw2PasswordSaved.AutoSize = true;
-            lblGw2PasswordSaved.Location = new Point(16, 156);
-            lblGw2PasswordSaved.Name = "lblGw2PasswordSaved";
-            lblGw2PasswordSaved.Size = new Size(105, 15);
-            lblGw2PasswordSaved.TabIndex = 6;
-            lblGw2PasswordSaved.Text = "🔒 Password saved";
-            lblGw2PasswordSaved.Visible = false;
-            // 
-            // chkGw2AutoPlay
-            // 
-            chkGw2AutoPlay.AutoSize = true;
-            chkGw2AutoPlay.Location = new Point(16, 182);
-            chkGw2AutoPlay.Name = "chkGw2AutoPlay";
-            chkGw2AutoPlay.Size = new Size(161, 19);
-            chkGw2AutoPlay.TabIndex = 7;
-            chkGw2AutoPlay.Text = "Auto-click Play (optional)";
-            chkGw2AutoPlay.UseVisualStyleBackColor = true;
-            // 
             // ProfileSettingsForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(721, 406);
-            Controls.Add(txtLaunchArgs);
-            Controls.Add(lblLaunchArgs);
             Controls.Add(grpGw2RunAfter);
             Controls.Add(grpGw1Mods);
-            Controls.Add(grpGw1Login);
-            Controls.Add(chkGw1Multiclient);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
-            Controls.Add(btnBrowseExe);
-            Controls.Add(txtExecutablePath);
-            Controls.Add(label2);
-            Controls.Add(label1);
-            Controls.Add(txtProfileName);
-            Controls.Add(grpGw2Login);
-            Controls.Add(txtGw1WindowTitleLabel);
-            Controls.Add(lblGw1WindowTitleLabel);
             Name = "ProfileSettingsForm";
             Text = "ProfileSettingsForm";
             grpGw1Mods.ResumeLayout(false);
             grpGw1Mods.PerformLayout();
             grpGw2RunAfter.ResumeLayout(false);
             grpGw2RunAfter.PerformLayout();
-            grpGw1Login.ResumeLayout(false);
-            grpGw1Login.PerformLayout();
-            grpGw2Login.ResumeLayout(false);
-            grpGw2Login.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
 
         #endregion
 
-        private TextBox txtProfileName;
-        private Label lblGw1WindowTitleLabel;
-        private TextBox txtGw1WindowTitleLabel;
-        private Label label1;
-        private Label label2;
-        private TextBox txtExecutablePath;
-        private Button btnBrowseExe;
-        private Label lblLaunchArgs;
-        private TextBox txtLaunchArgs;
         private GroupBox grpGw1Mods;
         private TextBox txtToolboxDll;
         private CheckBox chkToolbox;
@@ -701,7 +349,6 @@ namespace GWxLauncher.UI
         private TextBox txtPy4GwDll;
         private CheckBox chkPy4Gw;
         private Button btnBrowseToolboxDll;
-        private CheckBox chkGw1Multiclient;
         private Button btnOk;
         private Button btnCancel;
         // GW2 "Run after launching"
@@ -713,33 +360,12 @@ namespace GWxLauncher.UI
         private ColumnHeader colGw2RunAfterMumble;
         private ColumnHeader colGw2RunAfterName;
         private ColumnHeader colGw2RunAfterPath;
-        private GroupBox grpGw2Login;
-        private CheckBox chkGw2AutoLogin;
-        private Label lblGw2LoginInfo;
-        private Label lblGw2Email;
-        private TextBox txtGw2Email;
-        private Label lblGw2Password;
-        private TextBox txtGw2Password;
-        private Label lblGw2PasswordSaved;
-        private CheckBox chkGw2AutoPlay;
         // GW1 "gMod plugins UI"
         private ListView lvGw1GModPlugins;
         private ColumnHeader colGw1GModPlugin;
         private Button btnGw1AddPlugin;
         private Button btnGw1RemovePlugin;
         private Label lblGw1GModPlugins;
-        private GroupBox grpGw1Login;
-        private CheckBox chkGw1AutoLogin;
-        private Label lblGw1Email;
-        private TextBox txtGw1Email;
-        private Label lblGw1Password;
-        private TextBox txtGw1Password;
-        private Label lblGw1PasswordSaved;
-        private CheckBox chkGw1AutoSelectCharacter;
-        private Label lblGw1CharacterName;
-        private TextBox txtGw1CharacterName;
-        private Label lblGw1LoginWarning;
-        private Label lblGw2Warning;
         private Label label3;
     }
 }

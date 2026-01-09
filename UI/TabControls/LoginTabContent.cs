@@ -1,234 +1,157 @@
 using GWxLauncher.Domain;
+using GWxLauncher.Services;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace GWxLauncher.UI.TabControls
 {
     public partial class LoginTabContent : UserControl
     {
+        private GameProfile _profile;
+
         public LoginTabContent()
         {
             InitializeComponent();
             ApplyTheme();
+
+            // Event wiring
+            chkAutoLogin.CheckedChanged += (s, e) => UpdateUiState();
+            chkAutoSelectChar.CheckedChanged += (s, e) => UpdateUiState();
         }
 
-        public void ArrangeControls(Control[] gw1Controls, Control[] gw2Controls)
+        public void BindProfile(GameProfile profile)
         {
-            pnlGw1Login.Controls.Clear();
-            pnlGw2Login.Controls.Clear();
+            _profile = profile;
+            
+            bool isGw1 = profile.GameType == GameType.GuildWars1;
+            bool isGw2 = profile.GameType == GameType.GuildWars2;
 
-            if (gw1Controls != null && gw1Controls.Length > 0)
-                LayoutGw1Controls(gw1Controls);
+            // 1. Text & Config
+            if (isGw1)
+            {
+                chkAutoLogin.Text = "Enable Auto-Login";
+                chkAutoLogin.Checked = profile.Gw1AutoLoginEnabled;
+                
+                txtEmail.Text = profile.Gw1Email;
+                txtPassword.Text = ""; // Never show password back
+                
+                lblPasswordSaved.Visible = !string.IsNullOrWhiteSpace(profile.Gw1PasswordProtected);
+                
+                chkAutoSelectChar.Checked = profile.Gw1AutoSelectCharacterEnabled;
+                txtCharName.Text = profile.Gw1CharacterName;
 
-            if (gw2Controls != null && gw2Controls.Length > 0)
-                LayoutGw2Controls(gw2Controls);
+                lblWarning.Text = "Warning: Passwords are encrypted (DPAPI) but stored locally so auto-login can work.\nUse at your own risk.";
+                lblWarning.ForeColor = Color.Goldenrod;
+
+                // Hidden/Shown controls
+                lblLoginInfo.Visible = false;
+                
+                chkAutoSelectChar.Visible = true;
+                lblCharName.Visible = true;
+                txtCharName.Visible = true;
+                
+                chkAutoPlay.Visible = false;
+            }
+            else // GW2
+            {
+                chkAutoLogin.Text = "Enable Auto-Login";
+                chkAutoLogin.Checked = profile.Gw2AutoLoginEnabled;
+
+                lblLoginInfo.Text = "GW2 requires -autologin argument (managed automatically).";
+                lblLoginInfo.Visible = true;
+                lblLoginInfo.ForeColor = Color.Goldenrod;
+
+                txtEmail.Text = profile.Gw2Email;
+                txtPassword.Text = "";
+
+                lblPasswordSaved.Visible = !string.IsNullOrWhiteSpace(profile.Gw2PasswordProtected);
+
+                chkAutoPlay.Text = "Auto Play (press Enter on character selection)";
+                chkAutoPlay.Checked = profile.Gw2AutoPlayEnabled;
+
+                lblWarning.Text = "Warning: Storing passwords locally allows auto-login but carries risk.";
+                lblWarning.ForeColor = Color.Red;
+
+                // Hidden/Shown controls
+                chkAutoSelectChar.Visible = false;
+                lblCharName.Visible = false;
+                txtCharName.Visible = false;
+                
+                chkAutoPlay.Visible = true;
+            }
+
+            UpdateUiState();
+        }
+        
+        public void SaveProfile(GameProfile profile)
+        {
+            // If the passed profile is different, we should probably warn or just use mapped one.
+            // Using logic from ProfileSettingsForm to save back.
+            
+            bool isGw1 = profile.GameType == GameType.GuildWars1;
+
+            if (isGw1)
+            {
+                profile.Gw1AutoLoginEnabled = chkAutoLogin.Checked;
+                profile.Gw1Email = txtEmail.Text.Trim();
+                profile.Gw1AutoSelectCharacterEnabled = chkAutoSelectChar.Checked;
+                profile.Gw1CharacterName = txtCharName.Text.Trim();
+
+                var pw = txtPassword.Text;
+                if (!string.IsNullOrWhiteSpace(pw))
+                {
+                    profile.Gw1PasswordProtected = DpapiProtector.ProtectToBase64(pw);
+                }
+            }
+            else
+            {
+                profile.Gw2AutoLoginEnabled = chkAutoLogin.Checked;
+                profile.Gw2Email = txtEmail.Text.Trim();
+                profile.Gw2AutoPlayEnabled = chkAutoPlay.Checked;
+
+                var pw = txtPassword.Text;
+                if (!string.IsNullOrWhiteSpace(pw))
+                {
+                    profile.Gw2PasswordProtected = DpapiProtector.ProtectToBase64(pw);
+                }
+            }
         }
 
-        private void LayoutGw1Controls(Control[] controls)
+        private void UpdateUiState()
         {
-            var chkAutoLogin = Array.Find(controls, c => c.Name == "chkGw1AutoLogin");
-            var lblEmail = Array.Find(controls, c => c.Name == "lblGw1Email") as Label;
-            var txtEmail = Array.Find(controls, c => c.Name == "txtGw1Email");
-            var lblPassword = Array.Find(controls, c => c.Name == "lblGw1Password") as Label;
-            var txtPassword = Array.Find(controls, c => c.Name == "txtGw1Password");
-            var lblPasswordSaved = Array.Find(controls, c => c.Name == "lblGw1PasswordSaved");
-            var chkAutoSelectChar = Array.Find(controls, c => c.Name == "chkGw1AutoSelectCharacter");
-            var lblCharName = Array.Find(controls, c => c.Name == "lblGw1CharacterName") as Label;
-            var txtCharName = Array.Find(controls, c => c.Name == "txtGw1CharacterName");
-            var lblWarning = Array.Find(controls, c => c.Name == "lblGw1LoginWarning");
+            bool enabled = chkAutoLogin.Checked;
 
-            int y = 0;
-            const int leftMargin = 10;  // Match General tab margin
-            const int labelWidth = 120;
-            const int fieldLeft = 130;
-            const int rowHeight = 35;
+            lblEmail.Enabled = enabled;
+            txtEmail.Enabled = enabled;
+            lblPassword.Enabled = enabled;
+            txtPassword.Enabled = enabled;
+            lblPasswordSaved.Enabled = enabled;
 
-            if (chkAutoLogin != null)
+            if (chkAutoSelectChar.Visible)
             {
-                chkAutoLogin.Location = new Point(leftMargin, y);
-                chkAutoLogin.AutoSize = true;
-                pnlGw1Login.Controls.Add(chkAutoLogin);
-                y += rowHeight;
+                chkAutoSelectChar.Enabled = enabled;
+                bool charEnabled = enabled && chkAutoSelectChar.Checked;
+                lblCharName.Enabled = charEnabled;
+                txtCharName.Enabled = charEnabled;
             }
 
-            if (lblEmail != null && txtEmail != null)
+            if (chkAutoPlay.Visible)
             {
-                lblEmail.Location = new Point(leftMargin, y + 3);
-                lblEmail.AutoSize = false;
-                lblEmail.Size = new Size(labelWidth, 20);
-                lblEmail.TextAlign = ContentAlignment.MiddleLeft;
-                pnlGw1Login.Controls.Add(lblEmail);
-
-                txtEmail.Location = new Point(fieldLeft, y);
-                txtEmail.Width = 350;
-                pnlGw1Login.Controls.Add(txtEmail);
-                y += rowHeight;
+                chkAutoPlay.Enabled = enabled;
             }
-
-            if (lblPassword != null && txtPassword != null)
-            {
-                lblPassword.Location = new Point(leftMargin, y + 3);
-                lblPassword.AutoSize = false;
-                lblPassword.Size = new Size(labelWidth, 20);
-                lblPassword.TextAlign = ContentAlignment.MiddleLeft;
-                pnlGw1Login.Controls.Add(lblPassword);
-
-                txtPassword.Location = new Point(fieldLeft, y);
-                txtPassword.Width = 350;
-                pnlGw1Login.Controls.Add(txtPassword);
-                y += 25;
-            }
-
-            if (lblPasswordSaved != null)
-            {
-                lblPasswordSaved.Location = new Point(fieldLeft, y);
-                lblPasswordSaved.AutoSize = true;
-                pnlGw1Login.Controls.Add(lblPasswordSaved);
-                y += 35;
-            }
-
-            if (chkAutoSelectChar != null)
-            {
-                chkAutoSelectChar.Location = new Point(leftMargin, y);
-                chkAutoSelectChar.AutoSize = true;
-                pnlGw1Login.Controls.Add(chkAutoSelectChar);
-                y += rowHeight;
-            }
-
-            if (lblCharName != null && txtCharName != null)
-            {
-                lblCharName.Location = new Point(leftMargin, y + 3);
-                lblCharName.AutoSize = false;
-                lblCharName.Size = new Size(labelWidth, 20);
-                lblCharName.TextAlign = ContentAlignment.MiddleLeft;
-                pnlGw1Login.Controls.Add(lblCharName);
-
-                txtCharName.Location = new Point(fieldLeft, y);
-                txtCharName.Width = 350;
-                pnlGw1Login.Controls.Add(txtCharName);
-                y += rowHeight + 10;
-            }
-
-            if (lblWarning != null)
-            {
-                lblWarning.Location = new Point(leftMargin, y);
-                lblWarning.MaximumSize = new Size(500, 0);
-                lblWarning.AutoSize = true;
-                pnlGw1Login.Controls.Add(lblWarning);
-                y += lblWarning.Height + 10;
-            }
-
-            pnlGw1Login.Height = y;
-        }
-
-        private void LayoutGw2Controls(Control[] controls)
-        {
-            var chkAutoLogin = Array.Find(controls, c => c.Name == "chkGw2AutoLogin");
-            var lblLoginInfo = Array.Find(controls, c => c.Name == "lblGw2LoginInfo");
-            var lblEmail = Array.Find(controls, c => c.Name == "lblGw2Email") as Label;
-            var txtEmail = Array.Find(controls, c => c.Name == "txtGw2Email");
-            var lblPassword = Array.Find(controls, c => c.Name == "lblGw2Password") as Label;
-            var txtPassword = Array.Find(controls, c => c.Name == "txtGw2Password");
-            var lblPasswordSaved = Array.Find(controls, c => c.Name == "lblGw2PasswordSaved");
-            var chkAutoPlay = Array.Find(controls, c => c.Name == "chkGw2AutoPlay");
-            var lblWarning = Array.Find(controls, c => c.Name == "lblGw2Warning");
-
-            int y = 0;
-            const int leftMargin = 10;  // Match General tab margin
-            const int labelWidth = 120;
-            const int fieldLeft = 130;
-            const int rowHeight = 35;
-
-            if (chkAutoLogin != null)
-            {
-                chkAutoLogin.Location = new Point(leftMargin, y);
-                chkAutoLogin.AutoSize = true;
-                pnlGw2Login.Controls.Add(chkAutoLogin);
-                y += rowHeight;
-            }
-
-            if (lblLoginInfo != null)
-            {
-                lblLoginInfo.Location = new Point(leftMargin, y);
-                lblLoginInfo.MaximumSize = new Size(500, 0);
-                lblLoginInfo.AutoSize = true;
-                pnlGw2Login.Controls.Add(lblLoginInfo);
-                y += lblLoginInfo.Height + 10;
-            }
-
-            if (lblEmail != null && txtEmail != null)
-            {
-                lblEmail.Location = new Point(leftMargin, y + 3);
-                lblEmail.AutoSize = false;
-                lblEmail.Size = new Size(labelWidth, 20);
-                lblEmail.TextAlign = ContentAlignment.MiddleLeft;
-                pnlGw2Login.Controls.Add(lblEmail);
-
-                txtEmail.Location = new Point(fieldLeft, y);
-                txtEmail.Width = 350;
-                pnlGw2Login.Controls.Add(txtEmail);
-                y += rowHeight;
-            }
-
-            if (lblPassword != null && txtPassword != null)
-            {
-                lblPassword.Location = new Point(leftMargin, y + 3);
-                lblPassword.AutoSize = false;
-                lblPassword.Size = new Size(labelWidth, 20);
-                lblPassword.TextAlign = ContentAlignment.MiddleLeft;
-                pnlGw2Login.Controls.Add(lblPassword);
-
-                txtPassword.Location = new Point(fieldLeft, y);
-                txtPassword.Width = 350;
-                pnlGw2Login.Controls.Add(txtPassword);
-                y += 25;
-            }
-
-            if (lblPasswordSaved != null)
-            {
-                lblPasswordSaved.Location = new Point(fieldLeft, y);
-                lblPasswordSaved.AutoSize = true;
-                pnlGw2Login.Controls.Add(lblPasswordSaved);
-                y += 35;
-            }
-
-            if (chkAutoPlay != null)
-            {
-                chkAutoPlay.Location = new Point(leftMargin, y);
-                chkAutoPlay.AutoSize = true;
-                pnlGw2Login.Controls.Add(chkAutoPlay);
-                y += rowHeight + 10;
-            }
-
-            if (lblWarning != null)
-            {
-                lblWarning.Location = new Point(leftMargin, y);
-                lblWarning.MaximumSize = new Size(500, 0);
-                lblWarning.AutoSize = true;
-                pnlGw2Login.Controls.Add(lblWarning);
-                y += lblWarning.Height + 10;
-            }
-
-            pnlGw2Login.Height = y;
-        }
-
-        public void UpdateForGameType(GameType gameType)
-        {
-            bool isGw1 = gameType == GameType.GuildWars1;
-            pnlGw1Login.Visible = isGw1;
-            pnlGw2Login.Visible = !isGw1;
+            
+            // Warnings usually only relevant if enabled
+            if (lblWarning != null) lblWarning.Visible = enabled;
+            if (lblLoginInfo != null && lblLoginInfo.Visible) lblLoginInfo.Enabled = enabled;
         }
 
         private void ApplyTheme()
         {
             this.BackColor = ThemeService.Palette.WindowBack;
-            pnlGw1Login.BackColor = ThemeService.Palette.WindowBack;
-            pnlGw2Login.BackColor = ThemeService.Palette.WindowBack;
             ThemeService.ApplyToControlTree(this);
-        }
-
-        public void RefreshTheme()
-        {
-            ApplyTheme();
-            this.Invalidate(true);
+            
+            // Fix Color for Labels/Specifics if not handled by generic applier
+            // (Generic usually handles ForeColor/BackColor)
         }
     }
 }
