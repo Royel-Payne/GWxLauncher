@@ -19,8 +19,6 @@ namespace GWxLauncher.UI
         private bool _loadingProfile;
 
         private bool _restoredFromSavedPlacement;
-        private bool _gw1GmodPluginsInteractive = true;
-        private bool _gw2RunAfterInteractive = true;
 
         // Tab infrastructure (created at runtime, not in Designer)
         private Panel? _pnlButtonBar;
@@ -62,9 +60,7 @@ namespace GWxLauncher.UI
             ThemeService.ApplyToForm(this);
 
             // Step 7: Existing initialization logic
-            InitGw2RunAfterContextMenu();
-            WireUpExistingEventHandlers();
-
+            
             // Step 8: Form icon per game
             Icon = _profile.GameType switch
             {
@@ -90,6 +86,10 @@ namespace GWxLauncher.UI
             // Step 10: Select default tab
             if (_lstTabs != null)
                 _lstTabs.SelectedIndex = 0;
+            
+            // Wire up form buttons based on new structure
+            btnOk.Click += btnOk_Click;
+            btnCancel.Click += btnCancel_Click;
         }
 
         // -----------------------------
@@ -198,29 +198,12 @@ namespace GWxLauncher.UI
 
         private void ReparentControlsToTabs()
         {
-            if (_modsTab == null || _pnlButtonBar == null)
+            if (_pnlButtonBar == null)
                 return;
 
-            // ===== GENERAL TAB & LOGIN TAB =====
-            // Controls now autonomous in UserControls.
+            // Legacy controls are GONE from Designer, so nothing to reparent for General, Login, or Mods.
+            // Just move button bar buttons.
 
-            // ===== MODS TAB ===== (OLD APPROACH KEPT FOR MODS)
-            var gw1ModsControls = grpGw1Mods.Controls.Cast<Control>().ToArray();
-            var gw2RunAfterControls = grpGw2RunAfter.Controls.Cast<Control>().ToArray();
-
-            foreach (var ctrl in gw1ModsControls)
-                grpGw1Mods.Controls.Remove(ctrl);
-
-            foreach (var ctrl in gw2RunAfterControls)
-                grpGw2RunAfter.Controls.Remove(ctrl);
-
-            this.Controls.Remove(grpGw1Mods);
-            this.Controls.Remove(grpGw2RunAfter);
-
-            // Call the existing ArrangeControls method for Mods
-            _modsTab.ArrangeControls(gw1ModsControls, gw2RunAfterControls);
-
-            // ===== BUTTON BAR =====
             this.Controls.Remove(btnOk);
             this.Controls.Remove(btnCancel);
 
@@ -323,136 +306,6 @@ namespace GWxLauncher.UI
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
         }
 
-        private void WireUpExistingEventHandlers()
-        {
-            // ListView theming + selection handlers
-            lvGw2RunAfter.BackColor = ThemeService.Palette.InputBack;
-            lvGw2RunAfter.ForeColor = ThemeService.Palette.InputFore;
-            lvGw2RunAfter.SelectedIndexChanged += (s, e) => UpdateGw2RunAfterButtons();
-
-            lvGw1GModPlugins.BackColor = ThemeService.Palette.InputBack;
-            lvGw1GModPlugins.ForeColor = ThemeService.Palette.InputFore;
-            lvGw1GModPlugins.SelectedIndexChanged += (s, e) => UpdateGw1GModPluginButtons();
-
-            // When "disabled", prevent selection/checking
-            lvGw2RunAfter.ItemSelectionChanged += (s, e) =>
-            {
-                if (!_gw2RunAfterInteractive && e.IsSelected)
-                {
-                    if (e.Item != null)
-                        e.Item.Selected = false;
-                }
-            };
-            lvGw2RunAfter.ItemCheck += (s, e) =>
-            {
-                if (!_gw2RunAfterInteractive)
-                    e.NewValue = e.CurrentValue;
-            };
-
-            // Explicit button handlers
-            btnGw1AddPlugin.Click += btnGw1AddPlugin_Click;
-            btnGw1RemovePlugin.Click += btnGw1RemovePlugin_Click;
-            btnOk.Click += btnOk_Click;
-            
-            btnBrowseToolboxDll.Click += btnBrowseToolboxDll_Click;
-            btnBrowsePy4GwDll.Click += btnBrowsePy4GwDll_Click;
-            btnBrowseGModDll.Click += btnBrowseGModDll_Click;
-            btnCancel.Click += btnCancel_Click;
-        }
-        private void lvGw2RunAfter_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
-        {
-            e.DrawDefault = true;
-        }
-        private void lvGw2RunAfter_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
-        {
-            // Column 0: let WinForms draw checkbox + default visuals
-            if (e.ColumnIndex == 0)
-            {
-                e.DrawDefault = true;
-                return;
-            }
-
-            // We only customize the Name column (column 1)
-            if (e.ColumnIndex != 1)
-            {
-                e.DrawDefault = true;
-                return;
-            }
-
-            // --- Paint background (selection-aware) ---
-            Color back = lvGw2RunAfter.BackColor;
-            Color fore = lvGw2RunAfter.ForeColor;
-
-            if (e.Item != null && e.Item.Selected)
-            {
-                back = ThemeService.Palette.ButtonBack;
-                fore = ThemeService.Palette.ButtonFore;
-            }
-
-            using (var bg = new SolidBrush(back))
-                e.Graphics.FillRectangle(bg, e.Bounds);
-
-            var p = e.Item?.Tag as RunAfterProgram;
-
-            // --- Compute badge rect (right-aligned) ---
-            bool showBadge = (p != null && p.PassMumbleLinkName);
-            string badgeText = "M";
-
-            // tighter ListView badge sizing (not the big card metrics)
-            const int badgePadX = 10;
-            const int badgePadY = 3;
-            const int badgeRightPad = 8;
-
-            using var badgeFont = new Font(ThemeService.Typography.BadgeFont.FontFamily, 7.5f, FontStyle.Bold);
-
-            int badgeW = 0;
-            int badgeH = 0;
-
-            if (showBadge)
-            {
-                var sz = e.Graphics.MeasureString(badgeText, badgeFont);
-                badgeW = (int)sz.Width + badgePadX;
-                badgeH = (int)sz.Height + badgePadY;
-            }
-
-            // --- Text rect is the cell minus the badge area ---
-            var textRect = e.Bounds;
-            if (showBadge)
-                textRect = Rectangle.FromLTRB(e.Bounds.Left, e.Bounds.Top, e.Bounds.Right - (badgeW + badgeRightPad), e.Bounds.Bottom);
-
-            // Fix: Check for null before accessing e.SubItem.Text
-            string subItemText = e.SubItem?.Text ?? string.Empty;
-
-            TextRenderer.DrawText(
-                e.Graphics,
-                subItemText,
-                lvGw2RunAfter.Font,
-                textRect,
-                fore,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-            // --- Draw badge pill (like MainForm badges) ---
-            if (showBadge)
-            {
-                int x = e.Bounds.Right - badgeRightPad - badgeW;
-                int y = e.Bounds.Top + (e.Bounds.Height - badgeH) / 2;
-                var rect = new Rectangle(x, y, badgeW, badgeH);
-
-                using var badgeBg = new SolidBrush(ThemeService.CardPalette.BadgeBack);
-                using var badgePen = new Pen(ThemeService.CardPalette.BadgeBorder);
-
-                e.Graphics.FillRectangle(badgeBg, rect);
-                e.Graphics.DrawRectangle(badgePen, rect);
-
-                TextRenderer.DrawText(
-                    e.Graphics,
-                    badgeText,
-                    badgeFont,
-                    rect,
-                    ThemeService.CardPalette.BadgeFore,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            }
-        }
         private void ProfileSettingsForm_Shown(object? sender, EventArgs e)
         {
             // If we restored from saved placement, don't override it.
@@ -536,59 +389,9 @@ namespace GWxLauncher.UI
             // Bind independent tabs
             _generalTab?.BindProfile(_profile);
             _loginTab?.BindProfile(_profile);
+            _modsTab?.BindProfile(_profile);
+            // WindowTab not refactored yet but presumed independent future work
 
-            // Legacy loading for Mods tab
-            chkGw2RunAfterEnabled.CheckedChanged += (s, e) => UpdateGw2RunAfterUiState();
-            
-            chkToolbox.CheckedChanged += (s, e) =>
-            {
-                if (!_loadingProfile && chkToolbox.Checked)
-                    EnsureDllSelectedOrRevert(chkToolbox, txtToolboxDll, "GWToolboxdll.dll");
-                UpdateGw1ModsUiState();
-            };
-
-            chkPy4Gw.CheckedChanged += (s, e) =>
-            {
-                if (!_loadingProfile && chkPy4Gw.Checked)
-                    EnsureDllSelectedOrRevert(chkPy4Gw, txtPy4GwDll, "Py4GW DLL");
-                UpdateGw1ModsUiState();
-            };
-
-            chkGMod.CheckedChanged += (s, e) =>
-            {
-                if (!_loadingProfile && chkGMod.Checked)
-                    EnsureDllSelectedOrRevert(chkGMod, txtGModDll, "gMod.dll");
-                UpdateGw1ModsUiState();
-            };
-
-            bool isGw1 = _profile.GameType == GameType.GuildWars1;
-            bool isGw2 = _profile.GameType == GameType.GuildWars2;
-
-            if (isGw1)
-            {
-                txtToolboxDll.Text = _profile.Gw1ToolboxDllPath;
-                chkToolbox.Checked = _profile.Gw1ToolboxEnabled;
-
-                txtPy4GwDll.Text = _profile.Gw1Py4GwDllPath;
-                chkPy4Gw.Checked = _profile.Gw1Py4GwEnabled;
-
-                txtGModDll.Text = _profile.Gw1GModDllPath;
-                chkGMod.Checked = _profile.Gw1GModEnabled;
-
-                RefreshGw1GModPluginList();
-            }
-            else if (isGw2)
-            {
-                grpGw2RunAfter.Visible = true;
-                grpGw2RunAfter.Enabled = true;
-
-                chkGw2RunAfterEnabled.Checked = _profile.Gw2RunAfterEnabled;
-
-                UpdateGw2RunAfterUiState();
-                RefreshGw2RunAfterList();
-            }
-
-            UpdateGw1ModsUiState();
             _loadingProfile = false;
         }
 
@@ -597,355 +400,32 @@ namespace GWxLauncher.UI
             // Delegate saving to autonomous tabs
             _generalTab?.SaveProfile(_profile);
             _loginTab?.SaveProfile(_profile);
-
-            // Legacy save for mods
-            if (_profile.GameType == GameType.GuildWars1)
-            {
-                _profile.Gw1ToolboxEnabled = chkToolbox.Checked;
-                _profile.Gw1ToolboxDllPath = txtToolboxDll.Text.Trim();
-
-                _profile.Gw1Py4GwEnabled = chkPy4Gw.Checked;
-                _profile.Gw1Py4GwDllPath = txtPy4GwDll.Text.Trim();
-
-                _profile.Gw1GModEnabled = chkGMod.Checked;
-                _profile.Gw1GModDllPath = txtGModDll.Text.Trim();
-
-                // Remember last-known good tool paths (silent; no UI)
-                TryRememberLastToolPath(_profile.Gw1ToolboxDllPath, () => _cfg.LastToolboxPath, v => _cfg.LastToolboxPath = v);
-                TryRememberLastToolPath(_profile.Gw1Py4GwDllPath, () => _cfg.LastPy4GWPath, v => _cfg.LastPy4GWPath = v);
-                TryRememberLastToolPath(_profile.Gw1GModDllPath, () => _cfg.LastGModPath, v => _cfg.LastGModPath = v);
-                
-                _cfg.Save();
-            }
-
-            if (_profile.GameType == GameType.GuildWars2)
-            {
-                _profile.Gw2RunAfterEnabled = chkGw2RunAfterEnabled.Checked;
-                // RunAfter list is updated live in the UI list, so it's already in _profile object
-                
-                _cfg.Save();
-            }
+            _modsTab?.SaveProfile(_profile);
         }
 
-        // -----------------------------
-        // UI state updates
-        // -----------------------------
-        
-        // (Removed UpdateGw1LoginUiState, UpdateGw1AutoLoginUiState, UpdateGw2LoginUiState)
-        
-        private void UpdateGw2RunAfterUiState()
-        {
-            // Only meaningful on GW2 profiles, but safe to call always
-            bool enabled = chkGw2RunAfterEnabled.Checked;
-
-            _gw2RunAfterInteractive = enabled;
-
-            // Keep theme background ALWAYS; just grey out text and block actions.
-            lvGw2RunAfter.Enabled = true;
-            lvGw2RunAfter.BackColor = ThemeService.Palette.InputBack;
-            lvGw2RunAfter.ForeColor = enabled ? ThemeService.Palette.InputFore : ThemeService.Palette.DisabledFore;
-
-            btnGw2AddProgram.Enabled = enabled;
-            btnGw2RemoveProgram.Enabled = enabled && (lvGw2RunAfter.SelectedItems.Count > 0);
-
-            if (!enabled && lvGw2RunAfter.SelectedItems.Count > 0)
-                lvGw2RunAfter.SelectedItems.Clear();
-        }
-
-        private void UpdateGw1ModsUiState()
-        {
-            // Toolbox
-            txtToolboxDll.Enabled = chkToolbox.Checked;
-            btnBrowseToolboxDll.Enabled = chkToolbox.Checked;
-
-            // Py4GW
-            txtPy4GwDll.Enabled = chkPy4Gw.Checked;
-            btnBrowsePy4GwDll.Enabled = chkPy4Gw.Checked;
-
-            // gMod
-            bool gmod = chkGMod.Checked;
-            _gw1GmodPluginsInteractive = gmod;
-
-            txtGModDll.Enabled = gmod;
-            btnBrowseGModDll.Enabled = gmod;
-
-            // gMod plugins:
-            // Keep the dark background ALWAYS (do not disable the control),
-            // just grey out the text and block actions.
-            lvGw1GModPlugins.Enabled = true; // keep theme background
-            lvGw1GModPlugins.BackColor = ThemeService.Palette.InputBack;
-            lvGw1GModPlugins.ForeColor = gmod ? ThemeService.Palette.InputFore : ThemeService.Palette.DisabledFore;
-            lblGw1GModPlugins.Enabled = gmod;
-
-            btnGw1AddPlugin.Enabled = gmod;
-            btnGw1RemovePlugin.Enabled = gmod && (lvGw1GModPlugins.SelectedItems.Count > 0);
-
-            // If gMod is off, also clear any selection so it *feels* disabled.
-            if (!gmod && lvGw1GModPlugins.SelectedItems.Count > 0)
-                lvGw1GModPlugins.SelectedItems.Clear();
-        }
-
-        // -----------------------------
-        // GW2 Run-After list
-        // -----------------------------
-
-        private readonly ContextMenuStrip _gw2RunAfterMenu = new();
-        private readonly ToolStripMenuItem _miPassMumble = new("Pass MumbleLink name") { CheckOnClick = true };
-
-        private void InitGw2RunAfterContextMenu()
-        {
-            _gw2RunAfterMenu.Items.Add(_miPassMumble);
-
-            _gw2RunAfterMenu.Opening += (s, e) =>
-            {
-                var p = GetSelectedGw2RunAfterProgram();
-                if (p == null)
-                {
-                    e.Cancel = true;
-                    return;
-                }
-
-                _miPassMumble.Checked = p.PassMumbleLinkName;
-            };
-
-            _miPassMumble.Click += (s, e) =>
-            {
-                var p = GetSelectedGw2RunAfterProgram();
-                if (p == null) return;
-
-                p.PassMumbleLinkName = _miPassMumble.Checked;
-                RefreshGw2RunAfterList(); // refresh badge + tooltip
-            };
-        }
-
-        private RunAfterProgram? GetSelectedGw2RunAfterProgram()
-        {
-            if (lvGw2RunAfter.SelectedItems.Count == 0)
-                return null;
-
-            return lvGw2RunAfter.SelectedItems[0].Tag as RunAfterProgram;
-        }
-
-        private void lvGw2RunAfter_MouseUp(object? sender, MouseEventArgs e)
-        {
-            if (e.Button != MouseButtons.Right)
-                return;
-
-            var hit = lvGw2RunAfter.HitTest(e.Location);
-            if (hit.Item == null)
-                return;
-
-            hit.Item.Selected = true;
-            _gw2RunAfterMenu.Show(lvGw2RunAfter, e.Location);
-        }
-
-        private void RefreshGw2RunAfterList()
-        {
-            lvGw2RunAfter.Items.Clear();
-
-            foreach (var p in _profile.Gw2RunAfterPrograms ?? new List<RunAfterProgram>())
-            {
-                var item = new ListViewItem("");     // Column 0: empty text (checkbox lives here)
-                item.SubItems.Add(p.Name);           // Column 1: name (we will draw badge inside this cell)
-
-                item.Checked = p.Enabled;
-                item.Tag = p;
-
-                // Put the path in the tooltip now that we hid the path column
-                item.ToolTipText =
-                    (p.PassMumbleLinkName
-                        ? "M = This program receives the GW2 MumbleLink name.\nUsed to pair overlays (e.g. Blish HUD) with this GW2 instance."
-                        : "This program launches normally.\nRight-click to enable MumbleLink pairing (M).")
-                    + $"\n\nPath:\n{p.ExePath}";
-
-
-                lvGw2RunAfter.Items.Add(item);
-            }
-
-            UpdateGw2RunAfterButtons();
-        }
-
-        private void UpdateGw2RunAfterButtons()
-        {
-            // Only meaningful on GW2 profiles, but safe to call always
-            bool enabled = chkGw2RunAfterEnabled.Checked;
-            btnGw2RemoveProgram.Enabled = enabled && (lvGw2RunAfter.SelectedItems.Count > 0);
-        }
-
-        private void lvGw2RunAfter_ItemChecked(object sender, ItemCheckedEventArgs e)
-        {
-            if (e.Item.Tag is RunAfterProgram p)
-                p.Enabled = e.Item.Checked;
-        }
-
-        private void btnGw2AddProgram_Click(object sender, EventArgs e)
-        {
-            using var dlg = new OpenFileDialog
-            {
-                Title = "Select program to run after launching",
-                Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*"
-            };
-
-            if (dlg.ShowDialog(this) != DialogResult.OK)
-                return;
-
-            var exe = dlg.FileName;
-
-            // Friendly name: file description if available, else file name
-            string name;
-            try
-            {
-                var vi = FileVersionInfo.GetVersionInfo(exe);
-                name = string.IsNullOrWhiteSpace(vi.FileDescription)
-                    ? Path.GetFileNameWithoutExtension(exe)
-                    : vi.FileDescription.Trim();
-            }
-            catch
-            {
-                name = Path.GetFileNameWithoutExtension(exe);
-            }
-
-            _profile.Gw2RunAfterPrograms.Add(new RunAfterProgram
-            {
-                Name = name,
-                ExePath = exe,
-                Enabled = true,
-                PassMumbleLinkName = ShouldDefaultPassMumble(exe)
-            });
-
-            RefreshGw2RunAfterList();
-        }
-
-        private void btnGw2RemoveProgram_Click(object sender, EventArgs e)
-        {
-            if (lvGw2RunAfter.SelectedItems.Count == 0)
-                return;
-
-            var item = lvGw2RunAfter.SelectedItems[0];
-            if (item.Tag is RunAfterProgram p)
-            {
-                _profile.Gw2RunAfterPrograms.Remove(p);
-                RefreshGw2RunAfterList();
-            }
-        }
-
-        // -----------------------------
-        // GW1 gMod plugins list
-        // -----------------------------
-
-        private void RefreshGw1GModPluginList()
-        {
-            lvGw1GModPlugins.Items.Clear();
-
-            foreach (var path in _profile.Gw1GModPluginPaths ?? new List<string>())
-            {
-                // Display: filename without extension (your preference)
-                string display = Path.GetFileNameWithoutExtension(path);
-
-                var item = new ListViewItem(display)
-                {
-                    Tag = path
-                };
-
-                lvGw1GModPlugins.Items.Add(item);
-            }
-
-            UpdateGw1GModPluginButtons();
-        }
-
-        private void UpdateGw1GModPluginButtons()
-        {
-            bool gmod = chkGMod.Checked;
-            btnGw1RemovePlugin.Enabled = gmod && (lvGw1GModPlugins.SelectedItems.Count > 0);
-        }
-
-        private void btnGw1AddPlugin_Click(object? sender, EventArgs e)
-        {
-            using var dlg = new OpenFileDialog
-            {
-                Title = "Select gMod plugin (.tpf)",
-                Filter = "TPF files (*.tpf)|*.tpf|All files (*.*)|*.*"
-            };
-
-            if (dlg.ShowDialog(this) != DialogResult.OK)
-                return;
-
-            string path = dlg.FileName;
-
-            // Ensure list exists
-            _profile.Gw1GModPluginPaths ??= new List<string>();
-
-            // Dedupe (case-insensitive, absolute path as stored value)
-            if (!_profile.Gw1GModPluginPaths.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)))
-                _profile.Gw1GModPluginPaths.Add(path);
-
-            RefreshGw1GModPluginList();
-        }
-
-        private void btnGw1RemovePlugin_Click(object? sender, EventArgs e)
-        {
-            if (lvGw1GModPlugins.SelectedItems.Count == 0)
-                return;
-
-            var item = lvGw1GModPlugins.SelectedItems[0];
-            if (item.Tag is string path)
-            {
-                _profile.Gw1GModPluginPaths.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
-                RefreshGw1GModPluginList();
-            }
-        }
-
-        // -----------------------------
-        // Validation
-        // -----------------------------
-
-        private bool ValidateGw1ModSettings()
-        {
-            // Only relevant to GW1 profiles
+        private bool ValidateGw1ModSettings() { 
+            // This logic is now inside ModsTabContent, but validation strategy for user controls is tricky.
+            // Ideally UserControl has Validate() method or similar.
+            // For now, we will assume validation is done OR we can replicate checks since we can't easily reach into UC state without exposing it.
+            // Actually, we can check the profile object AFTER SaveToProfile() is called.
+            
             if (_profile.GameType != GameType.GuildWars1)
                 return true;
-
-            // Simple required-field checks; later we can add File.Exists if we want
-            if (chkToolbox.Checked && string.IsNullOrWhiteSpace(txtToolboxDll.Text))
+                
+            if (_profile.Gw1ToolboxEnabled && string.IsNullOrWhiteSpace(_profile.Gw1ToolboxDllPath))
             {
-                MessageBox.Show(
-                    this,
-                    "Toolbox is enabled, but no DLL path is set.\n\n" +
-                    "Please browse to GWToolboxdll.dll or uncheck Toolbox.",
-                    "Missing DLL path",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
-                return false;
+                 MessageBox.Show(this, "Toolbox enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                 return false;
             }
-
-            if (chkPy4Gw.Checked && string.IsNullOrWhiteSpace(txtPy4GwDll.Text))
-            {
-                MessageBox.Show(
-                    this,
-                    "Py4GW is enabled, but no DLL path is set.\n\n" +
-                    "Please browse to the Py4GW DLL or uncheck Py4GW.",
-                    "Missing DLL path",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
-                return false;
-            }
-
-            if (chkGMod.Checked && string.IsNullOrWhiteSpace(txtGModDll.Text))
-            {
-                MessageBox.Show(
-                    this,
-                    "gMod is enabled, but no DLL path is set.\n\n" +
-                    "Please browse to gMod.dll or uncheck gMod.",
-                    "Missing DLL path",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
-                return false;
-            }
-
-            return true;
+             if (_profile.Gw1Py4GwEnabled && string.IsNullOrWhiteSpace(_profile.Gw1Py4GwDllPath)) {
+                 MessageBox.Show(this, "Py4GW enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                 return false;
+             }
+            if (_profile.Gw1GModEnabled && string.IsNullOrWhiteSpace(_profile.Gw1GModDllPath)) {
+                 MessageBox.Show(this, "GMod enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                 return false;
+             }
+             return true;
         }
 
         // -----------------------------
@@ -954,14 +434,10 @@ namespace GWxLauncher.UI
 
         private void btnOk_Click(object? sender, EventArgs e)
         {
-            // Pre-validation is now split. 
-            // We'll rely on SaveProfile logic being safe, but we should probably validate display name here or in UserControl.
-            // But getting text from UserControl is hard if we don't expose it.
-            
             // 1. Save tabs to profile object
             SaveToProfile();
 
-            // 2. Validate
+            // 2. Validate using profile state (since UI state is inside UCs)
             if (string.IsNullOrEmpty(_profile.Name))
             {
                 MessageBox.Show(
@@ -981,7 +457,7 @@ namespace GWxLauncher.UI
                 return;
             }
 
-            // If GW1 + gMod enabled, prepare %AppData% copy + modlist.txt now (so launch can't fail later)
+            // If GW1 + gMod enabled, prepare %AppData% copy + modlist.txt now
             if (_profile.GameType == GameType.GuildWars1 && _profile.Gw1GModEnabled)
             {
                 try
@@ -997,7 +473,7 @@ namespace GWxLauncher.UI
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
 
-                    DialogResult = DialogResult.None; // keep the dialog open
+                    DialogResult = DialogResult.None; 
                     return;
                 }
             }
@@ -1010,127 +486,6 @@ namespace GWxLauncher.UI
         {
             DialogResult = DialogResult.Cancel;
             Close();
-        }
-
-
-        private bool IsDuplicateGw1Executable(string selectedExePath)
-        {
-            if (_profile.GameType != GameType.GuildWars1)
-                return false;
-
-            string selectedFull = Path.GetFullPath(selectedExePath);
-
-            var pm = new GWxLauncher.Services.ProfileManager();
-            pm.Load();
-
-            return pm.Profiles.Any(p =>
-                p.Id != _profile.Id &&
-                p.GameType == GameType.GuildWars1 &&
-                !string.IsNullOrWhiteSpace(p.ExecutablePath) &&
-                string.Equals(Path.GetFullPath(p.ExecutablePath), selectedFull, StringComparison.OrdinalIgnoreCase));
-        }
-
-        // -----------------------------
-        // Browse helpers
-        // -----------------------------
-        private static bool ShouldDefaultPassMumble(string exePath)
-        {
-            string file = Path.GetFileName(exePath);
-
-            return
-                file.Contains("blish", StringComparison.OrdinalIgnoreCase) ||
-                file.Contains("taco", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private void BrowseDllInto(TextBox textBox)
-        {
-            var exe = _profile.ExecutablePath; // Access from profile now, not txtExecutablePath
-            string? fallbackDir = null;
-
-            try
-            {
-                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
-                {
-                    var dir = Path.GetDirectoryName(exe);
-                    if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
-                        fallbackDir = dir;
-                }
-
-                fallbackDir ??= Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            }
-            catch
-            {
-                fallbackDir = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            }
-
-            _ = FilePickerHelper.TryPickDll(this, textBox, "Select DLL", fallbackDir);
-        }
-
-        private void EnsureDllSelectedOrRevert(CheckBox toggle, TextBox pathBox, string displayName)
-        {
-            var current = (pathBox.Text ?? "").Trim();
-
-            // If we already have a valid path, we're good.
-            if (!string.IsNullOrWhiteSpace(current))
-                return;
-
-            // Prompt: user is trying to enable tool with no path.
-            var msg =
-                $"{displayName} is enabled, but no DLL path is set.\n\n" +
-                "Select the DLL now?";
-
-            var result = MessageBox.Show(
-                this,
-                msg,
-                "Missing DLL path",
-                MessageBoxButtons.OKCancel,
-                MessageBoxIcon.Warning);
-
-            if (result == DialogResult.OK)
-            {
-                BrowseDllInto(pathBox);
-                current = (pathBox.Text ?? "").Trim();
-
-                // If still empty (user cancelled picker), revert toggle.
-                if (string.IsNullOrWhiteSpace(current))
-                    toggle.Checked = false;
-            }
-            else
-            {
-                toggle.Checked = false;
-            }
-        }
-
-        private void TryRememberLastToolPath(string path, Func<string> getCurrent, Action<string> setValue)
-        {
-            path = (path ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(path))
-                return;
-
-            try
-            {
-                if (!File.Exists(path))
-                    return;
-
-                var current = (getCurrent?.Invoke() ?? "").Trim();
-                if (!string.IsNullOrWhiteSpace(current))
-                    return;
-
-                setValue?.Invoke(path);
-            }
-            catch
-            {
-                // best-effort only
-            }
-        }
-
-        private void btnBrowseToolboxDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtToolboxDll);
-        private void btnBrowsePy4GwDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtPy4GwDll);
-        private void btnBrowseGModDll_Click(object? sender, EventArgs e) => BrowseDllInto(txtGModDll);
-
-        private void lblGw2Warning_Click(object sender, EventArgs e)
-        {
-
         }
     }
 }
