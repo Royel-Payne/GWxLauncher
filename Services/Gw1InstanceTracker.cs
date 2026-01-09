@@ -182,13 +182,13 @@ namespace GWxLauncher.Services
             }
         }
 
-        private static string NormalizePath(string path)
+        internal static string NormalizePath(string path)
         {
             try { return Path.GetFullPath(path.Trim()); }
             catch { return (path ?? "").Trim(); }
         }
 
-        private static List<Process> FindProcessesByExactPath(string exePath)
+        internal static List<Process> FindProcessesByExactPath(string exePath)
         {
             var fileName = Path.GetFileNameWithoutExtension(exePath);
             var matches = new List<Process>();

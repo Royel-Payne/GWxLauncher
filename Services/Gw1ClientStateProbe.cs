@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using static GWxLauncher.Services.NativeMethods;
 
 namespace GWxLauncher.Services
 {
@@ -60,7 +61,7 @@ namespace GWxLauncher.Services
                 return false;
             }
 
-            if (!TryGetImageBaseFromPeb(_processHandle, out _moduleBase, out var pebError))
+            if (!MemoryScanner.TryGetImageBaseFromPeb(_processHandle, out _moduleBase, out var pebError))
             {
                 MarkUnavailable(pebError);
                 return false;
@@ -74,7 +75,7 @@ namespace GWxLauncher.Services
                 return false;
             }
 
-            int sigIndex = IndexOf(image, CharnameSignature);
+            int sigIndex = MemoryScanner.IndexOf(image, CharnameSignature);
             if (sigIndex < 0)
             {
                 MarkUnavailable("GW1 Charname signature not found in process image");
@@ -163,128 +164,5 @@ namespace GWxLauncher.Services
             return true;
         }
 
-        private static int IndexOf(byte[] haystack, byte[] needle)
-        {
-            if (needle.Length == 0 || haystack.Length < needle.Length)
-                return -1;
-
-            for (int i = 0; i <= haystack.Length - needle.Length; i++)
-            {
-                bool match = true;
-
-                for (int j = 0; j < needle.Length; j++)
-                {
-                    if (haystack[i + j] != needle[j])
-                    {
-                        match = false;
-                        break;
-                    }
-                }
-
-                if (match)
-                    return i;
-            }
-
-            return -1;
-        }
-
-        private static bool TryGetImageBaseFromPeb(IntPtr processHandle, out IntPtr imageBase, out string error)
-        {
-            imageBase = IntPtr.Zero;
-            error = string.Empty;
-
-            var pbi = new PROCESS_BASIC_INFORMATION();
-            int retLen;
-
-            int nt = NtQueryInformationProcess(
-                processHandle,
-                0, // ProcessBasicInformation
-                ref pbi,
-                Marshal.SizeOf<PROCESS_BASIC_INFORMATION>(),
-                out retLen);
-
-            if (nt != 0 || pbi.PebBaseAddress == IntPtr.Zero)
-            {
-                error = $"NtQueryInformationProcess failed (status={nt}).";
-                return false;
-            }
-
-            byte[] pebBuf = new byte[Marshal.SizeOf<PEB_MIN>()];
-            if (!ReadProcessMemory(processHandle, pbi.PebBaseAddress, pebBuf, pebBuf.Length, out _))
-            {
-                error = $"ReadProcessMemory(PEB) failed. Win32 error: {Marshal.GetLastWin32Error()}";
-                return false;
-            }
-
-            var handle = GCHandle.Alloc(pebBuf, GCHandleType.Pinned);
-            try
-            {
-                var peb = Marshal.PtrToStructure<PEB_MIN>(handle.AddrOfPinnedObject());
-                if (peb.ImageBaseAddress == IntPtr.Zero)
-                {
-                    error = "Failed to resolve GW1 ImageBaseAddress from PEB.";
-                    return false;
-                }
-
-                imageBase = peb.ImageBaseAddress;
-                return true;
-            }
-            finally
-            {
-                handle.Free();
-            }
-        }
-
-        #region Win32 interop (read-only)
-
-        [Flags]
-        private enum ProcessAccessFlags : uint
-        {
-            PROCESS_QUERY_INFORMATION = 0x0400,
-            PROCESS_VM_READ = 0x0010
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct PROCESS_BASIC_INFORMATION
-        {
-            public IntPtr Reserved1;
-            public IntPtr PebBaseAddress;
-            public IntPtr Reserved2_0;
-            public IntPtr Reserved2_1;
-            public IntPtr UniqueProcessId;
-            public IntPtr Reserved3;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct PEB_MIN
-        {
-            public IntPtr Reserved0;
-            public IntPtr Reserved1;
-            public IntPtr ImageBaseAddress;
-        }
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern IntPtr OpenProcess(ProcessAccessFlags processAccess, bool bInheritHandle, int processId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool ReadProcessMemory(
-            IntPtr hProcess,
-            IntPtr lpBaseAddress,
-            [Out] byte[] lpBuffer,
-            int dwSize,
-            out IntPtr lpNumberOfBytesRead);
-
-        [DllImport("ntdll.dll")]
-        private static extern int NtQueryInformationProcess(
-            IntPtr processHandle,
-            int processInformationClass,
-            ref PROCESS_BASIC_INFORMATION processInformation,
-            int processInformationLength,
-            out int returnLength);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool CloseHandle(IntPtr hObject);
-
-        #endregion
     }
 }

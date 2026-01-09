@@ -213,12 +213,10 @@ namespace GWxLauncher.UI.Controllers
             if (string.IsNullOrWhiteSpace(exePath))
                 return set;
 
-            string name = Path.GetFileNameWithoutExtension(exePath);
-
-            foreach (var p in Process.GetProcessesByName(name))
+            var processes = Gw1InstanceTracker.FindProcessesByExactPath(exePath);
+            foreach (var p in processes)
             {
-                try { set.Add(p.Id); }
-                catch { /* ignore */ }
+                set.Add(p.Id);
             }
 
             return set;

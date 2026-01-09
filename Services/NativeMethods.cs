@@ -13,6 +13,25 @@ namespace GWxLauncher.Services
         internal const uint MEM_RELEASE = 0x8000;
         internal const uint PAGE_READWRITE = 0x04;
 
+        internal const int SW_RESTORE = 9;
+
+        internal const ushort VK_RETURN = 0x0D;
+        internal const ushort VK_CONTROL = 0x11;
+        internal const int VK_SHIFT = 0x10;
+        internal const int VK_MENU = 0x12;
+
+        internal const int INPUT_MOUSE = 0;
+        internal const int INPUT_KEYBOARD = 1;
+
+        internal const uint KEYEVENTF_KEYUP = 0x0002;
+        internal const uint KEYEVENTF_UNICODE = 0x0004;
+
+        internal const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+        internal const uint MOUSEEVENTF_LEFTUP = 0x0004;
+
+        internal const int CURSOR_SHOWING = 0x00000001;
+        internal const int IDC_HAND = 32649;
+
         internal const uint WAIT_OBJECT_0 = 0x00000000;
         internal const uint INFINITE = 0xFFFFFFFF;
 
@@ -90,6 +109,69 @@ namespace GWxLauncher.Services
             public int dwThreadId;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct RECT
+        {
+            public int Left, Top, Right, Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct CURSORINFO
+        {
+            public int cbSize;
+            public int flags;
+            public IntPtr hCursor;
+            public POINT ptScreenPos;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct INPUT
+        {
+            public int type;
+            public InputUnion U;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal struct InputUnion
+        {
+            [FieldOffset(0)] public MOUSEINPUT mi;
+            [FieldOffset(0)] public KEYBDINPUT ki;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct MOUSEINPUT
+        {
+            public int dx;
+            public int dy;
+            public uint mouseData;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct KEYBDINPUT
+        {
+            public ushort wVk;
+            public ushort wScan;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        #endregion
+        
+        #region Delegates
+        
+        internal delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+        
         #endregion
 
         #region Kernel32
@@ -172,6 +254,9 @@ namespace GWxLauncher.Services
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
 
+        [DllImport("kernel32.dll")]
+        internal static extern uint GetCurrentThreadId();
+
         #endregion
 
         #region Ntdll
@@ -196,6 +281,79 @@ namespace GWxLauncher.Services
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         internal static extern int GetWindowTextLength(IntPtr hWnd);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        internal static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr GetDC(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        internal static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+        [DllImport("user32.dll")]
+        internal static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("user32.dll")]
+        internal static extern bool IsWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        internal static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        internal static extern bool GetCursorInfo(out CURSORINFO pci);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr LoadCursor(IntPtr hInstance, int lpCursorName);
+
+        [DllImport("user32.dll")]
+        internal static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        internal static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        internal static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        internal static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        internal static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        internal static extern bool BringWindowToTop(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        internal static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr SetFocus(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        internal static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        [DllImport("user32.dll")]
+        internal static extern short GetAsyncKeyState(int vKey);
+
+        [DllImport("user32.dll")]
+        internal static extern bool BlockInput(bool fBlock);
+
+        [DllImport("user32.dll")]
+        internal static extern bool SetCursorPos(int X, int Y);
+
+        #endregion
+
+        #region Gdi32
+
+        [DllImport("gdi32.dll")]
+        internal static extern uint GetPixel(IntPtr hdc, int nXPos, int nYPos);
 
         #endregion
     }

@@ -310,6 +310,7 @@ namespace GWxLauncher.Services
         /// </summary>
         public bool TryLaunchGw1(
             GameProfile profile,
+            LauncherConfig config,
             string exePath,
             bool gw1MulticlientEnabled,
             IWin32Window owner,
@@ -383,7 +384,7 @@ namespace GWxLauncher.Services
             // 1) gMod early injection path (suspended CreateProcessW)
             bool gmodEnabled =
                 profile.Gw1GModEnabled &&
-                LauncherConfig.Load().GlobalGModEnabled;
+                config.GlobalGModEnabled;
 
             bool gmodConfigured =
                 gmodEnabled &&
@@ -458,7 +459,7 @@ namespace GWxLauncher.Services
             else
             {
                 stepGmod.Outcome = StepOutcome.Skipped;
-                stepGmod.Detail = !LauncherConfig.Load().GlobalGModEnabled
+                stepGmod.Detail = !config.GlobalGModEnabled
                     ? "Disabled globally"
                     : profile.Gw1GModEnabled
                         ? "Enabled, but DLL path missing or file not found"
@@ -648,7 +649,7 @@ namespace GWxLauncher.Services
             }
 
             // 3) Toolbox: immediate injection (after gMod, if present)
-            if (profile.Gw1ToolboxEnabled && LauncherConfig.Load().GlobalToolboxEnabled)
+            if (profile.Gw1ToolboxEnabled && config.GlobalToolboxEnabled)
             {
                 var toolboxPath = profile.Gw1ToolboxDllPath;
 
@@ -684,7 +685,7 @@ namespace GWxLauncher.Services
             else
             {
                 stepToolbox.Outcome = StepOutcome.Skipped;
-                stepToolbox.Detail = !LauncherConfig.Load().GlobalToolboxEnabled
+                stepToolbox.Detail = !config.GlobalToolboxEnabled
                     ? "Disabled globally"
                     : "Disabled";
             }
@@ -692,7 +693,7 @@ namespace GWxLauncher.Services
             // 4) Py4GW: background injection after window is ready
             bool py4GwEnabled =
                 profile.Gw1Py4GwEnabled &&
-                LauncherConfig.Load().GlobalPy4GwEnabled;
+                config.GlobalPy4GwEnabled;
 
             bool py4GwConfigured =
                 py4GwEnabled &&
@@ -713,7 +714,7 @@ namespace GWxLauncher.Services
                     stepPy4Gw.Outcome = StepOutcome.Failed;
                     stepPy4Gw.Detail = "Enabled, but DLL path missing or file not found";
                 }
-                if (!LauncherConfig.Load().GlobalPy4GwEnabled)
+                if (!config.GlobalPy4GwEnabled)
                 {
                     stepPy4Gw.Outcome = StepOutcome.Skipped;
                     stepPy4Gw.Detail = "Disabled globally";
@@ -1046,122 +1047,61 @@ namespace GWxLauncher.Services
         {
             error = string.Empty;
 
-            // 1) Get PEB
-            var pbi = new PROCESS_BASIC_INFORMATION();
-            int retLen;
-
-            int nt = NtQueryInformationProcess(
-                processHandle,
-                0, // ProcessBasicInformation
-                ref pbi,
-                Marshal.SizeOf<PROCESS_BASIC_INFORMATION>(),
-                out retLen);
-
-            if (nt != 0 || pbi.PebBaseAddress == IntPtr.Zero)
+            if (!MemoryScanner.TryGetImageBaseFromPeb(processHandle, out IntPtr moduleBase, out string pebError))
             {
-                error = $"NtQueryInformationProcess failed (status={nt}).";
+                error = pebError;
                 return false;
             }
 
-            // 2) Read minimal PEB for ImageBaseAddress
-            byte[] pebBuf = new byte[Marshal.SizeOf<PEB_MIN>()];
-            if (!ReadProcessMemory(processHandle, pbi.PebBaseAddress, pebBuf, pebBuf.Length, out _))
+            // 3) Read fixed region (0x48D000)
+            const int readSize = 0x48D000;
+            byte[] image = new byte[readSize];
+
+            if (!ReadProcessMemory(processHandle, moduleBase, image, image.Length, out _))
             {
-                error = $"ReadProcessMemory(PEB) failed. Win32 error: {Marshal.GetLastWin32Error()}";
+                error = $"ReadProcessMemory(image) failed. Win32 error: {Marshal.GetLastWin32Error()}";
                 return false;
             }
 
-            var handle = GCHandle.Alloc(pebBuf, GCHandleType.Pinned);
-            try
+            // 4) Signature scan
+            int idx = MemoryScanner.IndexOf(image, Gw1MulticlientSignature);
+            if (idx < 0)
             {
-                var peb = Marshal.PtrToStructure<PEB_MIN>(handle.AddrOfPinnedObject());
-                if (peb.ImageBaseAddress == IntPtr.Zero)
-                {
-                    error = "Failed to resolve GW1 ImageBaseAddress from PEB.";
-                    return false;
-                }
-
-                IntPtr moduleBase = peb.ImageBaseAddress;
-
-                // 3) Read fixed region (0x48D000)
-                const int readSize = 0x48D000;
-                byte[] image = new byte[readSize];
-
-                if (!ReadProcessMemory(processHandle, moduleBase, image, image.Length, out _))
-                {
-                    error = $"ReadProcessMemory(image) failed. Win32 error: {Marshal.GetLastWin32Error()}";
-                    return false;
-                }
-
-                // 4) Signature scan
-                int idx = IndexOf(image, Gw1MulticlientSignature);
-                if (idx < 0)
-                {
-                    error = "GW1 multiclient signature not found in process image. Aborting (no blind patch).";
-                    return false;
-                }
-
-                // 5) patchAddress = moduleBase + idx - 0x1A
-                IntPtr patchAddress = IntPtr.Add(moduleBase, idx - 0x1A);
-
-                // Payload: 31 C0 90 C3
-                byte[] patch = { 0x31, 0xC0, 0x90, 0xC3 };
-
-                if (!WriteProcessMemory(processHandle, patchAddress, patch, (uint)patch.Length, out var written) ||
-                    written.ToInt64() != patch.Length)
-                {
-                    error = $"WriteProcessMemory(patch) failed. Win32 error: {Marshal.GetLastWin32Error()}";
-                    return false;
-                }
-
-                // Read-back verify
-                byte[] verify = new byte[patch.Length];
-                if (!ReadProcessMemory(processHandle, patchAddress, verify, verify.Length, out _))
-                {
-                    error = $"ReadProcessMemory(verify) failed. Win32 error: {Marshal.GetLastWin32Error()}";
-                    return false;
-                }
-
-                for (int i = 0; i < patch.Length; i++)
-                {
-                    if (verify[i] != patch[i])
-                    {
-                        error = "GW1 multiclient patch verification failed (read-back bytes do not match payload).";
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-            finally
-            {
-                handle.Free();
-            }
-        }
-
-        private static int IndexOf(byte[] haystack, byte[] needle)
-        {
-            if (needle.Length == 0 || haystack.Length < needle.Length)
-                return -1;
-
-            for (int i = 0; i <= haystack.Length - needle.Length; i++)
-            {
-                bool match = true;
-
-                for (int j = 0; j < needle.Length; j++)
-                {
-                    if (haystack[i + j] != needle[j])
-                    {
-                        match = false;
-                        break;
-                    }
-                }
-
-                if (match)
-                    return i;
+                error = "GW1 multiclient signature not found in process image. Aborting (no blind patch).";
+                return false;
             }
 
-            return -1;
+            // 5) patchAddress = moduleBase + idx - 0x1A
+            IntPtr patchAddress = IntPtr.Add(moduleBase, idx - 0x1A);
+
+            // Payload: 31 C0 90 C3
+            byte[] patch = { 0x31, 0xC0, 0x90, 0xC3 };
+
+            if (!WriteProcessMemory(processHandle, patchAddress, patch, (uint)patch.Length, out var written) ||
+                written.ToInt64() != patch.Length)
+            {
+                error = $"WriteProcessMemory(patch) failed. Win32 error: {Marshal.GetLastWin32Error()}";
+                return false;
+            }
+
+            // Read-back verify
+            byte[] verify = new byte[patch.Length];
+            if (!ReadProcessMemory(processHandle, patchAddress, verify, verify.Length, out _))
+            {
+                error = $"ReadProcessMemory(verify) failed. Win32 error: {Marshal.GetLastWin32Error()}";
+                return false;
+            }
+
+            for (int i = 0; i < patch.Length; i++)
+            {
+                if (verify[i] != patch[i])
+                {
+                    error = "GW1 multiclient patch verification failed (read-back bytes do not match payload).";
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         #endregion

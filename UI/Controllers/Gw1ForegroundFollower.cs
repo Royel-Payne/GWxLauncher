@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GWxLauncher.Services;
+using static GWxLauncher.Services.NativeMethods;
 
 namespace GWxLauncher.UI.Controllers
 {
@@ -79,11 +80,5 @@ namespace GWxLauncher.UI.Controllers
                 // best-effort
             }
         }
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
     }
 }

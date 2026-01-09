@@ -5,6 +5,7 @@ using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI;
 using GWxLauncher.UI.Controllers;
+using static GWxLauncher.Services.NativeMethods;
 
 namespace GWxLauncher
 {
@@ -253,7 +254,8 @@ namespace GWxLauncher
                 isShowCheckedOnly: () => _showCheckedOnly,
                 setStatus: SetStatus,
                 launchProfile: (p, bulkMode) => _launchController.LaunchProfileAsync(p, bulkMode),
-                trySelectProfileExecutable: TrySelectProfileExecutable);
+                trySelectProfileExecutable: TrySelectProfileExecutable,
+                getConfig: () => _config);
         }
 
         private BulkLaunchController CreateBulkLaunchController()
@@ -604,14 +606,6 @@ namespace GWxLauncher
         #endregion
 
         #region UI helpers
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-        private const int SW_RESTORE = 9;
 
         private void TryFocusRunningGw1Window(string profileId)
         {

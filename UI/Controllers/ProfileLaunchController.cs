@@ -134,7 +134,7 @@ namespace GWxLauncher.UI.Controllers
                     var gw1Service = new Gw1InjectionService();
                     
                     bool ok = gw1Service.TryLaunchGw1(
-                        profile, exePath, mcEnabled, _owner,
+                        profile, cfg, exePath, mcEnabled, _owner,
                         out var proc, out var err, out var rep, showMessage); // Pass showMessage delegate
 
                     if (ok && proc != null && winTitleEnabled)

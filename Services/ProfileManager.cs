@@ -5,7 +5,7 @@ using GWxLauncher.Domain;
 
 namespace GWxLauncher.Services
 {
-    public class ProfileManager
+    internal class ProfileManager
     {
         private readonly List<GameProfile> _profiles = new();
 
@@ -25,10 +25,11 @@ namespace GWxLauncher.Services
                 _profiles.Add(profile);
         }
 
-        public GameProfile CopyProfile(GameProfile source)
+        public GameProfile CopyProfile(GameProfile source, LauncherConfig config)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
+            if (config == null) throw new ArgumentNullException(nameof(config));
 
             // Generate a unique display name: "Name (Copy)", "(Copy 2)", etc.
             string baseName = $"{source.Name} (Copy)";
@@ -52,13 +53,13 @@ namespace GWxLauncher.Services
 
                 // ---- GW1 flags (paths intentionally NOT copied) ----
                 Gw1ToolboxEnabled = source.Gw1ToolboxEnabled,
-                Gw1ToolboxDllPath = LauncherConfig.Load().LastToolboxPath ?? "",
+                Gw1ToolboxDllPath = config.LastToolboxPath ?? "",
 
                 Gw1Py4GwEnabled = source.Gw1Py4GwEnabled,
-                Gw1Py4GwDllPath = LauncherConfig.Load().LastPy4GWPath ?? "",
+                Gw1Py4GwDllPath = config.LastPy4GWPath ?? "",
 
                 Gw1GModEnabled = source.Gw1GModEnabled,
-                Gw1GModDllPath = LauncherConfig.Load().LastGModPath ?? "",
+                Gw1GModDllPath = config.LastGModPath ?? "",
                 Gw1GModPluginPaths = new List<string>(),
 
                 Gw1InjectedDlls = new List<Gw1InjectedDll>(),

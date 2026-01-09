@@ -1,5 +1,6 @@
 ﻿using GWxLauncher.Domain;
 using GWxLauncher.Services;
+using GWxLauncher.Config;
 
 namespace GWxLauncher.UI.Controllers
 {
@@ -12,7 +13,8 @@ namespace GWxLauncher.UI.Controllers
         Func<bool> isShowCheckedOnly,
         Action<string> setStatus,
         Func<GameProfile, bool, Task> launchProfile,
-        Func<GameProfile, bool> trySelectProfileExecutable)
+        Func<GameProfile, bool> trySelectProfileExecutable,
+        Func<LauncherConfig> getConfig)
     {
         private readonly IWin32Window _owner = owner;
         private readonly ProfileManager _profiles = profiles;
@@ -25,6 +27,7 @@ namespace GWxLauncher.UI.Controllers
 
         private readonly Func<GameProfile, bool, Task> _launchProfile = launchProfile;
         private readonly Func<GameProfile, bool> _trySelectProfileExecutable = trySelectProfileExecutable;
+        private readonly Func<LauncherConfig> _getConfig = getConfig;
 
         public readonly record struct ContextMenuState(
             bool HasSelectedProfile,
@@ -90,7 +93,7 @@ namespace GWxLauncher.UI.Controllers
             if (profile == null)
                 return;
 
-            var copied = _profiles.CopyProfile(profile);
+            var copied = _profiles.CopyProfile(profile, _getConfig());
 
             // Intentionally unchecked in all views:
             // ViewStateStore returns false for unknown profile IDs, so no entry is created here.
