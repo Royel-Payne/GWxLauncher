@@ -34,17 +34,17 @@ namespace GWxLauncher.UI.TabControls
                 
                 txtEmail.Text = profile.Gw1Email;
                 txtPassword.Text = ""; // Never show password back
-                
+
+                lblLoginInfo.Text = "Auto--login stores credentials (DPAPI).";
+                lblLoginInfo.ForeColor = Color.Goldenrod;
+
                 lblPasswordSaved.Visible = !string.IsNullOrWhiteSpace(profile.Gw1PasswordProtected);
                 
                 chkAutoSelectChar.Checked = profile.Gw1AutoSelectCharacterEnabled;
                 txtCharName.Text = profile.Gw1CharacterName;
 
-                lblWarning.Text = "Warning: Passwords are encrypted (DPAPI) but stored locally so auto-login can work.\nUse at your own risk.";
-                lblWarning.ForeColor = Color.Goldenrod;
-
                 // Hidden/Shown controls
-                lblLoginInfo.Visible = false;
+                lblLoginInfo.Visible = true;
                 
                 chkAutoSelectChar.Visible = true;
                 lblCharName.Visible = true;
@@ -57,7 +57,7 @@ namespace GWxLauncher.UI.TabControls
                 chkAutoLogin.Text = "Enable Auto-Login";
                 chkAutoLogin.Checked = profile.Gw2AutoLoginEnabled;
 
-                lblLoginInfo.Text = "GW2 requires -autologin argument (managed automatically).";
+                lblLoginInfo.Text = "Auto--login stores credentials (DPAPI).";
                 lblLoginInfo.Visible = true;
                 lblLoginInfo.ForeColor = Color.Goldenrod;
 
@@ -69,7 +69,7 @@ namespace GWxLauncher.UI.TabControls
                 chkAutoPlay.Text = "Auto Play (press Enter on character selection)";
                 chkAutoPlay.Checked = profile.Gw2AutoPlayEnabled;
 
-                lblWarning.Text = "Warning: Storing passwords locally allows auto-login but carries risk.";
+                lblWarning.Text = "Auto-login is a best effort experimental feature.";
                 lblWarning.ForeColor = Color.Red;
 
                 // Hidden/Shown controls

@@ -20,318 +20,430 @@ namespace GWxLauncher.UI.TabControls
 
         private void InitializeComponent()
         {
-            this.tlpGw1 = new System.Windows.Forms.TableLayoutPanel();
-            this.chkToolbox = new System.Windows.Forms.CheckBox();
-            this.lblToolboxPath = new System.Windows.Forms.Label();
-            this.pnlToolboxPath = new System.Windows.Forms.Panel();
-            this.txtToolboxDll = new System.Windows.Forms.TextBox();
-            this.btnBrowseToolboxDll = new System.Windows.Forms.Button();
-            
-            this.chkPy4Gw = new System.Windows.Forms.CheckBox();
-            this.lblPy4GwPath = new System.Windows.Forms.Label();
-            this.pnlPy4GwPath = new System.Windows.Forms.Panel();
-            this.txtPy4GwDll = new System.Windows.Forms.TextBox();
-            this.btnBrowsePy4GwDll = new System.Windows.Forms.Button();
-
-            this.chkGMod = new System.Windows.Forms.CheckBox();
-            this.lblGModPath = new System.Windows.Forms.Label();
-            this.pnlGModPath = new System.Windows.Forms.Panel();
-            this.txtGModDll = new System.Windows.Forms.TextBox();
-            this.btnBrowseGModDll = new System.Windows.Forms.Button();
-
-            this.lblGw1GModPlugins = new System.Windows.Forms.Label();
-            this.pnlGModPlugins = new System.Windows.Forms.Panel();
-            this.lvGw1GModPlugins = new System.Windows.Forms.ListView();
-            this.colGw1GModPlugin = new System.Windows.Forms.ColumnHeader();
-            this.btnGw1AddPlugin = new System.Windows.Forms.Button();
-            this.btnGw1RemovePlugin = new System.Windows.Forms.Button();
-
-            this.tlpGw2 = new System.Windows.Forms.TableLayoutPanel();
-            this.chkGw2RunAfterEnabled = new System.Windows.Forms.CheckBox();
-            this.lblRunAfterPrograms = new System.Windows.Forms.Label();
-            this.pnlGw2RunAfterList = new System.Windows.Forms.Panel();
-            this.lvGw2RunAfter = new System.Windows.Forms.ListView();
-            this.colGw2RunAfterMumble = new System.Windows.Forms.ColumnHeader();
-            this.colGw2RunAfterName = new System.Windows.Forms.ColumnHeader();
-            this.btnGw2AddProgram = new System.Windows.Forms.Button();
-            this.btnGw2RemoveProgram = new System.Windows.Forms.Button();
-            this.lblGw2RunAfterTip = new System.Windows.Forms.Label();
-
-            this.tlpGw1.SuspendLayout();
-            this.pnlToolboxPath.SuspendLayout();
-            this.pnlPy4GwPath.SuspendLayout();
-            this.pnlGModPath.SuspendLayout();
-            this.pnlGModPlugins.SuspendLayout();
-            this.tlpGw2.SuspendLayout();
-            this.pnlGw2RunAfterList.SuspendLayout();
-            this.SuspendLayout();
-
-            Padding controlMargin = new Padding(4);
-
+            tlpGw1 = new TableLayoutPanel();
+            chkToolbox = new CheckBox();
+            lblToolboxPath = new Label();
+            pnlToolboxPath = new Panel();
+            txtToolboxDll = new TextBox();
+            btnBrowseToolboxDll = new Button();
+            chkPy4Gw = new CheckBox();
+            lblPy4GwPath = new Label();
+            pnlPy4GwPath = new Panel();
+            txtPy4GwDll = new TextBox();
+            btnBrowsePy4GwDll = new Button();
+            chkGMod = new CheckBox();
+            lblGModPath = new Label();
+            pnlGModPath = new Panel();
+            txtGModDll = new TextBox();
+            btnBrowseGModDll = new Button();
+            lblGw1GModPlugins = new Label();
+            pnlGModPlugins = new Panel();
+            lvGw1GModPlugins = new ListView();
+            colGw1GModPlugin = new ColumnHeader();
+            btnGw1AddPlugin = new Button();
+            btnGw1RemovePlugin = new Button();
+            tlpGw2 = new TableLayoutPanel();
+            chkGw2RunAfterEnabled = new CheckBox();
+            lblRunAfterPrograms = new Label();
+            pnlGw2RunAfterList = new Panel();
+            lvGw2RunAfter = new ListView();
+            colGw2RunAfterMumble = new ColumnHeader();
+            colGw2RunAfterName = new ColumnHeader();
+            btnGw2AddProgram = new Button();
+            btnGw2RemoveProgram = new Button();
+            lblGw2RunAfterTip = new Label();
+            tlpGw1.SuspendLayout();
+            pnlToolboxPath.SuspendLayout();
+            pnlPy4GwPath.SuspendLayout();
+            pnlGModPath.SuspendLayout();
+            pnlGModPlugins.SuspendLayout();
+            tlpGw2.SuspendLayout();
+            pnlGw2RunAfterList.SuspendLayout();
+            SuspendLayout();
             // 
             // tlpGw1
             // 
-            this.tlpGw1.AutoSize = true;
-            this.tlpGw1.ColumnCount = 2;
-            this.tlpGw1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 140F));
-            this.tlpGw1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            
-            // Row 0: Toolbox Check
-            this.tlpGw1.Controls.Add(this.chkToolbox, 0, 0);
-            this.tlpGw1.SetColumnSpan(this.chkToolbox, 2);
-            // Row 1: Toolbox Path
-            this.tlpGw1.Controls.Add(this.lblToolboxPath, 0, 1);
-            this.tlpGw1.Controls.Add(this.pnlToolboxPath, 1, 1);
-            
-            // Row 2: Py4Gw Check
-            this.tlpGw1.Controls.Add(this.chkPy4Gw, 0, 2);
-            this.tlpGw1.SetColumnSpan(this.chkPy4Gw, 2);
-            // Row 3: Py4Gw Path
-            this.tlpGw1.Controls.Add(this.lblPy4GwPath, 0, 3);
-            this.tlpGw1.Controls.Add(this.pnlPy4GwPath, 1, 3);
-
-            // Row 4: GMod Check
-            this.tlpGw1.Controls.Add(this.chkGMod, 0, 4);
-            this.tlpGw1.SetColumnSpan(this.chkGMod, 2);
-            // Row 5: GMod Path
-            this.tlpGw1.Controls.Add(this.lblGModPath, 0, 5);
-            this.tlpGw1.Controls.Add(this.pnlGModPath, 1, 5);
-            
-            // Row 6: Plugins Header
-            this.tlpGw1.Controls.Add(this.lblGw1GModPlugins, 0, 6);
-            this.tlpGw1.SetColumnSpan(this.lblGw1GModPlugins, 2);
-            // Row 7: Plugins List
-            this.tlpGw1.Controls.Add(this.pnlGModPlugins, 0, 7);
-            this.tlpGw1.SetColumnSpan(this.pnlGModPlugins, 2);
-
-            this.tlpGw1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.tlpGw1.Location = new System.Drawing.Point(15, 15);
-            this.tlpGw1.Name = "tlpGw1";
-            this.tlpGw1.RowCount = 8;
-            this.tlpGw1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw1.TabIndex = 0;
-            this.tlpGw1.Visible = false;
-
-            // --- Toolbox ---
-            this.chkToolbox.AutoSize = true;
-            this.chkToolbox.Text = "Enable Toolbox";
-            this.chkToolbox.Margin = controlMargin;
-            this.chkToolbox.Name = "chkToolbox";
-
-            this.lblToolboxPath.AutoSize = true;
-            this.lblToolboxPath.Text = "DLL Path:";
-            this.lblToolboxPath.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.lblToolboxPath.Dock = DockStyle.Fill;
-            this.lblToolboxPath.Margin = controlMargin;
-
-            this.pnlToolboxPath.AutoSize = true;
-            this.pnlToolboxPath.Dock = DockStyle.Fill;
-            this.pnlToolboxPath.Margin = new Padding(0);
-            this.pnlToolboxPath.Controls.Add(this.txtToolboxDll);
-            this.pnlToolboxPath.Controls.Add(this.btnBrowseToolboxDll);
-
-            this.txtToolboxDll.Dock = DockStyle.Fill;
-            this.txtToolboxDll.Margin = controlMargin;
-            this.txtToolboxDll.Name = "txtToolboxDll";
-
-            this.btnBrowseToolboxDll.Dock = DockStyle.Right;
-            this.btnBrowseToolboxDll.Width = 40;
-            this.btnBrowseToolboxDll.Text = "...";
-            this.btnBrowseToolboxDll.Margin = controlMargin;
-            this.btnBrowseToolboxDll.Name = "btnBrowseToolboxDll";
-
-            // --- Py4Gw ---
-            this.chkPy4Gw.AutoSize = true;
-            this.chkPy4Gw.Text = "Enable Py4Gw";
-            this.chkPy4Gw.Margin = controlMargin;
-            this.chkPy4Gw.Name = "chkPy4Gw";
-
-            this.lblPy4GwPath.AutoSize = true;
-            this.lblPy4GwPath.Text = "DLL Path:";
-            this.lblPy4GwPath.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.lblPy4GwPath.Dock = DockStyle.Fill;
-            this.lblPy4GwPath.Margin = controlMargin;
-
-            this.pnlPy4GwPath.AutoSize = true;
-            this.pnlPy4GwPath.Dock = DockStyle.Fill;
-            this.pnlPy4GwPath.Margin = new Padding(0);
-            this.pnlPy4GwPath.Controls.Add(this.txtPy4GwDll);
-            this.pnlPy4GwPath.Controls.Add(this.btnBrowsePy4GwDll);
-
-            this.txtPy4GwDll.Dock = DockStyle.Fill;
-            this.txtPy4GwDll.Margin = controlMargin;
-            this.txtPy4GwDll.Name = "txtPy4GwDll";
-
-            this.btnBrowsePy4GwDll.Dock = DockStyle.Right;
-            this.btnBrowsePy4GwDll.Width = 40;
-            this.btnBrowsePy4GwDll.Text = "...";
-            this.btnBrowsePy4GwDll.Margin = controlMargin;
-            this.btnBrowsePy4GwDll.Name = "btnBrowsePy4GwDll";
-
-            // --- GMod ---
-            this.chkGMod.AutoSize = true;
-            this.chkGMod.Text = "Enable GMod";
-            this.chkGMod.Margin = controlMargin;
-            this.chkGMod.Name = "chkGMod";
-
-            this.lblGModPath.AutoSize = true;
-            this.lblGModPath.Text = "DLL Path:";
-            this.lblGModPath.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.lblGModPath.Dock = DockStyle.Fill;
-            this.lblGModPath.Margin = controlMargin;
-
-            this.pnlGModPath.AutoSize = true;
-            this.pnlGModPath.Dock = DockStyle.Fill;
-            this.pnlGModPath.Margin = new Padding(0);
-            this.pnlGModPath.Controls.Add(this.txtGModDll);
-            this.pnlGModPath.Controls.Add(this.btnBrowseGModDll);
-
-            this.txtGModDll.Dock = DockStyle.Fill;
-            this.txtGModDll.Margin = controlMargin;
-            this.txtGModDll.Name = "txtGModDll";
-
-            this.btnBrowseGModDll.Dock = DockStyle.Right;
-            this.btnBrowseGModDll.Width = 40;
-            this.btnBrowseGModDll.Text = "...";
-            this.btnBrowseGModDll.Margin = controlMargin;
-            this.btnBrowseGModDll.Name = "btnBrowseGModDll";
-
-            // --- Plugins ---
-            this.lblGw1GModPlugins.AutoSize = true;
-            this.lblGw1GModPlugins.Text = "GMod Plugins:";
-            this.lblGw1GModPlugins.Margin = controlMargin;
-            this.lblGw1GModPlugins.Name = "lblGw1GModPlugins";
-
-            this.pnlGModPlugins.Dock = DockStyle.Fill;
-            this.pnlGModPlugins.Height = 150;
-            this.pnlGModPlugins.Margin = controlMargin;
-            this.pnlGModPlugins.Controls.Add(this.lvGw1GModPlugins);
-            this.pnlGModPlugins.Controls.Add(this.btnGw1AddPlugin);
-            this.pnlGModPlugins.Controls.Add(this.btnGw1RemovePlugin);
-
-            this.lvGw1GModPlugins.Dock = DockStyle.Left;
-            this.lvGw1GModPlugins.Width = 350;
-            this.lvGw1GModPlugins.View = View.Details;
-            this.lvGw1GModPlugins.HeaderStyle = ColumnHeaderStyle.None;
-            this.lvGw1GModPlugins.Columns.Add(this.colGw1GModPlugin);
-            this.lvGw1GModPlugins.Name = "lvGw1GModPlugins";
-            this.colGw1GModPlugin.Width = 330;
-
-            this.btnGw1AddPlugin.Location = new Point(360, 0);
-            this.btnGw1AddPlugin.Text = "Add...";
-            this.btnGw1AddPlugin.Name = "btnGw1AddPlugin";
-
-            this.btnGw1RemovePlugin.Location = new Point(360, 30);
-            this.btnGw1RemovePlugin.Text = "Remove";
-            this.btnGw1RemovePlugin.Name = "btnGw1RemovePlugin";
-
-
+            tlpGw1.AutoSize = true;
+            tlpGw1.ColumnCount = 2;
+            tlpGw1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140F));
+            tlpGw1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            tlpGw1.Controls.Add(pnlGModPlugins, 0, 7);
+            tlpGw1.Controls.Add(chkToolbox, 0, 0);
+            tlpGw1.Controls.Add(lblToolboxPath, 0, 1);
+            tlpGw1.Controls.Add(pnlToolboxPath, 1, 1);
+            tlpGw1.Controls.Add(chkPy4Gw, 0, 2);
+            tlpGw1.Controls.Add(lblPy4GwPath, 0, 3);
+            tlpGw1.Controls.Add(pnlPy4GwPath, 1, 3);
+            tlpGw1.Controls.Add(chkGMod, 0, 4);
+            tlpGw1.Controls.Add(lblGModPath, 0, 5);
+            tlpGw1.Controls.Add(pnlGModPath, 1, 5);
+            tlpGw1.Controls.Add(lblGw1GModPlugins, 0, 6);
+            tlpGw1.Dock = DockStyle.Top;
+            tlpGw1.Location = new Point(15, 296);
+            tlpGw1.Name = "tlpGw1";
+            tlpGw1.RowCount = 8;
+            tlpGw1.RowStyles.Add(new RowStyle());
+            tlpGw1.RowStyles.Add(new RowStyle());
+            tlpGw1.RowStyles.Add(new RowStyle());
+            tlpGw1.RowStyles.Add(new RowStyle());
+            tlpGw1.RowStyles.Add(new RowStyle());
+            tlpGw1.RowStyles.Add(new RowStyle());
+            tlpGw1.RowStyles.Add(new RowStyle());
+            tlpGw1.RowStyles.Add(new RowStyle());
+            tlpGw1.Size = new Size(520, 331);
+            tlpGw1.TabIndex = 0;
+            tlpGw1.Visible = false;
+            // 
+            // chkToolbox
+            // 
+            chkToolbox.AutoSize = true;
+            tlpGw1.SetColumnSpan(chkToolbox, 2);
+            chkToolbox.Location = new Point(4, 4);
+            chkToolbox.Margin = new Padding(4);
+            chkToolbox.Name = "chkToolbox";
+            chkToolbox.Size = new Size(106, 19);
+            chkToolbox.TabIndex = 0;
+            chkToolbox.Text = "Enable Toolbox";
+            // 
+            // lblToolboxPath
+            // 
+            lblToolboxPath.AutoSize = true;
+            lblToolboxPath.Dock = DockStyle.Fill;
+            lblToolboxPath.Location = new Point(4, 31);
+            lblToolboxPath.Margin = new Padding(4);
+            lblToolboxPath.Name = "lblToolboxPath";
+            lblToolboxPath.Size = new Size(132, 15);
+            lblToolboxPath.TabIndex = 1;
+            lblToolboxPath.Text = "DLL Path:";
+            lblToolboxPath.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // pnlToolboxPath
+            // 
+            pnlToolboxPath.AutoSize = true;
+            pnlToolboxPath.Controls.Add(txtToolboxDll);
+            pnlToolboxPath.Controls.Add(btnBrowseToolboxDll);
+            pnlToolboxPath.Dock = DockStyle.Fill;
+            pnlToolboxPath.Location = new Point(140, 27);
+            pnlToolboxPath.Margin = new Padding(0);
+            pnlToolboxPath.Name = "pnlToolboxPath";
+            pnlToolboxPath.Size = new Size(380, 23);
+            pnlToolboxPath.TabIndex = 2;
+            // 
+            // txtToolboxDll
+            // 
+            txtToolboxDll.Dock = DockStyle.Fill;
+            txtToolboxDll.Location = new Point(0, 0);
+            txtToolboxDll.Margin = new Padding(4);
+            txtToolboxDll.Name = "txtToolboxDll";
+            txtToolboxDll.Size = new Size(340, 23);
+            txtToolboxDll.TabIndex = 0;
+            // 
+            // btnBrowseToolboxDll
+            // 
+            btnBrowseToolboxDll.Dock = DockStyle.Right;
+            btnBrowseToolboxDll.Location = new Point(340, 0);
+            btnBrowseToolboxDll.Margin = new Padding(4);
+            btnBrowseToolboxDll.Name = "btnBrowseToolboxDll";
+            btnBrowseToolboxDll.Size = new Size(40, 23);
+            btnBrowseToolboxDll.TabIndex = 1;
+            btnBrowseToolboxDll.Text = "...";
+            // 
+            // chkPy4Gw
+            // 
+            chkPy4Gw.AutoSize = true;
+            tlpGw1.SetColumnSpan(chkPy4Gw, 2);
+            chkPy4Gw.Location = new Point(4, 54);
+            chkPy4Gw.Margin = new Padding(4);
+            chkPy4Gw.Name = "chkPy4Gw";
+            chkPy4Gw.Size = new Size(100, 19);
+            chkPy4Gw.TabIndex = 3;
+            chkPy4Gw.Text = "Enable Py4Gw";
+            // 
+            // lblPy4GwPath
+            // 
+            lblPy4GwPath.AutoSize = true;
+            lblPy4GwPath.Dock = DockStyle.Fill;
+            lblPy4GwPath.Location = new Point(4, 81);
+            lblPy4GwPath.Margin = new Padding(4);
+            lblPy4GwPath.Name = "lblPy4GwPath";
+            lblPy4GwPath.Size = new Size(132, 15);
+            lblPy4GwPath.TabIndex = 4;
+            lblPy4GwPath.Text = "DLL Path:";
+            lblPy4GwPath.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // pnlPy4GwPath
+            // 
+            pnlPy4GwPath.AutoSize = true;
+            pnlPy4GwPath.Controls.Add(txtPy4GwDll);
+            pnlPy4GwPath.Controls.Add(btnBrowsePy4GwDll);
+            pnlPy4GwPath.Dock = DockStyle.Fill;
+            pnlPy4GwPath.Location = new Point(140, 77);
+            pnlPy4GwPath.Margin = new Padding(0);
+            pnlPy4GwPath.Name = "pnlPy4GwPath";
+            pnlPy4GwPath.Size = new Size(380, 23);
+            pnlPy4GwPath.TabIndex = 5;
+            // 
+            // txtPy4GwDll
+            // 
+            txtPy4GwDll.Dock = DockStyle.Fill;
+            txtPy4GwDll.Location = new Point(0, 0);
+            txtPy4GwDll.Margin = new Padding(4);
+            txtPy4GwDll.Name = "txtPy4GwDll";
+            txtPy4GwDll.Size = new Size(340, 23);
+            txtPy4GwDll.TabIndex = 0;
+            // 
+            // btnBrowsePy4GwDll
+            // 
+            btnBrowsePy4GwDll.Dock = DockStyle.Right;
+            btnBrowsePy4GwDll.Location = new Point(340, 0);
+            btnBrowsePy4GwDll.Margin = new Padding(4);
+            btnBrowsePy4GwDll.Name = "btnBrowsePy4GwDll";
+            btnBrowsePy4GwDll.Size = new Size(40, 23);
+            btnBrowsePy4GwDll.TabIndex = 1;
+            btnBrowsePy4GwDll.Text = "...";
+            // 
+            // chkGMod
+            // 
+            chkGMod.AutoSize = true;
+            tlpGw1.SetColumnSpan(chkGMod, 2);
+            chkGMod.Location = new Point(4, 104);
+            chkGMod.Margin = new Padding(4);
+            chkGMod.Name = "chkGMod";
+            chkGMod.Size = new Size(97, 19);
+            chkGMod.TabIndex = 6;
+            chkGMod.Text = "Enable GMod";
+            // 
+            // lblGModPath
+            // 
+            lblGModPath.AutoSize = true;
+            lblGModPath.Dock = DockStyle.Fill;
+            lblGModPath.Location = new Point(4, 131);
+            lblGModPath.Margin = new Padding(4);
+            lblGModPath.Name = "lblGModPath";
+            lblGModPath.Size = new Size(132, 15);
+            lblGModPath.TabIndex = 7;
+            lblGModPath.Text = "DLL Path:";
+            lblGModPath.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // pnlGModPath
+            // 
+            pnlGModPath.AutoSize = true;
+            pnlGModPath.Controls.Add(txtGModDll);
+            pnlGModPath.Controls.Add(btnBrowseGModDll);
+            pnlGModPath.Dock = DockStyle.Fill;
+            pnlGModPath.Location = new Point(140, 127);
+            pnlGModPath.Margin = new Padding(0);
+            pnlGModPath.Name = "pnlGModPath";
+            pnlGModPath.Size = new Size(380, 23);
+            pnlGModPath.TabIndex = 8;
+            // 
+            // txtGModDll
+            // 
+            txtGModDll.Dock = DockStyle.Fill;
+            txtGModDll.Location = new Point(0, 0);
+            txtGModDll.Margin = new Padding(4);
+            txtGModDll.Name = "txtGModDll";
+            txtGModDll.Size = new Size(340, 23);
+            txtGModDll.TabIndex = 0;
+            // 
+            // btnBrowseGModDll
+            // 
+            btnBrowseGModDll.Dock = DockStyle.Right;
+            btnBrowseGModDll.Location = new Point(340, 0);
+            btnBrowseGModDll.Margin = new Padding(4);
+            btnBrowseGModDll.Name = "btnBrowseGModDll";
+            btnBrowseGModDll.Size = new Size(40, 23);
+            btnBrowseGModDll.TabIndex = 1;
+            btnBrowseGModDll.Text = "...";
+            // 
+            // lblGw1GModPlugins
+            // 
+            lblGw1GModPlugins.AutoSize = true;
+            tlpGw1.SetColumnSpan(lblGw1GModPlugins, 2);
+            lblGw1GModPlugins.Location = new Point(4, 154);
+            lblGw1GModPlugins.Margin = new Padding(4);
+            lblGw1GModPlugins.Name = "lblGw1GModPlugins";
+            lblGw1GModPlugins.Size = new Size(85, 15);
+            lblGw1GModPlugins.TabIndex = 9;
+            lblGw1GModPlugins.Text = "GMod Plugins:";
+            // 
+            // pnlGModPlugins
+            // 
+            tlpGw1.SetColumnSpan(pnlGModPlugins, 2);
+            pnlGModPlugins.Controls.Add(lvGw1GModPlugins);
+            pnlGModPlugins.Controls.Add(btnGw1AddPlugin);
+            pnlGModPlugins.Controls.Add(btnGw1RemovePlugin);
+            pnlGModPlugins.Dock = DockStyle.Fill;
+            pnlGModPlugins.Location = new Point(4, 177);
+            pnlGModPlugins.Margin = new Padding(4);
+            pnlGModPlugins.Name = "pnlGModPlugins";
+            pnlGModPlugins.Size = new Size(512, 120);
+            pnlGModPlugins.TabIndex = 10;
+            // 
+            // lvGw1GModPlugins
+            // 
+            lvGw1GModPlugins.Columns.AddRange(new ColumnHeader[] { colGw1GModPlugin });
+            lvGw1GModPlugins.Dock = DockStyle.Left;
+            lvGw1GModPlugins.HeaderStyle = ColumnHeaderStyle.None;
+            lvGw1GModPlugins.Location = new Point(0, 0);
+            lvGw1GModPlugins.Name = "lvGw1GModPlugins";
+            lvGw1GModPlugins.Size = new Size(350, 150);
+            lvGw1GModPlugins.TabIndex = 0;
+            lvGw1GModPlugins.UseCompatibleStateImageBehavior = false;
+            lvGw1GModPlugins.View = View.Details;
+            // 
+            // colGw1GModPlugin
+            // 
+            colGw1GModPlugin.Width = 330;
+            // 
+            // btnGw1AddPlugin
+            // 
+            btnGw1AddPlugin.Location = new Point(360, 0);
+            btnGw1AddPlugin.Name = "btnGw1AddPlugin";
+            btnGw1AddPlugin.Size = new Size(75, 23);
+            btnGw1AddPlugin.TabIndex = 1;
+            btnGw1AddPlugin.Text = "Add...";
+            // 
+            // btnGw1RemovePlugin
+            // 
+            btnGw1RemovePlugin.Location = new Point(360, 30);
+            btnGw1RemovePlugin.Name = "btnGw1RemovePlugin";
+            btnGw1RemovePlugin.Size = new Size(75, 23);
+            btnGw1RemovePlugin.TabIndex = 2;
+            btnGw1RemovePlugin.Text = "Remove";
             // 
             // tlpGw2
             // 
-            this.tlpGw2.AutoSize = true;
-            this.tlpGw2.ColumnCount = 2;
-            this.tlpGw2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 140F));
-            this.tlpGw2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-
-            this.tlpGw2.Controls.Add(this.chkGw2RunAfterEnabled, 0, 0);
-            this.tlpGw2.SetColumnSpan(this.chkGw2RunAfterEnabled, 2);
-
-            this.tlpGw2.Controls.Add(this.lblRunAfterPrograms, 0, 1);
-            this.tlpGw2.SetColumnSpan(this.lblRunAfterPrograms, 2);
-
-            this.tlpGw2.Controls.Add(this.pnlGw2RunAfterList, 0, 2);
-            this.tlpGw2.SetColumnSpan(this.pnlGw2RunAfterList, 2);
-            
-            this.tlpGw2.Controls.Add(this.lblGw2RunAfterTip, 0, 3);
-            this.tlpGw2.SetColumnSpan(this.lblGw2RunAfterTip, 2);
-
-            this.tlpGw2.Dock = System.Windows.Forms.DockStyle.Top;
-            this.tlpGw2.Location = new System.Drawing.Point(15, 15);
-            this.tlpGw2.Name = "tlpGw2";
-            this.tlpGw2.RowCount = 4;
-            this.tlpGw2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.tlpGw2.Visible = false;
-
-            this.chkGw2RunAfterEnabled.AutoSize = true;
-            this.chkGw2RunAfterEnabled.Text = "Enable programs after launch";
-            this.chkGw2RunAfterEnabled.Margin = controlMargin;
-            this.chkGw2RunAfterEnabled.Name = "chkGw2RunAfterEnabled";
-
-            this.lblRunAfterPrograms.AutoSize = true;
-            this.lblRunAfterPrograms.Text = "Run After Programs:";
-            this.lblRunAfterPrograms.Margin = controlMargin;
-
-            this.pnlGw2RunAfterList.Dock = DockStyle.Fill;
-            this.pnlGw2RunAfterList.Height = 180;
-            this.pnlGw2RunAfterList.Margin = controlMargin;
-            this.pnlGw2RunAfterList.Controls.Add(this.lvGw2RunAfter);
-            this.pnlGw2RunAfterList.Controls.Add(this.btnGw2AddProgram);
-            this.pnlGw2RunAfterList.Controls.Add(this.btnGw2RemoveProgram);
-
-            this.lvGw2RunAfter.Dock = DockStyle.Left;
-            this.lvGw2RunAfter.Width = 350;
-            this.lvGw2RunAfter.View = View.Details;
-            this.lvGw2RunAfter.CheckBoxes = true;
-            this.lvGw2RunAfter.OwnerDraw = true;
-            this.lvGw2RunAfter.HeaderStyle = ColumnHeaderStyle.None;
-            this.lvGw2RunAfter.Columns.AddRange(new ColumnHeader[] { this.colGw2RunAfterMumble, this.colGw2RunAfterName });
-            this.lvGw2RunAfter.Name = "lvGw2RunAfter";
-            
-            this.colGw2RunAfterMumble.Width = 22;
-            this.colGw2RunAfterName.Width = 300;
-
-            this.btnGw2AddProgram.Location = new Point(360, 0);
-            this.btnGw2AddProgram.Text = "Add...";
-            this.btnGw2AddProgram.Name = "btnGw2AddProgram";
-
-            this.btnGw2RemoveProgram.Location = new Point(360, 30);
-            this.btnGw2RemoveProgram.Text = "Remove";
-            this.btnGw2RemoveProgram.Name = "btnGw2RemoveProgram";
-
-            this.lblGw2RunAfterTip.AutoSize = true;
-            this.lblGw2RunAfterTip.Text = "Tip: Right-click a program to toggle MumbleLink pairing (badge “M”) for overlays (Blish, TacO).";
-            this.lblGw2RunAfterTip.Margin = controlMargin;
-            this.lblGw2RunAfterTip.ForeColor = Color.DarkGoldenrod;
-            this.lblGw2RunAfterTip.Name = "lblGw2RunAfterTip";
-
-
+            tlpGw2.AutoSize = true;
+            tlpGw2.ColumnCount = 2;
+            tlpGw2.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140F));
+            tlpGw2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            tlpGw2.Controls.Add(chkGw2RunAfterEnabled, 0, 0);
+            tlpGw2.Controls.Add(lblRunAfterPrograms, 0, 1);
+            tlpGw2.Controls.Add(pnlGw2RunAfterList, 0, 2);
+            tlpGw2.Controls.Add(lblGw2RunAfterTip, 0, 3);
+            tlpGw2.Dock = DockStyle.Top;
+            tlpGw2.Location = new Point(15, 15);
+            tlpGw2.Name = "tlpGw2";
+            tlpGw2.RowCount = 5;
+            tlpGw2.RowStyles.Add(new RowStyle());
+            tlpGw2.RowStyles.Add(new RowStyle());
+            tlpGw2.RowStyles.Add(new RowStyle());
+            tlpGw2.RowStyles.Add(new RowStyle());
+            tlpGw2.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+            tlpGw2.Size = new Size(520, 281);
+            tlpGw2.TabIndex = 0;
+            tlpGw2.Visible = false;
+            // 
+            // chkGw2RunAfterEnabled
+            // 
+            chkGw2RunAfterEnabled.AutoSize = true;
+            tlpGw2.SetColumnSpan(chkGw2RunAfterEnabled, 2);
+            chkGw2RunAfterEnabled.Location = new Point(4, 4);
+            chkGw2RunAfterEnabled.Margin = new Padding(4);
+            chkGw2RunAfterEnabled.Name = "chkGw2RunAfterEnabled";
+            chkGw2RunAfterEnabled.Size = new Size(181, 19);
+            chkGw2RunAfterEnabled.TabIndex = 0;
+            chkGw2RunAfterEnabled.Text = "Enable programs after launch";
+            // 
+            // lblRunAfterPrograms
+            // 
+            lblRunAfterPrograms.AutoSize = true;
+            tlpGw2.SetColumnSpan(lblRunAfterPrograms, 2);
+            lblRunAfterPrograms.Location = new Point(4, 31);
+            lblRunAfterPrograms.Margin = new Padding(4);
+            lblRunAfterPrograms.Name = "lblRunAfterPrograms";
+            lblRunAfterPrograms.Size = new Size(114, 15);
+            lblRunAfterPrograms.TabIndex = 1;
+            lblRunAfterPrograms.Text = "Run After Programs:";
+            // 
+            // pnlGw2RunAfterList
+            // 
+            tlpGw2.SetColumnSpan(pnlGw2RunAfterList, 2);
+            pnlGw2RunAfterList.Controls.Add(lvGw2RunAfter);
+            pnlGw2RunAfterList.Controls.Add(btnGw2AddProgram);
+            pnlGw2RunAfterList.Controls.Add(btnGw2RemoveProgram);
+            pnlGw2RunAfterList.Dock = DockStyle.Fill;
+            pnlGw2RunAfterList.Location = new Point(4, 54);
+            pnlGw2RunAfterList.Margin = new Padding(4);
+            pnlGw2RunAfterList.Name = "pnlGw2RunAfterList";
+            pnlGw2RunAfterList.Size = new Size(512, 180);
+            pnlGw2RunAfterList.TabIndex = 2;
+            // 
+            // lvGw2RunAfter
+            // 
+            lvGw2RunAfter.CheckBoxes = true;
+            lvGw2RunAfter.Columns.AddRange(new ColumnHeader[] { colGw2RunAfterMumble, colGw2RunAfterName });
+            lvGw2RunAfter.Dock = DockStyle.Left;
+            lvGw2RunAfter.HeaderStyle = ColumnHeaderStyle.None;
+            lvGw2RunAfter.Location = new Point(0, 0);
+            lvGw2RunAfter.Name = "lvGw2RunAfter";
+            lvGw2RunAfter.OwnerDraw = true;
+            lvGw2RunAfter.Size = new Size(350, 180);
+            lvGw2RunAfter.TabIndex = 0;
+            lvGw2RunAfter.UseCompatibleStateImageBehavior = false;
+            lvGw2RunAfter.View = View.Details;
+            // 
+            // colGw2RunAfterMumble
+            // 
+            colGw2RunAfterMumble.Width = 22;
+            // 
+            // colGw2RunAfterName
+            // 
+            colGw2RunAfterName.Width = 300;
+            // 
+            // btnGw2AddProgram
+            // 
+            btnGw2AddProgram.Location = new Point(360, 0);
+            btnGw2AddProgram.Name = "btnGw2AddProgram";
+            btnGw2AddProgram.Size = new Size(75, 23);
+            btnGw2AddProgram.TabIndex = 1;
+            btnGw2AddProgram.Text = "Add...";
+            // 
+            // btnGw2RemoveProgram
+            // 
+            btnGw2RemoveProgram.Location = new Point(360, 30);
+            btnGw2RemoveProgram.Name = "btnGw2RemoveProgram";
+            btnGw2RemoveProgram.Size = new Size(75, 23);
+            btnGw2RemoveProgram.TabIndex = 2;
+            btnGw2RemoveProgram.Text = "Remove";
+            // 
+            // lblGw2RunAfterTip
+            // 
+            lblGw2RunAfterTip.AutoSize = true;
+            tlpGw2.SetColumnSpan(lblGw2RunAfterTip, 2);
+            lblGw2RunAfterTip.ForeColor = Color.DarkGoldenrod;
+            lblGw2RunAfterTip.Location = new Point(4, 242);
+            lblGw2RunAfterTip.Margin = new Padding(4);
+            lblGw2RunAfterTip.Name = "lblGw2RunAfterTip";
+            lblGw2RunAfterTip.Size = new Size(510, 15);
+            lblGw2RunAfterTip.TabIndex = 3;
+            lblGw2RunAfterTip.Text = "Tip: Right-click a program to toggle MumbleLink pairing (badge “M”) for overlays (Blish, TacO).";
             // 
             // ModsTabContent
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoScroll = true;
-            this.Controls.Add(this.tlpGw2);
-            this.Controls.Add(this.tlpGw1);
-            this.Name = "ModsTabContent";
-            this.Padding = new System.Windows.Forms.Padding(15);
-            this.Size = new System.Drawing.Size(550, 450);
-            
-            this.tlpGw1.ResumeLayout(false);
-            this.tlpGw1.PerformLayout();
-            this.pnlToolboxPath.ResumeLayout(false);
-            this.pnlToolboxPath.PerformLayout();
-            this.pnlPy4GwPath.ResumeLayout(false);
-            this.pnlPy4GwPath.PerformLayout();
-            this.pnlGModPath.ResumeLayout(false);
-            this.pnlGModPath.PerformLayout();
-            this.pnlGModPlugins.ResumeLayout(false);
-            this.tlpGw2.ResumeLayout(false);
-            this.tlpGw2.PerformLayout();
-            this.pnlGw2RunAfterList.ResumeLayout(false);
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            AutoScroll = true;
+            Controls.Add(tlpGw1);
+            Controls.Add(tlpGw2);
+            Name = "ModsTabContent";
+            Padding = new Padding(15);
+            Size = new Size(550, 668);
+            tlpGw1.ResumeLayout(false);
+            tlpGw1.PerformLayout();
+            pnlToolboxPath.ResumeLayout(false);
+            pnlToolboxPath.PerformLayout();
+            pnlPy4GwPath.ResumeLayout(false);
+            pnlPy4GwPath.PerformLayout();
+            pnlGModPath.ResumeLayout(false);
+            pnlGModPath.PerformLayout();
+            pnlGModPlugins.ResumeLayout(false);
+            tlpGw2.ResumeLayout(false);
+            tlpGw2.PerformLayout();
+            pnlGw2RunAfterList.ResumeLayout(false);
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion

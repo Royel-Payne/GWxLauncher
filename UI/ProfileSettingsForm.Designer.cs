@@ -37,7 +37,7 @@ namespace GWxLauncher.UI
             // btnOk
             // 
             btnOk.DialogResult = DialogResult.OK;
-            btnOk.Location = new Point(530, 371);
+            btnOk.Location = new Point(538, 344);
             btnOk.Name = "btnOk";
             btnOk.Size = new Size(75, 23);
             btnOk.TabIndex = 6;
@@ -47,7 +47,7 @@ namespace GWxLauncher.UI
             // btnCancel
             // 
             btnCancel.DialogResult = DialogResult.Cancel;
-            btnCancel.Location = new Point(615, 371);
+            btnCancel.Location = new Point(619, 344);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(75, 23);
             btnCancel.TabIndex = 7;
@@ -58,7 +58,7 @@ namespace GWxLauncher.UI
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(721, 406);
+            ClientSize = new Size(721, 379);
             Controls.Add(btnCancel);
             Controls.Add(btnOk);
             FormBorderStyle = FormBorderStyle.FixedSingle;

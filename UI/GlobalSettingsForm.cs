@@ -1,4 +1,4 @@
-using GWxLauncher.Config;
+﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
 using GWxLauncher.UI.Helpers;
@@ -85,7 +85,7 @@ namespace GWxLauncher.UI
                 Padding = new Padding(0)
             };
             this.Controls.Add(_pnlContentViewport);
-            _pnlContentViewport.MouseEnter += (s, e) => _pnlContentViewport?.Focus();
+            // _pnlContentViewport.MouseEnter += (s, e) => _pnlContentViewport?.Focus();
 
             // Splitter
             _pnlSplitter = new Panel
@@ -131,7 +131,7 @@ namespace GWxLauncher.UI
                 Visible = false
             };
             _generalTab.ImportCompleted += (s, e) => this.ImportCompleted?.Invoke(this, e);
-            _generalTab.MouseEnter += (s, e) => _generalTab?.Focus();
+            // _generalTab.MouseEnter += (s, e) => _generalTab?.Focus();
             _pnlContentViewport.Controls.Add(_generalTab);
 
             _gw1Tab = new GlobalGw1TabContent
@@ -140,7 +140,7 @@ namespace GWxLauncher.UI
                 Visible = false
             };
             _gw1Tab.ProfilesBulkUpdated += (s, e) => this.ProfilesBulkUpdated?.Invoke(this, e);
-            _gw1Tab.MouseEnter += (s, e) => _gw1Tab?.Focus();
+            // _gw1Tab.MouseEnter += (s, e) => _gw1Tab?.Focus();
             _pnlContentViewport.Controls.Add(_gw1Tab);
         }
 
@@ -310,3 +310,4 @@ namespace GWxLauncher.UI
         }
     }
 }
+
