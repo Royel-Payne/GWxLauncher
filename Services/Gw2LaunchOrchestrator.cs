@@ -150,6 +150,9 @@ namespace GWxLauncher.Services
                 if (mcEnabled)
                     args.Add("-shareArchive");
 
+                if (profile.WindowedModeEnabled)
+                    args.Add("-windowed");
+
                 if (!string.IsNullOrWhiteSpace(mumbleName))
                     args.Add($"-mumble \"{mumbleName}\"");
 

@@ -357,6 +357,11 @@ namespace GWxLauncher.Services
                 : $"\"{exePath}\" {extraArgs}";
 
             string gwArgs = BuildGw1AutoLoginArgs(profile, report);
+            
+            // Ensure windowed mode argument is present if enabled
+            if (profile.WindowedModeEnabled)
+                gwArgs = string.IsNullOrWhiteSpace(gwArgs) ? "-windowed" : (gwArgs + " -windowed");
+
             if (!string.IsNullOrWhiteSpace(extraArgs))
                 gwArgs = string.IsNullOrWhiteSpace(gwArgs) ? extraArgs : (gwArgs + " " + extraArgs);
 
