@@ -41,6 +41,8 @@ namespace GWxLauncher.UI.TabControls
                 chkAutoSelectChar.Checked = profile.Gw1AutoSelectCharacterEnabled;
                 txtCharName.Text = profile.Gw1CharacterName;
 
+                lblWarning.Visible = false;
+
                 // Hidden/Shown controls
                 lblLoginInfo.Visible = true;
 
@@ -139,7 +141,13 @@ namespace GWxLauncher.UI.TabControls
             }
 
             // Warnings usually only relevant if enabled
-            if (lblWarning != null) lblWarning.Visible = enabled;
+            if (lblWarning != null)
+            {
+                // Only show warning for GW2 (where it's relevant), and only if auto-login is enabled
+                bool showWarning = enabled && (_profile != null && _profile.GameType == GameType.GuildWars2);
+                lblWarning.Visible = showWarning;
+            }
+
             if (lblLoginInfo != null && lblLoginInfo.Visible) lblLoginInfo.Enabled = enabled;
         }
 
