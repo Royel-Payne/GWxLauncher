@@ -15,8 +15,6 @@ A quick look at the launcher UI and configuration workflow:
 
 ![Main window](docs/screenshots/main.png)
 ![Main-resized window](docs/screenshots/main-resized.png)
-![Profile settings](docs/screenshots/profile-settings.png)
-![Global settings](docs/screenshots/global-settings.png)
 
 ## Features
 
@@ -44,6 +42,13 @@ A quick look at the launcher UI and configuration workflow:
   - Launcher UI rendered
   - Launcher ready (Play enabled)
   - DX window created and rendering (best-effort)
+
+### Window Management (New in v1.4)
+- **Per-profile positioning:** Set exact window coordinates and size for each account.
+- **Auto-save:** "Remember Changes" option updates your profile automatically when you move or resize the game window.
+- **Window Lock:** Prevent accidental resizing or moving of the game window.
+- **Input Blocking:** Optional removal of minimize/close buttons for kiosk-like setups.
+- **Startup Enforcement:** Anti-bounce logic ensures windows land exactly where configured during game release/splash screen transitions.
 
 ## Download / install
 
