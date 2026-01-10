@@ -181,6 +181,12 @@ namespace GWxLauncher.Services
 
                 var process = Process.Start(startInfo);
 
+                // GW2 window sizing (best-effort). Kept isolated to GW2 and does not affect GW1.
+                if (process != null && profile.WindowedModeEnabled)
+                {
+                    Gw2WindowManagementService.ApplyWindowSettings(process, profile, report);
+                }
+
                 if (bulkMode && mcEnabled)
                 {
                     // Wait until GW2 recreates its mutex, so the next bulk launch can reliably clear it again.
