@@ -16,6 +16,10 @@ namespace GWxLauncher.UI.TabControls
             txtGw1TitleTemplate = new TextBox();
             lblGw1TitleHelp = new Label();
             grpWindow = new GroupBox();
+            grpBulkLaunch = new GroupBox();
+            lblGw1BulkDelay = new Label();
+            numGw1BulkDelay = new NumericUpDown();
+            lblGw1BulkDelayHelp = new Label();
             cbGlobalToolbox = new CheckBox();
             txtToolbox = new TextBox();
             btnBrowseToolbox = new Button();
@@ -30,6 +34,8 @@ namespace GWxLauncher.UI.TabControls
             lblDllHelp = new Label();
             grpDll = new GroupBox();
             grpWindow.SuspendLayout();
+            grpBulkLaunch.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)numGw1BulkDelay).BeginInit();
             grpDll.SuspendLayout();
             SuspendLayout();
             // 
@@ -71,6 +77,47 @@ namespace GWxLauncher.UI.TabControls
             grpWindow.TabIndex = 0;
             grpWindow.TabStop = false;
             grpWindow.Text = "Game Window Title";
+            // 
+            // grpBulkLaunch
+            // 
+            grpBulkLaunch.Controls.Add(lblGw1BulkDelay);
+            grpBulkLaunch.Controls.Add(numGw1BulkDelay);
+            grpBulkLaunch.Controls.Add(lblGw1BulkDelayHelp);
+            grpBulkLaunch.Location = new Point(10, 120);
+            grpBulkLaunch.Name = "grpBulkLaunch";
+            grpBulkLaunch.Size = new Size(460, 110);
+            grpBulkLaunch.TabIndex = 1;
+            grpBulkLaunch.TabStop = false;
+            grpBulkLaunch.Text = "Bulk Launch";
+            // 
+            // lblGw1BulkDelay
+            // 
+            lblGw1BulkDelay.AutoSize = true;
+            lblGw1BulkDelay.Location = new Point(20, 25);
+            lblGw1BulkDelay.Name = "lblGw1BulkDelay";
+            lblGw1BulkDelay.Size = new Size(160, 15);
+            lblGw1BulkDelay.TabIndex = 0;
+            lblGw1BulkDelay.Text = "Delay between launches (seconds):";
+            // 
+            // numGw1BulkDelay
+            // 
+            numGw1BulkDelay.Location = new Point(20, 45);
+            numGw1BulkDelay.Maximum = 90;
+            numGw1BulkDelay.Minimum = 0;
+            numGw1BulkDelay.Name = "numGw1BulkDelay";
+            numGw1BulkDelay.Size = new Size(80, 23);
+            numGw1BulkDelay.TabIndex = 1;
+            numGw1BulkDelay.Value = 15;
+            // 
+            // lblGw1BulkDelayHelp
+            // 
+            lblGw1BulkDelayHelp.AutoSize = true;
+            lblGw1BulkDelayHelp.ForeColor = Color.Goldenrod;
+            lblGw1BulkDelayHelp.Location = new Point(20, 73);
+            lblGw1BulkDelayHelp.Name = "lblGw1BulkDelayHelp";
+            lblGw1BulkDelayHelp.Size = new Size(400, 15);
+            lblGw1BulkDelayHelp.TabIndex = 2;
+            lblGw1BulkDelayHelp.Text = "Wait time between bulk launches. 0 = no wait. Range: 0-90 seconds.";
             // 
             // cbGlobalToolbox
             // 
@@ -183,10 +230,10 @@ namespace GWxLauncher.UI.TabControls
             grpDll.Controls.Add(lblDllHelp);
             grpDll.Controls.Add(btnApplyGlobalFlags);
             grpDll.Controls.Add(btnApplyGlobalPaths);
-            grpDll.Location = new Point(10, 120);
+            grpDll.Location = new Point(10, 240);
             grpDll.Name = "grpDll";
             grpDll.Size = new Size(460, 330);
-            grpDll.TabIndex = 1;
+            grpDll.TabIndex = 2;
             grpDll.TabStop = false;
             grpDll.Text = "DLL Injection (Globals)";
             // 
@@ -195,11 +242,15 @@ namespace GWxLauncher.UI.TabControls
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             Controls.Add(grpDll);
+            Controls.Add(grpBulkLaunch);
             Controls.Add(grpWindow);
             Name = "GlobalGw1TabContent";
-            Size = new Size(500, 500);
+            Size = new Size(500, 600);
             grpWindow.ResumeLayout(false);
             grpWindow.PerformLayout();
+            grpBulkLaunch.ResumeLayout(false);
+            grpBulkLaunch.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)numGw1BulkDelay).EndInit();
             grpDll.ResumeLayout(false);
             grpDll.PerformLayout();
             ResumeLayout(false);
@@ -209,6 +260,11 @@ namespace GWxLauncher.UI.TabControls
         private System.Windows.Forms.TextBox txtGw1TitleTemplate;
         private System.Windows.Forms.Label lblGw1TitleHelp;
         private System.Windows.Forms.GroupBox grpWindow;
+        
+        private System.Windows.Forms.GroupBox grpBulkLaunch;
+        private System.Windows.Forms.Label lblGw1BulkDelay;
+        private System.Windows.Forms.NumericUpDown numGw1BulkDelay;
+        private System.Windows.Forms.Label lblGw1BulkDelayHelp;
         
         private System.Windows.Forms.CheckBox cbGlobalToolbox;
         private System.Windows.Forms.TextBox txtToolbox;

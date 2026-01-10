@@ -31,6 +31,9 @@ namespace GWxLauncher.UI.TabControls
                 ? "GW2 • {ProfileName}"
                 : _cfg.Gw2WindowTitleTemplate;
             txtGw2TitleTemplate.Enabled = cbGw2RenameWindowTitle.Checked;
+
+            // Bulk Launch Delay
+            numGw2BulkDelay.Value = Math.Clamp(_cfg.Gw2BulkLaunchDelaySeconds, 0, 90);
         }
 
         internal void SaveConfig(LauncherConfig cfg)
@@ -39,6 +42,9 @@ namespace GWxLauncher.UI.TabControls
 
             var tpl = (txtGw2TitleTemplate.Text ?? "").Trim();
             cfg.Gw2WindowTitleTemplate = string.IsNullOrWhiteSpace(tpl) ? "GW2 • {ProfileName}" : tpl;
+
+            // Bulk Launch Delay
+            cfg.Gw2BulkLaunchDelaySeconds = (int)numGw2BulkDelay.Value;
         }
 
         private void ApplyTheme()

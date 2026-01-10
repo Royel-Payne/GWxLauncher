@@ -130,16 +130,8 @@ namespace GWxLauncher.UI.TabControls
             }
             else
             {
-                // Fallback to config path or Program Files
-                var cfgPath = _profile.GameType == GameType.GuildWars1 ? _cfg.Gw1Path : _cfg.Gw2Path;
-                if (!string.IsNullOrWhiteSpace(cfgPath) && File.Exists(cfgPath))
-                {
-                    dlg.InitialDirectory = Path.GetDirectoryName(cfgPath);
-                }
-                else
-                {
-                    dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                }
+                // Default to Program Files for new profiles
+                dlg.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
             }
 
             if (dlg.ShowDialog() == DialogResult.OK)
@@ -161,7 +153,6 @@ namespace GWxLauncher.UI.TabControls
                 // Protected path check
                 if (ProtectedInstallPathPolicy.IsProtectedPath(dlg.FileName))
                 {
-                    // Assuming ProtectedInstallPathWarningDialog is available
                     if (!ProtectedInstallPathWarningDialog.ConfirmContinue(this.FindForm(), dlg.FileName))
                         return;
                 }

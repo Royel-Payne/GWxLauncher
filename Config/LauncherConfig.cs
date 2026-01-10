@@ -4,9 +4,6 @@ namespace GWxLauncher.Config
 {
     internal class LauncherConfig
     {
-        public string Gw1Path { get; set; } = "";
-        public string Gw2Path { get; set; } = "";
-
         // -----------------------------
         // GW1 tool paths (last known good)
         // -----------------------------

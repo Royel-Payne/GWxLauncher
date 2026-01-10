@@ -45,6 +45,9 @@ namespace GWxLauncher.UI.TabControls
                 : _cfg.Gw1WindowTitleTemplate;
             txtGw1TitleTemplate.Enabled = cbGw1RenameWindowTitle.Checked;
 
+            // Bulk Launch Delay
+            numGw1BulkDelay.Value = Math.Clamp(_cfg.Gw1BulkLaunchDelaySeconds, 0, 90);
+
             // DLLs
             string tbPath = (_cfg.LastToolboxPath ?? "").Trim();
             if (string.IsNullOrEmpty(tbPath))
@@ -90,6 +93,9 @@ namespace GWxLauncher.UI.TabControls
             cfg.GlobalToolboxEnabled = cbGlobalToolbox.Checked;
             cfg.GlobalPy4GwEnabled = cbGlobalPy4Gw.Checked;
             cfg.GlobalGModEnabled = cbGlobalGMod.Checked;
+
+            // Bulk Launch Delay
+            cfg.Gw1BulkLaunchDelaySeconds = (int)numGw1BulkDelay.Value;
         }
 
         private void ApplyTheme()

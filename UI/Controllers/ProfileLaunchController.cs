@@ -64,10 +64,9 @@ namespace GWxLauncher.UI.Controllers
             if (profile == null)
                 return string.Empty;
 
-            if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
-                return profile.ExecutablePath;
-
-            return profile.GameType == GameType.GuildWars1 ? cfg.Gw1Path : cfg.Gw2Path;
+            // Always use the profile's executable path
+            // If empty, the caller will show an appropriate error message
+            return profile.ExecutablePath ?? string.Empty;
         }
 
         public async Task LaunchProfileAsync(GameProfile profile, bool bulkMode)
