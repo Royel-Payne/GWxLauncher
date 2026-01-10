@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Resources\GWx.ico</ApplicationIcon>
     <PlatformTarget>x86</PlatformTarget>
+    <Version>1.4.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
