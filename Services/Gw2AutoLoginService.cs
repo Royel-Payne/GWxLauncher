@@ -18,18 +18,7 @@ namespace GWxLauncher.Services
         private const int PostForegroundSettleMs = 900;
         private const int PostStableExtraSettleMs = 4100;
 
-        private const int AfterClickMs = 180;
-        private const int AfterClearMs = 120;
         private const int CharDelayMs = 12;
-
-        // --- Click target ratios inside the GW2 client area (0..1 of client W/H) ---
-        // These are for the login fields in the launcher window.
-        // Your logs show these were close; do not “tab navigate” here.
-        private const double EmailClickX = 0.270;
-        private const double EmailClickY = 0.430;
-
-        private const double PassClickX = 0.270;
-        private const double PassClickY = 0.500;
 
         // --- Pre-login UI probe ratios (for "Launcher UI Rendered" gate) ---
         // We avoid sampling the textbox fill (white); instead we probe reliable non-white anchors.
@@ -170,9 +159,6 @@ namespace GWxLauncher.Services
                 stepDxWindow.Detail = "Skipped (no window).";
                 return true;
             }
-
-            bool blocked = false;
-            bool wasDisabled = false;
             
             try
             {
@@ -228,17 +214,6 @@ namespace GWxLauncher.Services
                 if (emptyCoord == 0)
                     throw new Exception("Could not find empty area to click");
 
-// --- Debugging visualizer (uncomment to use) ---
-// Draws a red crosshair at the computed empty area
-/*
-                {
-                    SetForegroundWindow(gw2Hwnd);
-                    Thread.Sleep(10);
-                    DrawCrosshair(windowRect.Left + (int)(emptyCoord & 0xFFFF),
-                                  windowRect.Top + ((int)(emptyCoord >> 16) & 0xFFFF));
-                }
-*/
-
                 // Gate: ensure the launcher page has actually rendered before we start
                 if (!WaitForLauncherUiRendered(clientTL, clientWH, 0, 0, 0, 0,
                         timeoutMs: 7500, requiredStableMs: 600, out string uiDiag))
@@ -251,11 +226,6 @@ namespace GWxLauncher.Services
                     stepUiReady.Outcome = StepOutcome.Success;
                     stepUiReady.Detail = $"Launcher UI rendered. {uiDiag}";
                 }
-
-                // DON'T disable window - it blocks keyboard messages via SendMessage!
-                // Gw2Launcher only disables to prevent MOUSE clicks, but they have special keyboard handling
-                // We'll rely on speed instead
-                // wasDisabled = DisableWindow(gw2Hwnd);
 
                 // Boost child process priority to reduce input delays
                 try
@@ -362,7 +332,7 @@ namespace GWxLauncher.Services
                 SendKey(VK_RETURN, keyUp: true);
 
                 stepLogin.Outcome = StepOutcome.Success;
-                stepLogin.Detail = "Typed email+password via Tab navigation (clipboard primary, WM_CHAR fallback, WS_DISABLED, sync waits).";
+                stepLogin.Detail = "Email and password entered via Tab navigation (clipboard paste with Unicode fallback).";
             }
             catch (Exception ex)
             {
@@ -375,10 +345,6 @@ namespace GWxLauncher.Services
             }
             finally
             {
-                // Window was not disabled, so nothing to re-enable
-                // if (wasDisabled)
-                //     EnableWindow(gw2Hwnd);
-                    
                 // Reset child process priority
                 try
                 {

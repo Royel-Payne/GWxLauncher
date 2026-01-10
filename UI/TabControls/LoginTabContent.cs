@@ -57,7 +57,7 @@ namespace GWxLauncher.UI.TabControls
                 chkAutoLogin.Text = "Enable Auto-Login";
                 chkAutoLogin.Checked = profile.Gw2AutoLoginEnabled;
 
-                lblLoginInfo.Text = "Auto--login stores credentials (DPAPI).";
+                lblLoginInfo.Text = "Auto-login stores credentials (DPAPI).";
                 lblLoginInfo.Visible = true;
                 lblLoginInfo.ForeColor = Color.Goldenrod;
 
@@ -69,8 +69,8 @@ namespace GWxLauncher.UI.TabControls
                 chkAutoPlay.Text = "Auto Play (press Enter on character selection)";
                 chkAutoPlay.Checked = profile.Gw2AutoPlayEnabled;
 
-                lblWarning.Text = "Auto-login is a best effort experimental feature.";
-                lblWarning.ForeColor = Color.Red;
+                // Auto-login is now reliable - no warning needed
+                lblWarning.Visible = false;
 
                 // Hidden/Shown controls
                 chkAutoSelectChar.Visible = false;
@@ -140,15 +140,8 @@ namespace GWxLauncher.UI.TabControls
                 chkAutoPlay.Enabled = enabled;
             }
 
-            // Warnings usually only relevant if enabled
-            if (lblWarning != null)
-            {
-                // Only show warning for GW2 (where it's relevant), and only if auto-login is enabled
-                bool showWarning = enabled && (_profile != null && _profile.GameType == GameType.GuildWars2);
-                lblWarning.Visible = showWarning;
-            }
-
-            if (lblLoginInfo != null && lblLoginInfo.Visible) lblLoginInfo.Enabled = enabled;
+            if (lblLoginInfo != null && lblLoginInfo.Visible) 
+                lblLoginInfo.Enabled = enabled;
         }
 
         private void ApplyTheme()
