@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
@@ -264,6 +265,40 @@ namespace GWxLauncher.UI.Controllers
                 if (result.LaunchedProcess != null)
                 {
                     _gw2Instances.TrackLaunched(profile.Id, result.LaunchedProcess);
+
+                    // Apply GW2 window title if enabled - wait for DX window to be fully ready
+                    bool winTitleEnabled = cfg.Gw2WindowTitleEnabled;
+                    if (winTitleEnabled)
+                    {
+                        string profileName = (profile.Name ?? "").Trim();
+                        string titleLabel = (profile.Gw2WindowTitleLabel ?? "").Trim();
+                        string titleTemplate = (cfg.Gw2WindowTitleTemplate ?? "").Trim();
+
+                        string title;
+                        if (!string.IsNullOrWhiteSpace(titleLabel))
+                        {
+                            title = titleLabel;
+                        }
+                        else
+                        {
+                            title = string.IsNullOrWhiteSpace(titleTemplate)
+                                ? profileName
+                                : titleTemplate.Replace("{ProfileName}", profileName);
+                        }
+
+                        // Run in background to avoid blocking
+                        var process = result.LaunchedProcess;
+                        _ = Task.Run(() =>
+                        {
+                            // Wait for DX window creation AND rendering before attempting to set title
+                            // This ensures we're setting the title on the final game window, not intermediate launcher windows
+                            if (WaitForGw2DxWindowReady(process, TimeSpan.FromSeconds(60), out IntPtr dxHwnd))
+                            {
+                                // Apply title directly to the fully-rendered DX window handle
+                                NativeMethods.SetWindowText(dxHwnd, title);
+                            }
+                        });
+                    }
                 }
 
                 return;
@@ -274,6 +309,156 @@ namespace GWxLauncher.UI.Controllers
         {
             _launchSession.Record(report);
             _setStatus(_launchSession.BuildStatusText());
+        }
+
+        private static bool WaitForGw2DxWindow(Process process, TimeSpan timeout, out IntPtr dxHwnd)
+        {
+            dxHwnd = IntPtr.Zero;
+
+            if (process == null || process.HasExited)
+                return false;
+
+            var sw = Stopwatch.StartNew();
+            while (sw.Elapsed < timeout)
+            {
+                if (process.HasExited)
+                    return false;
+
+                // Enumerate windows looking for GW2 DX window classes
+                IntPtr found = IntPtr.Zero;
+                NativeMethods.EnumWindows((hwnd, lParam) =>
+                {
+                    if (!NativeMethods.IsWindowVisible(hwnd))
+                        return true;
+
+                    NativeMethods.GetWindowThreadProcessId(hwnd, out uint pid);
+                    if (pid != (uint)process.Id)
+                        return true;
+
+                    var sb = new StringBuilder(256);
+                    NativeMethods.GetClassName(hwnd, sb, sb.Capacity);
+                    string className = sb.ToString();
+
+                    // GW2 3D window classes
+                    if (className == "ArenaNet_Dx_Window_Class" || className == "ArenaNet_Gr_Window_Class")
+                    {
+                        found = hwnd;
+                        return false; // Stop enumeration
+                    }
+
+                    return true;
+                }, IntPtr.Zero);
+
+                if (found != IntPtr.Zero)
+                {
+                    dxHwnd = found;
+                    return true;
+                }
+
+                Thread.Sleep(200);
+            }
+
+            return false;
+        }
+
+        private static bool WaitForGw2DxWindowReady(Process process, TimeSpan timeout, out IntPtr dxHwnd)
+        {
+            dxHwnd = IntPtr.Zero;
+
+            if (process == null || process.HasExited)
+                return false;
+
+            // Step 1: Wait for DX window to be created (up to 60 seconds)
+            if (!WaitForGw2DxWindow(process, timeout, out dxHwnd))
+                return false;
+
+            // Step 2: Wait for the DX window to actually render (not just be white)
+            // This prevents setting title on transitional windows
+            if (!WaitForDxWindowRendering(dxHwnd, TimeSpan.FromSeconds(60)))
+                return false;
+
+            return true;
+        }
+
+        private static bool WaitForDxWindowRendering(IntPtr dxHwnd, TimeSpan timeout)
+        {
+            // Sample center of DX window to verify it's rendering (not white)
+            if (!NativeMethods.GetClientRect(dxHwnd, out var cr))
+                return false;
+
+            var centerPt = new NativeMethods.POINT
+            {
+                X = (cr.Right - cr.Left) / 2,
+                Y = (cr.Bottom - cr.Top) / 2
+            };
+
+            // Convert to screen coordinates
+            if (!NativeMethods.ClientToScreen(dxHwnd, ref centerPt))
+                return false;
+
+            // Sample a small cross pattern around center
+            var samples = new (int dx, int dy)[] { (0, 0), (-12, 0), (12, 0), (0, -3), (0, 3) };
+
+            long stableFor = 0;
+            var sw = Stopwatch.StartNew();
+
+            while (sw.Elapsed < timeout)
+            {
+                int nonWhite = 0;
+
+                foreach (var (dx, dy) in samples)
+                {
+                    if (!TryGetScreenPixel(centerPt.X + dx, centerPt.Y + dy, out var r, out var g, out var b))
+                        continue;
+
+                    // Window is rendering if pixels are not near-white
+                    if (!IsNearWhite(r, g, b))
+                        nonWhite++;
+                }
+
+                // Require 3+ non-white samples to be stable for 800ms
+                if (nonWhite >= 3)
+                {
+                    stableFor += 200;
+                    if (stableFor >= 800)
+                        return true;
+                }
+                else
+                {
+                    stableFor = 0;
+                }
+
+                Thread.Sleep(200);
+            }
+
+            return false;
+        }
+
+        private static bool TryGetScreenPixel(int x, int y, out byte r, out byte g, out byte b)
+        {
+            r = g = b = 0;
+
+            IntPtr hdc = NativeMethods.GetDC(IntPtr.Zero);
+            if (hdc == IntPtr.Zero)
+                return false;
+
+            try
+            {
+                uint c = NativeMethods.GetPixel(hdc, x, y);
+                r = (byte)(c & 0xFF);
+                g = (byte)((c >> 8) & 0xFF);
+                b = (byte)((c >> 16) & 0xFF);
+                return true;
+            }
+            finally
+            {
+                NativeMethods.ReleaseDC(IntPtr.Zero, hdc);
+            }
+        }
+
+        private static bool IsNearWhite(byte r, byte g, byte b)
+        {
+            return r >= 240 && g >= 240 && b >= 240;
         }
     }
 }

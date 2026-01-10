@@ -52,25 +52,33 @@ namespace GWxLauncher.UI.TabControls
             txtArgs.Text = profile.LaunchArguments;
 
             // Window Title
-            txtWindowTitle.Text = profile.Gw1WindowTitleLabel;
-
             bool isGw1 = profile.GameType == GameType.GuildWars1;
+            bool isGw2 = profile.GameType == GameType.GuildWars2;
 
+            // Show window title for both GW1 and GW2
             if (isGw1)
             {
+                txtWindowTitle.Text = profile.Gw1WindowTitleLabel;
                 lblWindowTitle.Visible = true;
                 txtWindowTitle.Visible = true;
 
                 chkMulticlient.Visible = true;
                 chkMulticlient.Checked = _cfg.Gw1MulticlientEnabled;
             }
-            else // GW2
+            else if (isGw2)
             {
-                lblWindowTitle.Visible = false;
-                txtWindowTitle.Visible = false;
+                txtWindowTitle.Text = profile.Gw2WindowTitleLabel;
+                lblWindowTitle.Visible = true;
+                txtWindowTitle.Visible = true;
 
                 chkMulticlient.Visible = true;
                 chkMulticlient.Checked = _cfg.Gw2MulticlientEnabled;
+            }
+            else
+            {
+                lblWindowTitle.Visible = false;
+                txtWindowTitle.Visible = false;
+                chkMulticlient.Visible = false;
             }
         }
 
@@ -88,8 +96,11 @@ namespace GWxLauncher.UI.TabControls
                 // Save config multiclient
                 _cfg.Gw1MulticlientEnabled = chkMulticlient.Checked;
             }
-            else
+            else if (profile.GameType == GameType.GuildWars2)
             {
+                string label = txtWindowTitle.Text.Trim();
+                profile.Gw2WindowTitleLabel = string.IsNullOrWhiteSpace(label) ? null : label;
+
                 _cfg.Gw2MulticlientEnabled = chkMulticlient.Checked;
             }
 

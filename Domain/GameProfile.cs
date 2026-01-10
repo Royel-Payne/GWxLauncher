@@ -99,6 +99,10 @@
         public string Gw2PasswordProtected { get; set; } = ""; // base64; DPAPI-encrypted
         public bool Gw2AutoPlayEnabled { get; set; } = false;
 
+        // Optional custom label used for GW2 window title renaming
+        // If empty, Profile.Name is used.
+        public string Gw2WindowTitleLabel { get; set; } = "";
+
         // -----------------------------
         // Display helpers
         // -----------------------------

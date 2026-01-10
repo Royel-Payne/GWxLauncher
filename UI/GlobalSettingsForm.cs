@@ -22,6 +22,7 @@ namespace GWxLauncher.UI
         // Tab content UserControls
         private GlobalGeneralTabContent? _generalTab;
         private GlobalGw1TabContent? _gw1Tab;
+        private GlobalGw2TabContent? _gw2Tab;
 
         public GlobalSettingsForm(Services.ProfileManager? profileManager = null)
         {
@@ -114,7 +115,7 @@ namespace GWxLauncher.UI
                 BackColor = ThemeService.Palette.SurfaceBack,
                 ForeColor = ThemeService.Palette.WindowFore
             };
-            _lstTabs.Items.AddRange(new object[] { "General", "Guild Wars 1" });
+            _lstTabs.Items.AddRange(new object[] { "General", "Guild Wars 1", "Guild Wars 2" });
             _pnlSidebar.Controls.Add(_lstTabs);
         }
 
@@ -139,6 +140,14 @@ namespace GWxLauncher.UI
             _gw1Tab.ProfilesBulkUpdated += (s, e) => this.ProfilesBulkUpdated?.Invoke(this, e);
             // _gw1Tab.MouseEnter += (s, e) => _gw1Tab?.Focus();
             _pnlContentViewport.Controls.Add(_gw1Tab);
+
+            _gw2Tab = new GlobalGw2TabContent
+            {
+                Dock = DockStyle.Top,
+                Visible = false
+            };
+            // _gw2Tab.MouseEnter += (s, e) => _gw2Tab?.Focus();
+            _pnlContentViewport.Controls.Add(_gw2Tab);
         }
 
         private void ReparentControlsToTabs()
@@ -167,10 +176,11 @@ namespace GWxLauncher.UI
         private void lstTabs_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (_lstTabs == null || _lstTabs.SelectedIndex < 0) return;
-            if (_generalTab == null || _gw1Tab == null) return;
+            if (_generalTab == null || _gw1Tab == null || _gw2Tab == null) return;
 
             _generalTab.Visible = false;
             _gw1Tab.Visible = false;
+            _gw2Tab.Visible = false;
 
             switch (_lstTabs.SelectedIndex)
             {
@@ -183,6 +193,11 @@ namespace GWxLauncher.UI
                     _gw1Tab.Visible = true;
                     _gw1Tab.Focus();
                     _gw1Tab.RefreshTheme();
+                    break;
+                case 2: // Guild Wars 2
+                    _gw2Tab.Visible = true;
+                    _gw2Tab.Focus();
+                    _gw2Tab.RefreshTheme();
                     break;
             }
 
@@ -222,12 +237,14 @@ namespace GWxLauncher.UI
         {
             _generalTab?.BindConfig(_cfg);
             _gw1Tab?.BindConfig(_cfg, _profileManager);
+            _gw2Tab?.BindConfig(_cfg);
         }
 
         private void SaveAndClose()
         {
             _generalTab?.SaveConfig(_cfg);
             _gw1Tab?.SaveConfig(_cfg);
+            _gw2Tab?.SaveConfig(_cfg);
             _cfg.Save();
 
             DialogResult = DialogResult.OK;
@@ -306,6 +323,129 @@ namespace GWxLauncher.UI
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
