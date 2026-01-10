@@ -63,7 +63,7 @@
             if (Steps.Count > 0)
             {
                 lines.Add("");
-                lines.Add("Mods:");
+                lines.Add("Launch Steps:");
                 foreach (var s in Steps)
                 {
                     lines.Add($"- {s.Label}: {s.OutcomeText}");

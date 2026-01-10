@@ -165,8 +165,12 @@ namespace GWxLauncher.UI.Controllers
                             // Best effort
                         }
 
+                        // Window Title
                         if (winTitleEnabled)
                         {
+                            var stepWindowTitle = new LaunchStep { Label = "Window Title" };
+                            rep.Steps.Add(stepWindowTitle);
+
                             string title;
                             if (!string.IsNullOrWhiteSpace(titleLabel))
                             {
@@ -178,8 +182,20 @@ namespace GWxLauncher.UI.Controllers
                                     ? profileName
                                     : titleTemplate.Replace("{ProfileName}", profileName);
                             }
+
                             // This waits/retries, so do it in background
-                            WindowTitleService.TrySetMainWindowTitle(proc, title, TimeSpan.FromSeconds(15));
+                            bool success = WindowTitleService.TrySetMainWindowTitle(proc, title, TimeSpan.FromSeconds(15));
+
+                            if (success)
+                            {
+                                stepWindowTitle.Outcome = StepOutcome.Success;
+                                stepWindowTitle.Detail = $"Set to \"{title}\"";
+                            }
+                            else
+                            {
+                                stepWindowTitle.Outcome = StepOutcome.Pending;
+                                stepWindowTitle.Detail = "Window not detected within timeout (best-effort)";
+                            }
                         }
                     }
 
@@ -286,6 +302,15 @@ namespace GWxLauncher.UI.Controllers
                                 : titleTemplate.Replace("{ProfileName}", profileName);
                         }
 
+                        // Create the step upfront so it appears in the report
+                        var stepWindowTitle = new LaunchStep 
+                        { 
+                            Label = "Window Title",
+                            Outcome = StepOutcome.Pending,
+                            Detail = "Waiting for DX window..."
+                        };
+                        result.Report?.Steps.Add(stepWindowTitle);
+
                         // Run in background to avoid blocking
                         var process = result.LaunchedProcess;
                         _ = Task.Run(() =>
@@ -295,7 +320,23 @@ namespace GWxLauncher.UI.Controllers
                             if (WaitForGw2DxWindowReady(process, TimeSpan.FromSeconds(60), out IntPtr dxHwnd))
                             {
                                 // Apply title directly to the fully-rendered DX window handle
-                                NativeMethods.SetWindowText(dxHwnd, title);
+                                bool success = NativeMethods.SetWindowText(dxHwnd, title);
+                                
+                                if (success)
+                                {
+                                    stepWindowTitle.Outcome = StepOutcome.Success;
+                                    stepWindowTitle.Detail = $"Set to \"{title}\" (DX window verified)";
+                                }
+                                else
+                                {
+                                    stepWindowTitle.Outcome = StepOutcome.Failed;
+                                    stepWindowTitle.Detail = "SetWindowText failed";
+                                }
+                            }
+                            else
+                            {
+                                stepWindowTitle.Outcome = StepOutcome.Pending;
+                                stepWindowTitle.Detail = "DX window not detected within timeout (best-effort)";
                             }
                         });
                     }
