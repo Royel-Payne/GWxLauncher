@@ -13,6 +13,7 @@ namespace GWxLauncher.UI.Controllers
         private readonly WinFormsUiDispatcher _ui;
 
         private readonly Gw1InstanceTracker _gw1Instances;
+        private readonly Gw2InstanceTracker _gw2Instances;
 
         private readonly Gw2LaunchOrchestrator _gw2Orchestrator;
         private readonly Gw2AutomationCoordinator _gw2Automation;
@@ -29,6 +30,7 @@ namespace GWxLauncher.UI.Controllers
             StatusBarController statusBar,
             WinFormsUiDispatcher ui,
             Gw1InstanceTracker gw1Instances,
+            Gw2InstanceTracker gw2Instances,
             Gw2LaunchOrchestrator gw2Orchestrator,
             Gw2AutomationCoordinator gw2Automation,
             Gw2RunAfterLauncher gw2RunAfterLauncher,
@@ -43,6 +45,7 @@ namespace GWxLauncher.UI.Controllers
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
 
             _gw1Instances = gw1Instances ?? throw new ArgumentNullException(nameof(gw1Instances));
+            _gw2Instances = gw2Instances ?? throw new ArgumentNullException(nameof(gw2Instances));
 
             _gw2Orchestrator = gw2Orchestrator ?? throw new ArgumentNullException(nameof(gw2Orchestrator));
             _gw2Automation = gw2Automation ?? throw new ArgumentNullException(nameof(gw2Automation));
@@ -255,6 +258,12 @@ namespace GWxLauncher.UI.Controllers
                         result.MessageBoxTitle,
                         MessageBoxButtons.OK,
                         result.MessageBoxIsError ? MessageBoxIcon.Error : MessageBoxIcon.Warning);
+                }
+
+                // Track GW2 instance
+                if (result.LaunchedProcess != null)
+                {
+                    _gw2Instances.TrackLaunched(profile.Id, result.LaunchedProcess);
                 }
 
                 return;

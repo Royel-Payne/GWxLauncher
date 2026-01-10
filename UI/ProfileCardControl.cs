@@ -172,14 +172,15 @@ namespace GWxLauncher.UI
             bool isRunning = false;
             try
             {
-                if (Profile.GameType == GameType.GuildWars1 && IsRunning != null)
+                // Check running state for both GW1 and GW2
+                if (IsRunning != null)
                     isRunning = IsRunning(Profile.Id);
             }
             catch { /* best-effort */ }
 
             if (isRunning)
             {
-                // No dot. Just a subtle color shift.
+                // Blue accent color when running (both GW1 and GW2)
                 using (var subBrush = new SolidBrush(ThemeService.CardPalette.Accent))
                     g.DrawString(subText, _subFont, subBrush, subRect);
             }

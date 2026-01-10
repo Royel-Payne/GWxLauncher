@@ -24,6 +24,9 @@ namespace GWxLauncher.Services
             public bool MessageBoxIsError { get; init; } = false;
 
             public bool HasMessageBox => !string.IsNullOrWhiteSpace(MessageBoxText);
+            
+            // Track launched process for instance tracking
+            public Process? LaunchedProcess { get; init; }
         }
 
         public async Task<Gw2LaunchResult> LaunchAsync(
@@ -244,7 +247,11 @@ namespace GWxLauncher.Services
 
                 report.Succeeded = true;
 
-                return new Gw2LaunchResult { Report = report };
+                return new Gw2LaunchResult 
+                { 
+                    Report = report,
+                    LaunchedProcess = process
+                };
             }
             catch (Exception ex)
             {
