@@ -21,6 +21,7 @@ namespace GWxLauncher.UI.Controllers
         private readonly Func<LauncherConfig> _getConfig;
         private readonly Action<LauncherConfig> _setConfig;
         private readonly Action<string> _setStatus;
+        private readonly Action _saveProfiles; // NEW
 
         public ProfileLaunchController(
             IWin32Window owner,
@@ -33,7 +34,8 @@ namespace GWxLauncher.UI.Controllers
             Gw2RunAfterLauncher gw2RunAfterLauncher,
             Func<LauncherConfig> getConfig,
             Action<LauncherConfig> setConfig,
-            Action<string> setStatus)
+            Action<string> setStatus,
+            Action saveProfiles = null) // NEW
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
             _launchSession = launchSession ?? throw new ArgumentNullException(nameof(launchSession));
@@ -49,6 +51,8 @@ namespace GWxLauncher.UI.Controllers
             _getConfig = getConfig ?? throw new ArgumentNullException(nameof(getConfig));
             _setConfig = setConfig ?? throw new ArgumentNullException(nameof(setConfig));
             _setStatus = setStatus ?? throw new ArgumentNullException(nameof(setStatus));
+            
+            _saveProfiles = saveProfiles;
         }
 
         public string ResolveEffectiveExePath(GameProfile profile, LauncherConfig cfg)
@@ -137,22 +141,47 @@ namespace GWxLauncher.UI.Controllers
                         profile, cfg, exePath, mcEnabled, _owner,
                         out var proc, out var err, out var rep, showMessage); // Pass showMessage delegate
 
-                    if (ok && proc != null && winTitleEnabled)
+                    if (ok && proc != null)
                     {
-                        string title;
-                        if (!string.IsNullOrWhiteSpace(titleLabel))
+                        // Apply Windowed Mode Settings (Position, Size, Locks)
+                        try
                         {
-                            title = titleLabel;
+                            WindowManagementService.ApplyWindowSettings(proc, profile);
+
+                            // Start watching for changes if enabled
+                            if (_saveProfiles != null)
+                            {
+                                WindowManagementService.StartWatching(proc, profile, (_) =>
+                                {
+                                    // Make sure we save on UI thread or safely
+                                    // Using UI dispatcher to avoid potential concurrency during file write if multiple things happen at once,
+                                    // and because _profileManager might be bound to UI.
+                                    _ui.Post(() => _saveProfiles());
+                                });
+                            }
                         }
-                        else
+                        catch 
+                        { 
+                            // Best effort
+                        }
+                    
+                        if (winTitleEnabled)
                         {
-                            title = string.IsNullOrWhiteSpace(titleTemplate)
-                                ? profileName
-                                : titleTemplate.Replace("{ProfileName}", profileName);
+                            string title;
+                            if (!string.IsNullOrWhiteSpace(titleLabel))
+                            {
+                                title = titleLabel;
+                            }
+                            else
+                            {
+                                title = string.IsNullOrWhiteSpace(titleTemplate)
+                                    ? profileName
+                                    : titleTemplate.Replace("{ProfileName}", profileName);
+                            }
+                            // This waits/retries, so do it in background
+                            WindowTitleService.TrySetMainWindowTitle(proc, title, TimeSpan.FromSeconds(15));
                         }
-                        // This waits/retries, so do it in background
-                        WindowTitleService.TrySetMainWindowTitle(proc, title, TimeSpan.FromSeconds(15));
-                    }
+                    } 
                     
                     return (ok, proc, err, rep);
                 });

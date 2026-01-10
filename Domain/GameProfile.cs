@@ -66,6 +66,22 @@
         public string Gw1WindowTitleLabel { get; set; } = "";
 
         // -----------------------------
+        // GW1 – Window Positioning
+        // -----------------------------
+
+        public bool WindowedModeEnabled { get; set; } = false;
+        public int WindowX { get; set; } = 0;
+        public int WindowY { get; set; } = 0;
+        public int WindowWidth { get; set; } = 800;
+        public int WindowHeight { get; set; } = 600;
+        public bool WindowMaximized { get; set; } = false;
+
+        public bool WindowRememberChanges { get; set; } = false;
+        public bool WindowLockChanges { get; set; } = false; // Prevent resizing/moving
+        public bool WindowBlockInputs { get; set; } = false; // Block minimize/close
+
+
+        // -----------------------------
         // GW2 – Run-after programs
         // -----------------------------
 
