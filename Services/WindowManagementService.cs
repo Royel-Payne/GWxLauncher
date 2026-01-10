@@ -210,6 +210,9 @@ namespace GWxLauncher.Services
             if (!GetWindowPlacement(hwnd, ref placement))
                 return;
 
+            // Use async placement to avoid blocking on busy window threads
+            placement.flags = WindowPlacementFlags.WPF_ASYNCWINDOWPLACEMENT;
+
             placement.rcNormalPosition = new RECT
             {
                 Left = profile.WindowX,

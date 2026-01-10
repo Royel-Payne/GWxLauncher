@@ -30,16 +30,22 @@ namespace GWxLauncher.Services
             if (profile.WindowWidth <= 0 || profile.WindowHeight <= 0)
                 return;
 
+            // CRITICAL: Add the step to the report BEFORE starting background task
+            // to avoid race condition where report is printed before step is added
+            var step = report != null ? new LaunchStep { Label = "Window sizing" } : null;
+            if (report != null && step != null)
+            {
+                step.Outcome = StepOutcome.Pending;
+                step.Detail = "Waiting for DX window...";
+                report.Steps.Add(step);
+            }
+
             // Run in the background so GW2LaunchOrchestrator stays non-blocking.
             _ = Task.Run(() =>
             {
                 try
                 {
-                    var step = report != null ? new LaunchStep { Label = "Window sizing" } : null;
-                    if (report != null && step != null)
-                        report.Steps.Add(step);
-
-                    // IMPORTANT: don’t resize the launcher/login window (class "ArenaNet").
+                    // IMPORTANT: don't resize the launcher/login window (class "ArenaNet").
                     // Only apply after the 3D window exists (post-PLAY).
                     IntPtr hwnd = FindGw2DxWindow(process, timeoutMs: DefaultFindTimeoutMs, out string foundClass, out int waitedMs);
                     if (hwnd == IntPtr.Zero)
@@ -57,6 +63,53 @@ namespace GWxLauncher.Services
                 catch
                 {
                     // best-effort only
+                    if (step != null)
+                    {
+                        step.Outcome = StepOutcome.Pending;
+                        step.Detail = "Window sizing failed (best-effort).";
+                    }
+                }
+            });
+        }
+
+        /// <summary>
+        /// Applies window settings using a pre-discovered DX window handle.
+        /// Used when the DX window is already known (e.g., from auto-login flow).
+        /// </summary>
+        public static void ApplyWindowSettingsWithHandle(Process process, IntPtr dxHwnd, string dxClass, GameProfile profile, LaunchReport? report = null)
+        {
+            if (process == null || profile == null || dxHwnd == IntPtr.Zero)
+                return;
+
+            if (!profile.WindowedModeEnabled)
+                return;
+
+            if (profile.WindowWidth <= 0 || profile.WindowHeight <= 0)
+                return;
+
+            // CRITICAL: Add the step to the report BEFORE starting background task
+            var step = report != null ? new LaunchStep { Label = "Window sizing" } : null;
+            if (report != null && step != null)
+            {
+                step.Outcome = StepOutcome.Pending;
+                step.Detail = "Applying window placement...";
+                report.Steps.Add(step);
+            }
+
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    EnforcePlacement(process, dxHwnd, profile, dxClass, step);
+                }
+                catch
+                {
+                    // best-effort only
+                    if (step != null)
+                    {
+                        step.Outcome = StepOutcome.Pending;
+                        step.Detail = "Window sizing failed (best-effort).";
+                    }
                 }
             });
         }

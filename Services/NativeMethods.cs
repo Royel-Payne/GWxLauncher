@@ -67,6 +67,14 @@ namespace GWxLauncher.Services
         #region Enums
 
         [Flags]
+        internal enum WindowPlacementFlags : uint
+        {
+            WPF_SETMINPOSITION = 0x0001,
+            WPF_RESTORETOMAXIMIZED = 0x0002,
+            WPF_ASYNCWINDOWPLACEMENT = 0x0004,
+        }
+
+        [Flags]
         internal enum ProcessAccessFlags : uint
         {
             PROCESS_CREATE_THREAD = 0x0002,
@@ -138,7 +146,7 @@ namespace GWxLauncher.Services
         internal struct WINDOWPLACEMENT
         {
             public int length;
-            public int flags;
+            public WindowPlacementFlags flags;
             public int showCmd;
             public POINT ptMinPosition;
             public POINT ptMaxPosition;

@@ -181,11 +181,11 @@ namespace GWxLauncher.Services
 
                 var process = Process.Start(startInfo);
 
-                // GW2 window sizing (best-effort). Kept isolated to GW2 and does not affect GW1.
-                if (process != null && profile.WindowedModeEnabled)
-                {
-                    Gw2WindowManagementService.ApplyWindowSettings(process, profile, report);
-                }
+                // Window sizing coordination:
+                // Don't start window sizing search immediately - DX window doesn't exist until
+                // after auto-login clicks PLAY (~17s into launch). Instead, start search AFTER
+                // auto-login completes when the DX window actually exists.
+                // This prevents the 15s timeout race condition.
 
                 if (bulkMode && mcEnabled)
                 {
@@ -225,6 +225,19 @@ namespace GWxLauncher.Services
                             report.FailureMessage = $"Auto-login failed: {autoLoginError}";
                         }
                     }
+                }
+
+                // CRITICAL FIX: Start window sizing AFTER auto-login completes (both bulk and manual modes)
+                // When auto-login is enabled, the DX window doesn't exist until after PLAY is clicked (~17s into launch).
+                // Starting the search immediately causes a 15s timeout race condition.
+                if (process != null && profile.WindowedModeEnabled && profile.Gw2AutoLoginEnabled)
+                {
+                    Gw2WindowManagementService.ApplyWindowSettings(process, profile, report);
+                }
+                // If auto-login is disabled, start window sizing immediately (DX window appears fast)
+                else if (process != null && profile.WindowedModeEnabled && !profile.Gw2AutoLoginEnabled)
+                {
+                    Gw2WindowManagementService.ApplyWindowSettings(process, profile, report);
                 }
 
                 runAfterInvoker(profile);
