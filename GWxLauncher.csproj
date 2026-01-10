@@ -14,7 +14,14 @@
   <ItemGroup>
     <Content Include="Resources\GWx.ico" />
   </ItemGroup>
+	<ItemGroup>
+		<Compile Remove="tmp\**" />
 
+		<EmbeddedResource Remove="tmp\**" />
+		<None Remove="tmp\**" />
+
+		<Content Remove="tmp\**" />
+	</ItemGroup>
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">
       <DesignTime>True</DesignTime>
