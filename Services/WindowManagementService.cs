@@ -9,103 +9,143 @@ namespace GWxLauncher.Services
     internal static class WindowManagementService
     {
         private const string GW1_WINDOW_CLASS = "ArenaNet_Dx_Window_Class";
+        private const int ENFORCEMENT_DURATION_MS = 7000;
+        private const int ENFORCEMENT_INTERVAL_MS = 100;
 
         public static void ApplyWindowSettings(Process process, GameProfile profile)
         {
             if (process == null || profile == null) return;
             if (!profile.WindowedModeEnabled) return;
 
-            // Robustly find the real window, not just the handle at start
             IntPtr hwnd = FindGameWindow(process, TimeSpan.FromSeconds(10));
-            
+
             if (hwnd == IntPtr.Zero) return;
 
-            // 1. Apply placement
             ApplyPlacement(hwnd, profile);
 
-            // 2. Lock changes (prevent resize/move)
             if (profile.WindowLockChanges)
             {
                 ApplyLocking(hwnd);
             }
 
-            // 3. Block inputs (minimize/close)
             if (profile.WindowBlockInputs)
             {
                 ApplyInputBlocking(hwnd);
             }
         }
 
-        public static void StartWatching(Process process, GameProfile profile, Action<GameProfile> saveProfileCallback)
+        public static void ManageWindowLifecycle(Process process, GameProfile profile, Action<GameProfile>? saveProfileCallback)
         {
-            if (process == null || profile == null || saveProfileCallback == null) return;
-            if (!profile.WindowedModeEnabled || !profile.WindowRememberChanges) return;
-            
-            if (profile.WindowLockChanges) return;
+            if (process == null || profile == null) return;
+            if (!profile.WindowedModeEnabled) return;
 
             Task.Run(async () =>
             {
                 try
                 {
-                    // Initial state capture
-                    RECT lastRect = new RECT { Left = profile.WindowX, Top = profile.WindowY, Right = profile.WindowX + profile.WindowWidth, Bottom = profile.WindowY + profile.WindowHeight };
-                    bool lastMaximized = profile.WindowMaximized;
-                    
+                    IntPtr hwnd = IntPtr.Zero;
+                    var startTime = DateTime.UtcNow;
+
+                    // Baseline for enforcement
+                    var targetRect = new RECT
+                    {
+                        Left = profile.WindowX,
+                        Top = profile.WindowY,
+                        Right = profile.WindowX + profile.WindowWidth,
+                        Bottom = profile.WindowY + profile.WindowHeight
+                    };
+                    bool targetMaximized = profile.WindowMaximized;
+
+                    // State for "Remember Changes"
+                    RECT lastSeenRect = targetRect;
+                    bool lastSeenMaximized = targetMaximized;
                     DateTime lastChangeTime = DateTime.MinValue;
                     bool pendingSave = false;
 
-                    // Keep track of which window we are watching
-                    IntPtr currentHwnd = IntPtr.Zero;
-
                     while (!process.HasExited)
                     {
-                        // 1. Re-acquire window if invalid or lost
-                        if (currentHwnd == IntPtr.Zero || !NativeMethods.IsWindow(currentHwnd) || !NativeMethods.IsWindowVisible(currentHwnd))
+                        if (hwnd == IntPtr.Zero || !NativeMethods.IsWindow(hwnd) || !NativeMethods.IsWindowVisible(hwnd))
                         {
-                            currentHwnd = FindGameWindow(process, TimeSpan.Zero); // Fast check
+                            hwnd = FindGameWindow(process, TimeSpan.Zero);
                         }
 
-                        // 2. Poll if we have a valid window
-                        if (currentHwnd != IntPtr.Zero)
+                        if (hwnd != IntPtr.Zero)
                         {
                             var placement = new WINDOWPLACEMENT();
                             placement.length = Marshal.SizeOf(typeof(WINDOWPLACEMENT));
-                            
-                            if (GetWindowPlacement(currentHwnd, ref placement))
+
+                            if (GetWindowPlacement(hwnd, ref placement))
                             {
-                                bool maximized = placement.showCmd == SW_MAXIMIZE; 
+                                bool isMaximized = placement.showCmd == SW_MAXIMIZE;
                                 RECT currentRect = placement.rcNormalPosition;
-                                
-                                bool changed = 
-                                    currentRect.Left != lastRect.Left || 
-                                    currentRect.Top != lastRect.Top || 
-                                    currentRect.Right != lastRect.Right || 
-                                    currentRect.Bottom != lastRect.Bottom ||
-                                    maximized != lastMaximized;
 
-                                if (changed)
+                                double elapsedMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+                                // Phase 1: Enforcement (Fix "Bounce")
+                                if (elapsedMs < ENFORCEMENT_DURATION_MS)
                                 {
-                                    lastRect = currentRect;
-                                    lastMaximized = maximized;
-                                    lastChangeTime = DateTime.UtcNow;
-                                    pendingSave = true;
+                                    // If window drifted from profile setting, force it back
+                                    // Allow small tolerance? No, exact is better for preventing creep.
+                                    bool mismatch =
+                                        currentRect.Left != targetRect.Left ||
+                                        currentRect.Top != targetRect.Top ||
+                                        currentRect.Right != targetRect.Right ||
+                                        currentRect.Bottom != targetRect.Bottom ||
+                                        isMaximized != targetMaximized;
+
+                                    if (mismatch)
+                                    {
+                                        ApplyPlacement(hwnd, profile);
+                                    }
+
+                                    // Continually re-apply lock/input blocks during startup as game might recreate window
+                                    if (profile.WindowLockChanges) ApplyLocking(hwnd);
+                                    if (profile.WindowBlockInputs) ApplyInputBlocking(hwnd);
                                 }
-
-                                if (pendingSave && (DateTime.UtcNow - lastChangeTime).TotalMilliseconds > 1000)
+                                // Phase 2: Watcher (Save User Changes)
+                                else if (profile.WindowRememberChanges && !profile.WindowLockChanges && saveProfileCallback != null)
                                 {
-                                    profile.WindowX = lastRect.Left;
-                                    profile.WindowY = lastRect.Top;
-                                    profile.WindowWidth = lastRect.Right - lastRect.Left;
-                                    profile.WindowHeight = lastRect.Bottom - lastRect.Top;
-                                    profile.WindowMaximized = lastMaximized;
+                                    bool changed =
+                                        currentRect.Left != lastSeenRect.Left ||
+                                        currentRect.Top != lastSeenRect.Top ||
+                                        currentRect.Right != lastSeenRect.Right ||
+                                        currentRect.Bottom != lastSeenRect.Bottom ||
+                                        isMaximized != lastSeenMaximized;
 
-                                    saveProfileCallback(profile);
-                                    pendingSave = false;
+                                    if (changed)
+                                    {
+                                        lastSeenRect = currentRect;
+                                        lastSeenMaximized = isMaximized;
+                                        lastChangeTime = DateTime.UtcNow;
+                                        pendingSave = true;
+                                    }
+
+                                    if (pendingSave && (DateTime.UtcNow - lastChangeTime).TotalMilliseconds > 1000)
+                                    {
+                                        // Commit changes to profile
+                                        profile.WindowX = lastSeenRect.Left;
+                                        profile.WindowY = lastSeenRect.Top;
+                                        profile.WindowWidth = lastSeenRect.Right - lastSeenRect.Left;
+                                        profile.WindowHeight = lastSeenRect.Bottom - lastSeenRect.Top;
+                                        profile.WindowMaximized = lastSeenMaximized;
+
+                                        // Update the enforcement target so we don't snap back later if we re-enable enforcement
+                                        targetRect = lastSeenRect;
+                                        targetMaximized = lastSeenMaximized;
+
+                                        saveProfileCallback(profile);
+                                        pendingSave = false;
+                                    }
                                 }
                             }
                         }
-                        
-                        await Task.Delay(500);
+
+                        // Faster poll during enforcement
+                        int delay = (DateTime.UtcNow - startTime).TotalMilliseconds < ENFORCEMENT_DURATION_MS
+                            ? ENFORCEMENT_INTERVAL_MS
+                            : 500;
+
+                        await Task.Delay(delay);
                     }
                 }
                 catch
@@ -133,10 +173,10 @@ namespace GWxLauncher.Services
                         if (sb.ToString() == GW1_WINDOW_CLASS)
                         {
                             found = hwnd;
-                            return false; 
+                            return false;
                         }
                     }
-                    return true; 
+                    return true;
                 }, IntPtr.Zero);
 
                 if (found != IntPtr.Zero) return found;
@@ -147,7 +187,7 @@ namespace GWxLauncher.Services
                 if (mainHandle != IntPtr.Zero && NativeMethods.IsWindowVisible(mainHandle))
                 {
                     // Check if it looks right (not 0x0 size)
-                    if (NativeMethods.GetClientRect(mainHandle, out RECT clientRect) && 
+                    if (NativeMethods.GetClientRect(mainHandle, out RECT clientRect) &&
                        (clientRect.Right - clientRect.Left) > 100 && (clientRect.Bottom - clientRect.Top) > 100)
                     {
                         return mainHandle;
@@ -193,10 +233,10 @@ namespace GWxLauncher.Services
 
             style &= ~WS_THICKFRAME;
             style &= ~WS_MAXIMIZEBOX;
-            
+
             SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(style));
-            
-            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, 
+
+            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         }
 
@@ -212,10 +252,10 @@ namespace GWxLauncher.Services
             long style = stylePtr.ToInt64();
 
             style &= ~WS_MINIMIZEBOX;
-            
+
             SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(style));
 
-            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, 
+            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         }
     }

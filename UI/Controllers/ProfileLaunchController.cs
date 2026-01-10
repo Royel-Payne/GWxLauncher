@@ -51,7 +51,7 @@ namespace GWxLauncher.UI.Controllers
             _getConfig = getConfig ?? throw new ArgumentNullException(nameof(getConfig));
             _setConfig = setConfig ?? throw new ArgumentNullException(nameof(setConfig));
             _setStatus = setStatus ?? throw new ArgumentNullException(nameof(setStatus));
-            
+
             _saveProfiles = saveProfiles;
         }
 
@@ -120,15 +120,15 @@ namespace GWxLauncher.UI.Controllers
                 string profileName = (profile.Name ?? "").Trim();
                 string titleLabel = (profile.Gw1WindowTitleLabel ?? "").Trim();
                 string titleTemplate = (cfg.Gw1WindowTitleTemplate ?? "").Trim();
-                
+
                 // Define UI-safe message callback
                 Action<string, string, bool> showMessage = (msg, title, isError) =>
                 {
                     _ui.Post(() => MessageBox.Show(
-                        _owner, 
-                        msg, 
-                        title, 
-                        MessageBoxButtons.OK, 
+                        _owner,
+                        msg,
+                        title,
+                        MessageBoxButtons.OK,
                         isError ? MessageBoxIcon.Error : MessageBoxIcon.Warning));
                 };
 
@@ -136,7 +136,7 @@ namespace GWxLauncher.UI.Controllers
                 var (success, launchedProcess, gw1Error, report) = await Task.Run(() =>
                 {
                     var gw1Service = new Gw1InjectionService();
-                    
+
                     bool ok = gw1Service.TryLaunchGw1(
                         profile, cfg, exePath, mcEnabled, _owner,
                         out var proc, out var err, out var rep, showMessage); // Pass showMessage delegate
@@ -148,23 +148,19 @@ namespace GWxLauncher.UI.Controllers
                         {
                             WindowManagementService.ApplyWindowSettings(proc, profile);
 
-                            // Start watching for changes if enabled
-                            if (_saveProfiles != null)
+                            // Start lifecycle management (enforcement + watching)
+                            WindowManagementService.ManageWindowLifecycle(proc, profile, (_) =>
                             {
-                                WindowManagementService.StartWatching(proc, profile, (_) =>
-                                {
-                                    // Make sure we save on UI thread or safely
-                                    // Using UI dispatcher to avoid potential concurrency during file write if multiple things happen at once,
-                                    // and because _profileManager might be bound to UI.
+                                // Make sure we save on UI thread or safely
+                                if (_saveProfiles != null)
                                     _ui.Post(() => _saveProfiles());
-                                });
-                            }
+                            });
                         }
-                        catch 
-                        { 
+                        catch
+                        {
                             // Best effort
                         }
-                    
+
                         if (winTitleEnabled)
                         {
                             string title;
@@ -181,19 +177,19 @@ namespace GWxLauncher.UI.Controllers
                             // This waits/retries, so do it in background
                             WindowTitleService.TrySetMainWindowTitle(proc, title, TimeSpan.FromSeconds(15));
                         }
-                    } 
-                    
+                    }
+
                     return (ok, proc, err, rep);
                 });
 
                 stopwatch.Stop();
-                
+
                 // Record timing in report
-                report.Steps.Add(new LaunchStep 
-                { 
-                    Label = "Launch timing", 
-                    Outcome = StepOutcome.Success, 
-                    Detail = $"Launcher measured elapsed time: {stopwatch.ElapsedMilliseconds}ms" 
+                report.Steps.Add(new LaunchStep
+                {
+                    Label = "Launch timing",
+                    Outcome = StepOutcome.Success,
+                    Detail = $"Launcher measured elapsed time: {stopwatch.ElapsedMilliseconds}ms"
                 });
 
                 // Back on UI thread
@@ -216,7 +212,7 @@ namespace GWxLauncher.UI.Controllers
 
                     ApplyLaunchReportToUi(report);
                 }
-                
+
                 // Optional: Log timing
                 // _setStatus($"Launch took {stopwatch.ElapsedMilliseconds}ms");
 
@@ -240,11 +236,11 @@ namespace GWxLauncher.UI.Controllers
 
                 if (result.Report != null)
                 {
-                    result.Report.Steps.Add(new LaunchStep 
-                    { 
-                        Label = "Launch timing", 
-                        Outcome = StepOutcome.Success, 
-                        Detail = $"Launcher measured elapsed time: {stopwatch.ElapsedMilliseconds}ms" 
+                    result.Report.Steps.Add(new LaunchStep
+                    {
+                        Label = "Launch timing",
+                        Outcome = StepOutcome.Success,
+                        Detail = $"Launcher measured elapsed time: {stopwatch.ElapsedMilliseconds}ms"
                     });
 
                     ProtectedInstallPathPolicy.TryAppendLaunchReportNote(result.Report, exePath);

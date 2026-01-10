@@ -13,9 +13,9 @@ namespace GWxLauncher.Services
         private readonly Gw2AutoLoginService _service = new Gw2AutoLoginService();
 
         public async Task<(bool success, string error)> TryAutomateLoginAsync(
-            Process? gw2Process, 
-            GameProfile profile, 
-            LaunchReport report, 
+            Process? gw2Process,
+            GameProfile profile,
+            LaunchReport report,
             bool bulkMode)
         {
             await _gate.WaitAsync().ConfigureAwait(false);

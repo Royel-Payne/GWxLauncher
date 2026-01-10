@@ -1,6 +1,5 @@
 using GWxLauncher.Config;
 using GWxLauncher.Services;
-using GWxLauncher.UI.Helpers;
 
 namespace GWxLauncher.UI.TabControls
 {
@@ -13,7 +12,7 @@ namespace GWxLauncher.UI.TabControls
         {
             InitializeComponent();
             ApplyTheme();
-            
+
             rbDark.CheckedChanged += ThemeRadio_CheckedChanged;
             rbLight.CheckedChanged += ThemeRadio_CheckedChanged;
             btnImportAccountsJson.Click += btnImportAccountsJson_Click;
@@ -22,7 +21,7 @@ namespace GWxLauncher.UI.TabControls
         internal void BindConfig(LauncherConfig cfg)
         {
             _cfg = cfg;
-            
+
             // Theme
             var t = (_cfg.Theme ?? "Light").Trim();
             bool isDark = string.Equals(t, "Dark", StringComparison.OrdinalIgnoreCase);
@@ -93,12 +92,12 @@ namespace GWxLauncher.UI.TabControls
                         if (result.MissingToolboxPath) PickGlobalDll(v => _cfg.LastToolboxPath = v, "Select Toolbox DLL");
                         if (result.MissingGModPath) PickGlobalDll(v => _cfg.LastGModPath = v, "Select gMod DLL");
                         if (result.MissingPy4GwPath) PickGlobalDll(v => _cfg.LastPy4GWPath = v, "Select Py4GW DLL");
-                        
+
                         _cfg.Save();
                         importer.ApplyNewlySelectedDllPathsToImportedProfiles(result.ImportedProfileIds, result.ToolWantsByProfileId, _cfg);
                     }
                 }
-                
+
                 ImportCompleted?.Invoke(this, EventArgs.Empty);
                 MessageBox.Show(this, $"Imported {result.ImportedCount} profile(s).", "Import complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -117,12 +116,12 @@ namespace GWxLauncher.UI.TabControls
             // BindConfig on the other tab reads from Config.
             // If the user hasn't saved yet, Config might be stale? 
             // Actually _cfg is the shared object reference. So updating _cfg properties works.
-            
+
             // To pick a file we need a control to anchor the dialog if using FilePickerHelper?
             // FilePickerHelper uses IWin32Window owner. 'this' works.
             // It also takes a TextBox. We don't have one here for these DLLs. 
             // We can overload FilePickerHelper or just use OpenFileDialog directly here since we don't have a textbox to update visually on THIS tab.
-            
+
             using var dlg = new OpenFileDialog { Title = title, Filter = "DLL files (*.dll)|*.dll|All files (*.*)|*.*" };
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {

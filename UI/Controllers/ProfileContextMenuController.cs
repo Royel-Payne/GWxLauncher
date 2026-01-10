@@ -1,6 +1,6 @@
-﻿using GWxLauncher.Domain;
+﻿using GWxLauncher.Config;
+using GWxLauncher.Domain;
 using GWxLauncher.Services;
-using GWxLauncher.Config;
 
 namespace GWxLauncher.UI.Controllers
 {

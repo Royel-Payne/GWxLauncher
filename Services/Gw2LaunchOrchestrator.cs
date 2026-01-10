@@ -210,7 +210,7 @@ namespace GWxLauncher.Services
                     {
                         var (success, autoLoginError) = await automationCoordinator.TryAutomateLoginAsync(
                             process, profile, report, bulkMode: bulkMode).ConfigureAwait(false);
-                        
+
                         if (!success && !string.IsNullOrWhiteSpace(autoLoginError))
                         {
                             report.FailureMessage = $"Auto-login failed: {autoLoginError}";

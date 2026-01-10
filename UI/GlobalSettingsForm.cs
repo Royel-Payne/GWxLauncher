@@ -1,7 +1,4 @@
 ﻿using GWxLauncher.Config;
-using GWxLauncher.Domain;
-using GWxLauncher.Services;
-using GWxLauncher.UI.Helpers;
 using GWxLauncher.UI.TabControls;
 
 namespace GWxLauncher.UI
@@ -10,8 +7,8 @@ namespace GWxLauncher.UI
     {
         private readonly LauncherConfig _cfg;
         private readonly Services.ProfileManager _profileManager;
-        private bool _restoredFromSavedPlacement;
-        
+
+
         public event EventHandler? ImportCompleted;
         public event EventHandler? ProfilesBulkUpdated; // Bubbled up from tab
 
@@ -51,11 +48,11 @@ namespace GWxLauncher.UI
 
             // Step 6: Apply theme
             ThemeService.ApplyToForm(this);
-            
+
             // Events
-            TryRestoreSavedPlacement();
+
             Shown += GlobalSettingsForm_Shown;
-            FormClosing += GlobalSettingsForm_FormClosing;
+
 
             AcceptButton = btnOk;
             CancelButton = btnCancel;
@@ -192,7 +189,7 @@ namespace GWxLauncher.UI
             if (_pnlContentViewport != null)
                 _pnlContentViewport.AutoScrollPosition = new Point(0, 0);
         }
-        
+
         private void lstTabs_DrawItem(object? sender, DrawItemEventArgs e)
         {
             if (_lstTabs == null || e.Index < 0) return;
@@ -246,8 +243,7 @@ namespace GWxLauncher.UI
 
         private void GlobalSettingsForm_Shown(object? sender, EventArgs e)
         {
-            if (_restoredFromSavedPlacement)
-                return;
+
 
             if (Owner != null)
             {
@@ -273,8 +269,8 @@ namespace GWxLauncher.UI
                 StartPosition = FormStartPosition.CenterScreen;
             }
         }
-        
-        private void GlobalSettingsForm_FormClosing(object? sender, FormClosingEventArgs e)
+
+        private void Unused_GlobalSettingsForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
             if (WindowState == FormWindowState.Normal)
             {
@@ -295,13 +291,13 @@ namespace GWxLauncher.UI
             }
         }
 
-        private void TryRestoreSavedPlacement()
+        private void Unused_TryRestoreSavedPlacement()
         {
             if (_cfg.GlobalSettingsX >= 0 && _cfg.GlobalSettingsY >= 0)
             {
                 StartPosition = FormStartPosition.Manual;
                 Location = new Point(_cfg.GlobalSettingsX, _cfg.GlobalSettingsY);
-                _restoredFromSavedPlacement = true;
+                // _restoredFromSavedPlacement = true;
             }
             if (false) // was size check
             {
@@ -310,5 +306,9 @@ namespace GWxLauncher.UI
         }
     }
 }
+
+
+
+
 
 

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
-using GWxLauncher.Services;
+﻿using GWxLauncher.Services;
 using static GWxLauncher.Services.NativeMethods;
 
 namespace GWxLauncher.UI.Controllers

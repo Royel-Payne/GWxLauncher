@@ -4,8 +4,6 @@ using System.Text;
 using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using static GWxLauncher.Services.NativeMethods;
-using PEB_MIN = GWxLauncher.Services.NativeMethods.PEB_MIN;
-using PROCESS_BASIC_INFORMATION = GWxLauncher.Services.NativeMethods.PROCESS_BASIC_INFORMATION;
 using PROCESS_INFORMATION = GWxLauncher.Services.NativeMethods.PROCESS_INFORMATION;
 using ProcessAccessFlags = GWxLauncher.Services.NativeMethods.ProcessAccessFlags;
 using STARTUPINFO = GWxLauncher.Services.NativeMethods.STARTUPINFO;

@@ -1,7 +1,5 @@
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
-using System.Drawing;
-using System.Windows.Forms;
 
 namespace GWxLauncher.UI.TabControls
 {
@@ -22,7 +20,7 @@ namespace GWxLauncher.UI.TabControls
         public void BindProfile(GameProfile profile)
         {
             _profile = profile;
-            
+
             bool isGw1 = profile.GameType == GameType.GuildWars1;
             bool isGw2 = profile.GameType == GameType.GuildWars2;
 
@@ -31,7 +29,7 @@ namespace GWxLauncher.UI.TabControls
             {
                 chkAutoLogin.Text = "Enable Auto-Login";
                 chkAutoLogin.Checked = profile.Gw1AutoLoginEnabled;
-                
+
                 txtEmail.Text = profile.Gw1Email;
                 txtPassword.Text = ""; // Never show password back
 
@@ -39,17 +37,17 @@ namespace GWxLauncher.UI.TabControls
                 lblLoginInfo.ForeColor = Color.Goldenrod;
 
                 lblPasswordSaved.Visible = !string.IsNullOrWhiteSpace(profile.Gw1PasswordProtected);
-                
+
                 chkAutoSelectChar.Checked = profile.Gw1AutoSelectCharacterEnabled;
                 txtCharName.Text = profile.Gw1CharacterName;
 
                 // Hidden/Shown controls
                 lblLoginInfo.Visible = true;
-                
+
                 chkAutoSelectChar.Visible = true;
                 lblCharName.Visible = true;
                 txtCharName.Visible = true;
-                
+
                 chkAutoPlay.Visible = false;
             }
             else // GW2
@@ -76,18 +74,18 @@ namespace GWxLauncher.UI.TabControls
                 chkAutoSelectChar.Visible = false;
                 lblCharName.Visible = false;
                 txtCharName.Visible = false;
-                
+
                 chkAutoPlay.Visible = true;
             }
 
             UpdateUiState();
         }
-        
+
         public void SaveProfile(GameProfile profile)
         {
             // If the passed profile is different, we should probably warn or just use mapped one.
             // Using logic from ProfileSettingsForm to save back.
-            
+
             bool isGw1 = profile.GameType == GameType.GuildWars1;
 
             if (isGw1)
@@ -139,7 +137,7 @@ namespace GWxLauncher.UI.TabControls
             {
                 chkAutoPlay.Enabled = enabled;
             }
-            
+
             // Warnings usually only relevant if enabled
             if (lblWarning != null) lblWarning.Visible = enabled;
             if (lblLoginInfo != null && lblLoginInfo.Visible) lblLoginInfo.Enabled = enabled;
@@ -149,7 +147,7 @@ namespace GWxLauncher.UI.TabControls
         {
             this.BackColor = ThemeService.Palette.WindowBack;
             ThemeService.ApplyToControlTree(this);
-            
+
             // Fix Color for Labels/Specifics if not handled by generic applier
             // (Generic usually handles ForeColor/BackColor)
         }

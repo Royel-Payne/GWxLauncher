@@ -1,8 +1,6 @@
 using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
-using GWxLauncher.UI.Helpers;
-using System.Diagnostics;
 
 namespace GWxLauncher.UI.TabControls
 {
@@ -30,7 +28,7 @@ namespace GWxLauncher.UI.TabControls
         {
             InitializeComponent();
             ApplyTheme();
-            
+
             this.btnBrowseExe.Click += btnBrowseExe_Click;
         }
 
@@ -46,23 +44,23 @@ namespace GWxLauncher.UI.TabControls
             _cfg = LauncherConfig.Load(); // Load config independently
 
             txtProfileName.Text = profile.Name;
-            
+
             // Executable
             txtExecutable.Text = profile.ExecutablePath;
-            
+
             // Args
             txtArgs.Text = profile.LaunchArguments;
-            
+
             // Window Title
             txtWindowTitle.Text = profile.Gw1WindowTitleLabel;
 
             bool isGw1 = profile.GameType == GameType.GuildWars1;
-            
+
             if (isGw1)
             {
                 lblWindowTitle.Visible = true;
                 txtWindowTitle.Visible = true;
-                
+
                 chkMulticlient.Visible = true;
                 chkMulticlient.Checked = _cfg.Gw1MulticlientEnabled;
             }
@@ -70,7 +68,7 @@ namespace GWxLauncher.UI.TabControls
             {
                 lblWindowTitle.Visible = false;
                 txtWindowTitle.Visible = false;
-                
+
                 chkMulticlient.Visible = true;
                 chkMulticlient.Checked = _cfg.Gw2MulticlientEnabled;
             }
@@ -86,7 +84,7 @@ namespace GWxLauncher.UI.TabControls
             {
                 string label = txtWindowTitle.Text.Trim();
                 profile.Gw1WindowTitleLabel = string.IsNullOrWhiteSpace(label) ? null : label;
-                
+
                 // Save config multiclient
                 _cfg.Gw1MulticlientEnabled = chkMulticlient.Checked;
             }
@@ -94,7 +92,7 @@ namespace GWxLauncher.UI.TabControls
             {
                 _cfg.Gw2MulticlientEnabled = chkMulticlient.Checked;
             }
-            
+
             _cfg.Save();
         }
 
@@ -177,7 +175,7 @@ namespace GWxLauncher.UI.TabControls
                 !string.IsNullOrWhiteSpace(p.ExecutablePath) &&
                 string.Equals(Path.GetFullPath(p.ExecutablePath), selectedFull, StringComparison.OrdinalIgnoreCase));
         }
-        
+
         public void RefreshTheme()
         {
             ApplyTheme();

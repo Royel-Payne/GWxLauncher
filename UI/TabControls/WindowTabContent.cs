@@ -1,8 +1,4 @@
-using System;
-using System.ComponentModel;
-using System.Windows.Forms;
 using GWxLauncher.Domain;
-using GWxLauncher.UI;
 
 namespace GWxLauncher.UI.TabControls
 {
@@ -11,7 +7,7 @@ namespace GWxLauncher.UI.TabControls
         public WindowTabContent()
         {
             InitializeComponent();
-            
+
             // Wiring
             chkWindowedEnabled.CheckedChanged += (s, e) => UpdateUiState();
             chkRememberChanges.CheckedChanged += (s, e) => UpdateUiState();
@@ -23,7 +19,7 @@ namespace GWxLauncher.UI.TabControls
             if (profile == null) return;
 
             chkWindowedEnabled.Checked = profile.WindowedModeEnabled;
-            
+
             numX.Value = Clamp(profile.WindowX, numX.Minimum, numX.Maximum);
             numY.Value = Clamp(profile.WindowY, numY.Minimum, numY.Maximum);
             numW.Value = Clamp(profile.WindowWidth, numW.Minimum, numW.Maximum);
@@ -55,7 +51,7 @@ namespace GWxLauncher.UI.TabControls
         private void UpdateUiState()
         {
             bool windowed = chkWindowedEnabled.Checked;
-            
+
             grpPosition.Enabled = windowed;
             grpBehavior.Enabled = windowed;
 
@@ -64,7 +60,7 @@ namespace GWxLauncher.UI.TabControls
             {
                 if (chkRememberChanges.Checked)
                     chkRememberChanges.Checked = false; // Auto-disable
-                
+
                 chkRememberChanges.Enabled = false;
             }
             else

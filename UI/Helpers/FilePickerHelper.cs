@@ -1,5 +1,3 @@
-using System;
-
 namespace GWxLauncher.UI.Helpers
 {
     internal static class FilePickerHelper

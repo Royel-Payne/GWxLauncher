@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -196,11 +195,11 @@ namespace GWxLauncher.Services
         }
 
         #endregion
-        
+
         #region Delegates
-        
+
         internal delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-        
+
         #endregion
 
         #region Kernel32

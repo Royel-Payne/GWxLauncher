@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using GWxLauncher.Config;
 using GWxLauncher.Domain;
-using GWxLauncher.Services;
 using GWxLauncher.UI.Helpers;
 
 namespace GWxLauncher.UI.TabControls
@@ -11,7 +10,7 @@ namespace GWxLauncher.UI.TabControls
         private GameProfile _profile;
         private LauncherConfig _cfg;
         private bool _loadingProfile;
-        
+
         // Interactive state
         private bool _gw1GmodPluginsInteractive = true;
         private bool _gw2RunAfterInteractive = true;
@@ -23,7 +22,7 @@ namespace GWxLauncher.UI.TabControls
         {
             InitializeComponent();
             ApplyTheme();
-            
+
             _cfg = LauncherConfig.Load();
 
             InitGw2RunAfterContextMenu();
@@ -58,7 +57,7 @@ namespace GWxLauncher.UI.TabControls
 
             UpdateGw1ModsUiState();
             UpdateGw2RunAfterUiState();
-            
+
             _loadingProfile = false;
         }
 
@@ -66,7 +65,7 @@ namespace GWxLauncher.UI.TabControls
         {
             // Note: Lists are live-updated in the profile object as items are added/removed.
             // We just need to save the simple properties here.
-            
+
             if (profile.GameType == GameType.GuildWars1)
             {
                 profile.Gw1ToolboxEnabled = chkToolbox.Checked;
@@ -87,7 +86,7 @@ namespace GWxLauncher.UI.TabControls
             {
                 profile.Gw2RunAfterEnabled = chkGw2RunAfterEnabled.Checked;
             }
-            
+
             _cfg.Save();
         }
 
@@ -133,18 +132,18 @@ namespace GWxLauncher.UI.TabControls
 
             // --- GW2 RunAfter UI ---
             chkGw2RunAfterEnabled.CheckedChanged += (s, e) => UpdateGw2RunAfterUiState();
-            
+
             btnGw2AddProgram.Click += btnGw2AddProgram_Click;
             btnGw2RemoveProgram.Click += btnGw2RemoveProgram_Click;
-            
+
             lvGw2RunAfter.SelectedIndexChanged += (s, e) => UpdateGw2RunAfterButtons();
-            
+
             // Custom drawing / interaction for RunAfter list
             lvGw2RunAfter.DrawColumnHeader += (s, e) => e.DrawDefault = true;
             lvGw2RunAfter.DrawSubItem += lvGw2RunAfter_DrawSubItem;
             lvGw2RunAfter.MouseUp += lvGw2RunAfter_MouseUp;
             lvGw2RunAfter.ItemChecked += lvGw2RunAfter_ItemChecked;
-            
+
             // Interactive gating
             lvGw2RunAfter.ItemSelectionChanged += (s, e) =>
             {
@@ -176,10 +175,10 @@ namespace GWxLauncher.UI.TabControls
             txtGModDll.Enabled = gmod;
             btnBrowseGModDll.Enabled = gmod;
 
-            lvGw1GModPlugins.Enabled = true; 
+            lvGw1GModPlugins.Enabled = true;
             lvGw1GModPlugins.BackColor = ThemeService.Palette.InputBack;
             lvGw1GModPlugins.ForeColor = gmod ? ThemeService.Palette.InputFore : ThemeService.Palette.DisabledFore;
-            
+
             btnGw1AddPlugin.Enabled = gmod;
             btnGw1RemovePlugin.Enabled = gmod && (lvGw1GModPlugins.SelectedItems.Count > 0);
 
@@ -207,11 +206,11 @@ namespace GWxLauncher.UI.TabControls
         {
             this.BackColor = ThemeService.Palette.WindowBack;
             ThemeService.ApplyToControlTree(this);
-            
+
             // ListViews need explicit color setting sometimes if OwnerDraw
             lvGw1GModPlugins.BackColor = ThemeService.Palette.InputBack;
             lvGw1GModPlugins.ForeColor = ThemeService.Palette.InputFore;
-            
+
             lvGw2RunAfter.BackColor = ThemeService.Palette.InputBack;
             lvGw2RunAfter.ForeColor = ThemeService.Palette.InputFore;
 
@@ -258,7 +257,7 @@ namespace GWxLauncher.UI.TabControls
 
             string path = dlg.FileName;
             _profile.Gw1GModPluginPaths ??= new List<string>();
-            
+
             if (!_profile.Gw1GModPluginPaths.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)))
                 _profile.Gw1GModPluginPaths.Add(path);
 
@@ -279,7 +278,7 @@ namespace GWxLauncher.UI.TabControls
         // -----------------------------
         // GW2 RunAfter Logic
         // -----------------------------
-        
+
         private void InitGw2RunAfterContextMenu()
         {
             _gw2RunAfterMenu.Items.Add(_miPassMumble);
@@ -309,7 +308,7 @@ namespace GWxLauncher.UI.TabControls
             lvGw2RunAfter.Items.Clear();
             foreach (var p in _profile.Gw2RunAfterPrograms ?? new List<RunAfterProgram>())
             {
-                var item = new ListViewItem(""); 
+                var item = new ListViewItem("");
                 item.SubItems.Add(p.Name);
                 item.Checked = p.Enabled;
                 item.Tag = p;
@@ -342,7 +341,7 @@ namespace GWxLauncher.UI.TabControls
                 var vi = FileVersionInfo.GetVersionInfo(exe);
                 if (!string.IsNullOrWhiteSpace(vi.FileDescription)) name = vi.FileDescription.Trim();
             }
-            catch {}
+            catch { }
 
             _profile.Gw2RunAfterPrograms.Add(new RunAfterProgram
             {
@@ -365,7 +364,7 @@ namespace GWxLauncher.UI.TabControls
                 RefreshGw2RunAfterList();
             }
         }
-        
+
         private void lvGw2RunAfter_MouseUp(object? sender, MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Right) return;
@@ -450,15 +449,18 @@ namespace GWxLauncher.UI.TabControls
 
         private void BrowseDllInto(TextBox textBox)
         {
-            var exe = _profile.ExecutablePath; 
+            var exe = _profile.ExecutablePath;
             string? fallbackDir = null;
-            try {
-                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe)) {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(exe) && File.Exists(exe))
+                {
                     var dir = Path.GetDirectoryName(exe);
                     if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir)) fallbackDir = dir;
                 }
                 fallbackDir ??= Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            } catch { fallbackDir = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles); }
+            }
+            catch { fallbackDir = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles); }
 
             _ = FilePickerHelper.TryPickDll(this.FindForm(), textBox, "Select DLL", fallbackDir);
         }
@@ -483,12 +485,14 @@ namespace GWxLauncher.UI.TabControls
         {
             path = (path ?? "").Trim();
             if (string.IsNullOrWhiteSpace(path)) return;
-            try {
+            try
+            {
                 if (!File.Exists(path)) return;
                 var current = (getCurrent?.Invoke() ?? "").Trim();
                 if (!string.IsNullOrWhiteSpace(current)) return;
                 setValue?.Invoke(path);
-            } catch {}
+            }
+            catch { }
         }
     }
 }

@@ -1,9 +1,7 @@
-﻿using System.Diagnostics;
-using GWxLauncher.Config;
+﻿using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Properties;
 using GWxLauncher.Services;
-using GWxLauncher.UI.Helpers;
 using GWxLauncher.UI.TabControls;
 
 namespace GWxLauncher.UI
@@ -18,7 +16,7 @@ namespace GWxLauncher.UI
         private readonly LauncherConfig _cfg;
         private bool _loadingProfile;
 
-        private bool _restoredFromSavedPlacement;
+
 
         // Tab infrastructure (created at runtime, not in Designer)
         private Panel? _pnlButtonBar;
@@ -60,7 +58,7 @@ namespace GWxLauncher.UI
             ThemeService.ApplyToForm(this);
 
             // Step 7: Existing initialization logic
-            
+
             // Step 8: Form icon per game
             Icon = _profile.GameType switch
             {
@@ -71,9 +69,9 @@ namespace GWxLauncher.UI
 
             _cfg = LauncherConfig.Load();
 
-            TryRestoreSavedPlacement();
+
             Shown += ProfileSettingsForm_Shown;
-            FormClosing += ProfileSettingsForm_FormClosing;
+
 
             Text = $"Profile Settings – {profile.Name}";
 
@@ -86,7 +84,7 @@ namespace GWxLauncher.UI
             // Step 10: Select default tab
             if (_lstTabs != null)
                 _lstTabs.SelectedIndex = 0;
-            
+
             // Wire up form buttons based on new structure
             btnOk.Click += btnOk_Click;
             btnCancel.Click += btnCancel_Click;
@@ -274,10 +272,10 @@ namespace GWxLauncher.UI
             bool isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
 
             // Background
-            Color backColor = isSelected 
-                ? ThemeService.Palette.ButtonBack 
+            Color backColor = isSelected
+                ? ThemeService.Palette.ButtonBack
                 : ThemeService.Palette.SurfaceBack;
-            
+
             using (var brush = new SolidBrush(backColor))
                 e.Graphics.FillRectangle(brush, e.Bounds);
 
@@ -293,8 +291,8 @@ namespace GWxLauncher.UI
 
             // Text
             string text = _lstTabs.Items[e.Index].ToString() ?? "";
-            Color textColor = isSelected 
-                ? ThemeService.Palette.WindowFore 
+            Color textColor = isSelected
+                ? ThemeService.Palette.WindowFore
                 : ThemeService.Palette.SubtleFore;
 
             TextRenderer.DrawText(
@@ -309,8 +307,7 @@ namespace GWxLauncher.UI
         private void ProfileSettingsForm_Shown(object? sender, EventArgs e)
         {
             // If we restored from saved placement, don't override it.
-            if (_restoredFromSavedPlacement)
-                return;
+            // if (_restoredFromSavedPlacement) return;
 
             // If we have an owner (MainForm shows this dialog with ShowDialog(this)), anchor near it.
             if (Owner != null)
@@ -341,7 +338,7 @@ namespace GWxLauncher.UI
             }
         }
 
-        private void ProfileSettingsForm_FormClosing(object? sender, FormClosingEventArgs e)
+        private void Unused_ProfileSettingsForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
             if (WindowState == FormWindowState.Normal)
             {
@@ -363,13 +360,13 @@ namespace GWxLauncher.UI
             }
         }
 
-        private void TryRestoreSavedPlacement()
+        private void Unused_TryRestoreSavedPlacement()
         {
             if (_cfg.ProfileSettingsX >= 0 && _cfg.ProfileSettingsY >= 0)
             {
                 StartPosition = FormStartPosition.Manual;
                 Location = new Point(_cfg.ProfileSettingsX, _cfg.ProfileSettingsY);
-                _restoredFromSavedPlacement = true;
+                // _restoredFromSavedPlacement = true;
             }
 
             if (false) // was size check
@@ -404,29 +401,32 @@ namespace GWxLauncher.UI
             _windowTab?.SaveProfile(_profile);
         }
 
-        private bool ValidateGw1ModSettings() { 
+        private bool ValidateGw1ModSettings()
+        {
             // This logic is now inside ModsTabContent, but validation strategy for user controls is tricky.
             // Ideally UserControl has Validate() method or similar.
             // For now, we will assume validation is done OR we can replicate checks since we can't easily reach into UC state without exposing it.
             // Actually, we can check the profile object AFTER SaveToProfile() is called.
-            
+
             if (_profile.GameType != GameType.GuildWars1)
                 return true;
-                
+
             if (_profile.Gw1ToolboxEnabled && string.IsNullOrWhiteSpace(_profile.Gw1ToolboxDllPath))
             {
-                 MessageBox.Show(this, "Toolbox enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                 return false;
+                MessageBox.Show(this, "Toolbox enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
             }
-             if (_profile.Gw1Py4GwEnabled && string.IsNullOrWhiteSpace(_profile.Gw1Py4GwDllPath)) {
-                 MessageBox.Show(this, "Py4GW enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                 return false;
-             }
-            if (_profile.Gw1GModEnabled && string.IsNullOrWhiteSpace(_profile.Gw1GModDllPath)) {
-                 MessageBox.Show(this, "GMod enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                 return false;
-             }
-             return true;
+            if (_profile.Gw1Py4GwEnabled && string.IsNullOrWhiteSpace(_profile.Gw1Py4GwDllPath))
+            {
+                MessageBox.Show(this, "Py4GW enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            if (_profile.Gw1GModEnabled && string.IsNullOrWhiteSpace(_profile.Gw1GModDllPath))
+            {
+                MessageBox.Show(this, "GMod enabled but no DLL path set.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            return true;
         }
 
         // -----------------------------
@@ -474,7 +474,7 @@ namespace GWxLauncher.UI
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
 
-                    DialogResult = DialogResult.None; 
+                    DialogResult = DialogResult.None;
                     return;
                 }
             }
@@ -490,6 +490,9 @@ namespace GWxLauncher.UI
         }
     }
 }
+
+
+
 
 
 
