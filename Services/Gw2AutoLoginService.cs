@@ -114,18 +114,6 @@ namespace GWxLauncher.Services
                 stepUiReady.Detail = "Skipped (login failed).";
                 stepDxWindow.Outcome = StepOutcome.Skipped;
                 stepDxWindow.Detail = "Skipped (login failed).";
-                stepUiReady.Outcome = StepOutcome.Skipped;
-                stepUiReady.Detail = "Skipped (login failed).";
-                stepDxWindow.Outcome = StepOutcome.Skipped;
-                stepDxWindow.Detail = "Skipped (login failed).";
-                stepUiReady.Outcome = StepOutcome.Skipped;
-                stepUiReady.Detail = "Skipped (login failed).";
-                stepDxWindow.Outcome = StepOutcome.Skipped;
-                stepDxWindow.Detail = "Skipped (login failed).";
-                stepUiReady.Outcome = StepOutcome.Skipped;
-                stepUiReady.Detail = "Skipped (login failed).";
-                stepDxWindow.Outcome = StepOutcome.Skipped;
-                stepDxWindow.Detail = "Skipped (login failed).";
                 return false;
             }
 
@@ -184,9 +172,18 @@ namespace GWxLauncher.Services
             }
 
             bool blocked = false;
+            bool wasDisabled = false;
+            
             try
             {
-                WaitForModifierKeysUp(timeoutMs: 2000);
+                // Pre-automation checks
+                if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                {
+                    error = "Modifier keys held down - aborting automation";
+                    stepLogin.Outcome = StepOutcome.Failed;
+                    stepLogin.Detail = error;
+                    return false;
+                }
 
                 if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 250, timeoutMs: 5000))
                     throw new Exception("Failed to acquire GW2 foreground.");
@@ -198,20 +195,52 @@ namespace GWxLauncher.Services
 
                 Thread.Sleep(PostStableExtraSettleMs);
 
-                blocked = BlockInput(true);
+                // Get window rect (full window including borders/title bar) for coordinate calculations
+                // Note: Gw2Launcher uses GetWindowRect, NOT GetClientRect!
+                if (!GetWindowRect(gw2Hwnd, out RECT windowRect))
+                    throw new Exception("Failed to get window rect");
 
-                if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 250, timeoutMs: 3000))
-                    throw new Exception("Failed to keep GW2 foreground before typing.");
+                int windowW = windowRect.Right - windowRect.Left;
+                int windowH = windowRect.Bottom - windowRect.Top;
 
-                int emailX = clientTL.X + (int)(clientWH.X * EmailClickX);
-                int emailY = clientTL.Y + (int)(clientWH.Y * EmailClickY);
+                // Find an empty area dynamically using WM_NCHITTEST (like Gw2Launcher does)
+                // Start at 80% right, 50% down and search left until we find client area
+                int emptyX = windowW * 4 / 5;  // 80%
+                int emptyY = windowH / 2;      // 50%
+                uint emptyCoord = 0;
 
-                int passX = clientTL.X + (int)(clientWH.X * PassClickX);
-                int passY = clientTL.Y + (int)(clientWH.Y * PassClickY);
+                // Use WM_NCHITTEST to find a valid empty spot
+                for (int searchX = emptyX; searchX > 50; searchX -= 50)
+                {
+                    // Test in screen coordinates
+                    uint testCoord = (uint)(((emptyY + windowRect.Top) << 16) | (searchX + windowRect.Left));
+                    IntPtr hitTest = SendMessage(gw2Hwnd, 0x0084, IntPtr.Zero, new IntPtr(testCoord)); // WM_NCHITTEST
+                    
+                    if (hitTest == new IntPtr(1)) // HTCLIENT = 1 (hit test = client area)
+                    {
+                        // Found valid client area - store window-relative coords
+                        emptyCoord = (uint)((emptyY << 16) | searchX);
+                        stepLogin.Detail += $" (empty coord: {searchX},{emptyY})";
+                        break;
+                    }
+                }
 
-                // Gate: ensure the launcher page has actually rendered before we start clicking/typing (important for multi-launch).
-                // NOTE: The login textboxes themselves are white even when rendered, so we probe "anchor" UI pixels (borders/button/progress/art).
-                if (!WaitForLauncherUiRendered(clientTL, clientWH, emailX, emailY, passX, passY,
+                if (emptyCoord == 0)
+                    throw new Exception("Could not find empty area to click");
+
+// --- Debugging visualizer (uncomment to use) ---
+// Draws a red crosshair at the computed empty area
+/*
+                {
+                    SetForegroundWindow(gw2Hwnd);
+                    Thread.Sleep(10);
+                    DrawCrosshair(windowRect.Left + (int)(emptyCoord & 0xFFFF),
+                                  windowRect.Top + ((int)(emptyCoord >> 16) & 0xFFFF));
+                }
+*/
+
+                // Gate: ensure the launcher page has actually rendered before we start
+                if (!WaitForLauncherUiRendered(clientTL, clientWH, 0, 0, 0, 0,
                         timeoutMs: 7500, requiredStableMs: 600, out string uiDiag))
                 {
                     stepUiReady.Outcome = StepOutcome.Pending;
@@ -223,34 +252,117 @@ namespace GWxLauncher.Services
                     stepUiReady.Detail = $"Launcher UI rendered. {uiDiag}";
                 }
 
-                // --- Email ---
-                MouseClickScreen(emailX, emailY);
-                Thread.Sleep(AfterClickMs);
+                // DON'T disable window - it blocks keyboard messages via SendMessage!
+                // Gw2Launcher only disables to prevent MOUSE clicks, but they have special keyboard handling
+                // We'll rely on speed instead
+                // wasDisabled = DisableWindow(gw2Hwnd);
 
-                _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "email click");
+                // Boost child process priority to reduce input delays
+                try
+                {
+                    var childProcesses = Process.GetProcessesByName("CoherentUI_Host")
+                        .Where(p => {
+                            try { return GetParentProcessId(p.Id) == gw2Process.Id; }
+                            catch { return false; }
+                        }).ToList();
+                    
+                    foreach (var child in childProcesses)
+                    {
+                        try { child.PriorityClass = ProcessPriorityClass.High; }
+                        catch { }
+                    }
+                }
+                catch { }
 
-                SendCtrlA_Clear();
-                Thread.Sleep(AfterClearMs);
-                TypeUnicodeText(profile.Gw2Email, perCharDelayMs: CharDelayMs);
+                if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 250, timeoutMs: 3000))
+                    throw new Exception("Failed to keep GW2 foreground before typing.");
 
-                // --- Password ---
-                Thread.Sleep(120);
+                // Wait for modifiers before starting input
+                if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                    throw new Exception("Modifier keys held - cannot proceed with input");
 
-                MouseClickScreen(passX, passY);
-                Thread.Sleep(AfterClickMs);
+                // NEW APPROACH: Tab navigation instead of clicking
+                // 1. Click empty area to clear focus
+                SendMessage(gw2Hwnd, 0x0201, new IntPtr(1), new IntPtr(emptyCoord)); // WM_LBUTTONDOWN
+                SendMessage(gw2Hwnd, 0x0202, IntPtr.Zero, new IntPtr(emptyCoord)); // WM_LBUTTONUP
+              
+                // Sync wait
+                SendMessage(gw2Hwnd, 0, IntPtr.Zero, IntPtr.Zero);
+                Thread.Sleep(50);
 
-                _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "password click");
+                // 2. Tab to email field (14 tabs for CEF launcher, based on Gw2Launcher)
+                // CEF (Chromium) requires SendInput, not SendMessage!
+                // CRITICAL: Ensure window has focus before SendInput!
+                if (GetForegroundWindow() != gw2Hwnd)
+                {
+                    stepLogin.Detail += " (warn: window lost focus before Tab navigation)";
+                    if (!ForceAndHoldForeground(gw2Hwnd, holdStableMs: 250, timeoutMs: 2000))
+                        throw new Exception("Lost focus before Tab navigation");
+                }
 
-                SendCtrlA_Clear();
-                Thread.Sleep(AfterClearMs);
-                TypeUnicodeText(password, perCharDelayMs: CharDelayMs);
+                for (int i = 0; i < 14; i++)
+                {
+                    // Use SendInput for hardware-level simulation
+                    SendKey(VK_TAB, keyUp: false);
+                    Thread.Sleep(10);
+                    SendKey(VK_TAB, keyUp: true);
+                    Thread.Sleep(10);
+                }
+                
+                Thread.Sleep(100);
 
-                // Submit login
+                _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "after tab to email");
+
+                // Wait for modifiers before text entry
+                if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                    throw new Exception("Modifier keys held during email entry");
+
+                // 3. Enter email (try clipboard first, fallback to Unicode SendInput)
+                if (!TryTypeViaClipboard(gw2Process.Id, gw2Hwnd, profile.Gw2Email, stepLogin))
+                {
+                    // Fallback: Unicode input via SendInput (hardware simulation for CEF)
+                    TypeUnicodeText(profile.Gw2Email, CharDelayMs);
+                }
+                
+                Thread.Sleep(100);
+
+                // Wait for modifiers before tab
+                if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                    throw new Exception("Modifier keys held before password tab");
+
+                // 4. Tab to password field (use SendInput for CEF)
+                SendKey(VK_TAB, keyUp: false);
+                Thread.Sleep(10);
+                SendKey(VK_TAB, keyUp: true);
+                
+                Thread.Sleep(100);
+
+                _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "after tab to password");
+
+                // Wait for modifiers before password entry
+                if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                    throw new Exception("Modifier keys held during password entry");
+
+                // 5. Enter password (try clipboard first, fallback to Unicode SendInput)
+                if (!TryTypeViaClipboard(gw2Process.Id, gw2Hwnd, password, stepLogin))
+                {
+                    // Fallback: Unicode input via SendInput (hardware simulation for CEF)
+                    TypeUnicodeText(password, CharDelayMs);
+                }
+                
                 Thread.Sleep(250);
-                KeyPress(VK_RETURN);
+
+                // Wait for modifiers before Enter
+                if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                    throw new Exception("Modifier keys held before submit");
+
+                // 6. Submit login (Enter key via SendInput for CEF)
+                SendKey(VK_RETURN, keyUp: false);
+                Thread.Sleep(15);
+                SendKey(VK_RETURN, keyUp: true);
 
                 stepLogin.Outcome = StepOutcome.Success;
-                stepLogin.Detail = "Typed email+password via SendInput(UNICODE) (stable wait, BlockInput).";
+                stepLogin.Detail = "Typed email+password via Tab navigation (clipboard primary, WM_CHAR fallback, WS_DISABLED, sync waits).";
             }
             catch (Exception ex)
             {
@@ -263,8 +375,26 @@ namespace GWxLauncher.Services
             }
             finally
             {
-                if (blocked)
-                    BlockInput(false);
+                // Window was not disabled, so nothing to re-enable
+                // if (wasDisabled)
+                //     EnableWindow(gw2Hwnd);
+                    
+                // Reset child process priority
+                try
+                {
+                    var childProcesses = Process.GetProcessesByName("CoherentUI_Host")
+                        .Where(p => {
+                            try { return GetParentProcessId(p.Id) == gw2Process.Id; }
+                            catch { return false; }
+                        }).ToList();
+                    
+                    foreach (var child in childProcesses)
+                    {
+                        try { child.PriorityClass = ProcessPriorityClass.Normal; }
+                        catch { }
+                    }
+                }
+                catch { }
             }
             // In Launch All (bulk mode), do not start the next GW2 instance until the launcher has transitioned
             // out of the immediate post-login churn (white window / auth / render).
@@ -344,10 +474,22 @@ namespace GWxLauncher.Services
                     return true; // best-effort
                 }
 
-                int playX = clientTL2.X + (int)(clientWH2.X * PlayClickX);
-                int playY = clientTL2.Y + (int)(clientWH2.Y * PlayClickY);
+                // Get window rect for Play button (window-relative coords)
+                if (!GetClientRect(gw2Hwnd, out RECT playWindowRect))
+                    throw new Exception("Failed to get window rect for Play button");
 
-                if (!WaitForPlayScreen(playX, playY, PlayWaitTimeoutMs, out string gateDiag))
+                int playWindowW = playWindowRect.Right - playWindowRect.Left;
+                int playWindowH = playWindowRect.Bottom - playWindowRect.Top;
+
+                // Calculate Play button position (window-relative)
+                int playXRel = (int)(playWindowW * PlayClickX);
+                int playYRel = (int)(playWindowH * PlayClickY);
+
+                // For pixel sampling, we still need screen coordinates
+                int playXScreen = clientTL2.X + (int)(clientWH2.X * PlayClickX);
+                int playYScreen = clientTL2.Y + (int)(clientWH2.Y * PlayClickY);
+
+                if (!WaitForPlayScreen(playXScreen, playYScreen, PlayWaitTimeoutMs, out string gateDiag))
                 {
                     stepPlay.Outcome = StepOutcome.Pending;
                     stepPlay.Detail = $"PLAY not detected: {gateDiag}";
@@ -372,25 +514,35 @@ namespace GWxLauncher.Services
                     throw new Exception("Failed to keep GW2 foreground before PLAY click.");
 
                 // --- Hand-cursor hunt around the PLAY target (best-effort) ---
-                if (TryFindHandCursorHotspot(playX, playY, HandHuntTotalTimeoutMs, out int hx, out int hy, out string handDiag))
+                // Note: Hand cursor uses screen coords, but PostMessage uses window-relative
+                if (TryFindHandCursorHotspot(playXScreen, playYScreen, HandHuntTotalTimeoutMs, out int hxScreen, out int hyScreen, out string handDiag))
                 {
                     lastHandDiag = handDiag;
-                    MouseClickScreen(hx, hy);
+                    
+                    // Convert screen coords back to window-relative for PostMessage
+                    int hxRel = hxScreen - clientTL2.X;
+                    int hyRel = hyScreen - clientTL2.Y;
+                    uint playCoord = (uint)((hyRel << 16) | hxRel);
+                    
+                    PostMessage(gw2Hwnd, NativeMethods.WM_LBUTTONDOWN, new IntPtr(1), new IntPtr(playCoord));
+                    PostMessage(gw2Hwnd, NativeMethods.WM_LBUTTONUP, IntPtr.Zero, new IntPtr(playCoord));
                     playClicked = true;
 
                     stepPlay.Outcome = StepOutcome.Success;
-                    stepPlay.Detail = $"Clicked PLAY (hand cursor). {gateDiag} {handDiag}";
+                    stepPlay.Detail = $"Clicked PLAY (hand cursor) at window-rel ({hxRel},{hyRel}). {gateDiag} {handDiag}";
                 }
                 else
                 {
                     lastHandDiag = handDiag;
 
-                    // Fallback: click the computed target
-                    MouseClickScreen(playX, playY);
+                    // Fallback: use computed window-relative coordinates
+                    uint playCoord = (uint)((playYRel << 16) | playXRel);
+                    PostMessage(gw2Hwnd, NativeMethods.WM_LBUTTONDOWN, new IntPtr(1), new IntPtr(playCoord));
+                    PostMessage(gw2Hwnd, NativeMethods.WM_LBUTTONUP, IntPtr.Zero, new IntPtr(playCoord));
                     playClicked = true;
 
                     stepPlay.Outcome = StepOutcome.Success;
-                    stepPlay.Detail = $"Clicked PLAY. {gateDiag} {handDiag}";
+                    stepPlay.Detail = $"Clicked PLAY at window-rel ({playXRel},{playYRel}). {gateDiag} {handDiag}";
                 }
             }
             catch (Exception ex)
@@ -678,7 +830,7 @@ namespace GWxLauncher.Services
                     return true;
 
                 found = h;
-                return false;
+                return false; // stop enumeration
             }, IntPtr.Zero);
 
             return found;
@@ -791,7 +943,7 @@ namespace GWxLauncher.Services
                     ki = new KEYBDINPUT
                     {
                         wVk = vk,
-                        wScan = 0,
+                        wScan = (ushort)MapVirtualKey(vk, 0), // MAPVK_VK_TO_VSC = 0 (get scan code)
                         dwFlags = keyUp ? KEYEVENTF_KEYUP : 0,
                         time = 0,
                         dwExtraInfo = IntPtr.Zero
@@ -841,23 +993,48 @@ namespace GWxLauncher.Services
             _ = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
         }
 
-        private static void WaitForModifierKeysUp(int timeoutMs)
+        private static bool WaitForModifierKeysUp(int timeoutMs)
         {
             var sw = Stopwatch.StartNew();
             while (sw.ElapsedMilliseconds < timeoutMs)
             {
                 if (!IsKeyDown(VK_SHIFT) && !IsKeyDown(VK_CONTROL) && !IsKeyDown(VK_MENU))
-                    return;
+                    return true;
 
                 Thread.Sleep(50);
             }
+            
+            return false; // Timed out
         }
 
         private static bool IsKeyDown(int vk)
         {
             return (GetAsyncKeyState(vk) & 0x8000) != 0;
         }
+        
+        private static int GetParentProcessId(int pid)
+        {
+            IntPtr hProcess = OpenProcess(ProcessAccessFlags.PROCESS_QUERY_INFORMATION, false, pid);
+            if (hProcess == IntPtr.Zero)
+                return -1;
 
+            try
+            {
+                PROCESS_BASIC_INFORMATION pbi = new PROCESS_BASIC_INFORMATION();
+                int returnLength;
+                int status = NtQueryInformationProcess(hProcess, 0, ref pbi, Marshal.SizeOf(pbi), out returnLength);
+                
+                if (status != 0)
+                    return -1;
+
+                return pbi.Reserved3.ToInt32();
+            }
+            finally
+            {
+                CloseHandle(hProcess);
+            }
+        }
+        
         // -----------------------------
         // Mouse helpers
         // -----------------------------
@@ -876,6 +1053,86 @@ namespace GWxLauncher.Services
         // -----------------------------
         // Misc helpers
         // -----------------------------
+        
+        private static bool DisableWindow(IntPtr hwnd)
+        {
+            try
+            {
+                IntPtr stylePtr = GetWindowLongPtr(hwnd, GWL_STYLE);
+                long style = stylePtr.ToInt64();
+                style |= WS_DISABLED;
+                SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(style));
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
+        private static bool EnableWindow(IntPtr hwnd)
+        {
+            try
+            {
+                IntPtr stylePtr = GetWindowLongPtr(hwnd, GWL_STYLE);
+                long style = stylePtr.ToInt64();
+                style &= ~WS_DISABLED;
+                SetWindowLongPtr(hwnd, GWL_STYLE, new IntPtr(style));
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
+        private static bool TryTypeViaClipboard(int targetPid, IntPtr hwnd, string text, LaunchStep step)
+        {
+            try
+            {
+                // Save current clipboard
+                string? savedClip = null;
+                try
+                {
+                    if (Clipboard.ContainsText())
+                        savedClip = Clipboard.GetText();
+                }
+                catch { /* ignore */ }
+
+                // Set our text
+                Clipboard.SetText(text);
+                Thread.Sleep(50);
+
+                // Send Ctrl+V via SendInput (hardware simulation for CEF)
+                SendKey(VK_CONTROL, keyUp: false);
+                Thread.Sleep(10);
+                SendKey((ushort)'V', keyUp: false);
+                Thread.Sleep(10);
+                SendKey((ushort)'V', keyUp: true);
+                Thread.Sleep(10);
+                SendKey(VK_CONTROL, keyUp: true);
+                
+                Thread.Sleep(100); // Allow GW2 to read clipboard
+
+                // Restore clipboard
+                try
+                {
+                    if (savedClip != null)
+                        Clipboard.SetText(savedClip);
+                    else
+                        Clipboard.Clear();
+                }
+                catch { /* ignore */ }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                step.Detail += $" (clipboard method failed: {ex.Message}, using WM_CHAR fallback)";
+                return false;
+            }
+        }
+        
         private static bool EnsureForegroundOrWarn(IntPtr hwnd, int holdStableMs, int timeoutMs, LaunchStep step, string context)
         {
             if (ForceAndHoldForeground(hwnd, holdStableMs, timeoutMs))

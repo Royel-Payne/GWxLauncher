@@ -18,6 +18,13 @@ namespace GWxLauncher.Services
         internal const ushort VK_CONTROL = 0x11;
         internal const int VK_SHIFT = 0x10;
         internal const int VK_MENU = 0x12;
+        internal const ushort VK_TAB = 0x09;
+
+        internal const uint WM_LBUTTONDOWN = 0x0201;
+        internal const uint WM_LBUTTONUP = 0x0202;
+        internal const uint WM_CHAR = 0x0102;
+        internal const uint WM_KEYDOWN = 0x0100;
+        internal const uint WM_KEYUP = 0x0101;
 
         internal const int INPUT_MOUSE = 0;
         internal const int INPUT_KEYBOARD = 1;
@@ -41,6 +48,7 @@ namespace GWxLauncher.Services
         internal const uint WS_MINIMIZEBOX = 0x00020000;
         internal const uint WS_THICKFRAME = 0x00040000;
         internal const uint WS_SIZEBOX = WS_THICKFRAME;
+        internal const uint WS_DISABLED = 0x08000000;
 
         internal const uint SC_CLOSE = 0xF060;
         internal const uint MF_BYCOMMAND = 0x00000000;
@@ -350,6 +358,9 @@ namespace GWxLauncher.Services
         internal static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
 
         [DllImport("user32.dll")]
+        internal static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
         internal static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
 
         [DllImport("user32.dll")]
@@ -418,6 +429,15 @@ namespace GWxLauncher.Services
 
         [DllImport("user32.dll", SetLastError = true)]
         internal static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        [DllImport("user32.dll")]
+        internal static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        internal static extern uint MapVirtualKey(uint uCode, uint uMapType);
 
         #endregion
 
