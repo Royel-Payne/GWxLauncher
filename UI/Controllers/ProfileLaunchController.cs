@@ -3,6 +3,7 @@ using System.Text;
 using GWxLauncher.Config;
 using GWxLauncher.Domain;
 using GWxLauncher.Services;
+using Microsoft.Win32;
 
 namespace GWxLauncher.UI.Controllers
 {
@@ -69,6 +70,51 @@ namespace GWxLauncher.UI.Controllers
             return profile.ExecutablePath ?? string.Empty;
         }
 
+        private void ApplyGw1RegistryFix(GameProfile profile)
+        {
+            if (profile == null || string.IsNullOrWhiteSpace(profile.ExecutablePath))
+                return;
+
+            try
+            {
+                // Open or create HKEY_CURRENT_USER\Software\ArenaNet\Guild Wars
+                using (var key = Registry.CurrentUser.CreateSubKey(@"Software\ArenaNet\Guild Wars", writable: true))
+                {
+                    if (key == null)
+                        return;
+
+                    string targetPath = profile.ExecutablePath;
+                    bool needsUpdate = false;
+
+                    // Check if 'Path' exists and matches
+                    var pathValue = key.GetValue("Path") as string;
+                    if (pathValue != targetPath)
+                    {
+                        needsUpdate = true;
+                    }
+
+                    // Check if 'Src' exists and matches
+                    var srcValue = key.GetValue("Src") as string;
+                    if (srcValue != targetPath)
+                    {
+                        needsUpdate = true;
+                    }
+
+                    // Update registry values if needed
+                    if (needsUpdate)
+                    {
+                        key.SetValue("Path", targetPath, RegistryValueKind.String);
+                        key.SetValue("Src", targetPath, RegistryValueKind.String);
+                    }
+                }
+            }
+            catch
+            {
+                // Silently handle permission issues - HKCU typically doesn't require admin rights
+                // but we don't want to block the launch if registry access fails
+            }
+        }
+
         public async Task LaunchProfileAsync(GameProfile profile, bool bulkMode)
         {
             if (profile == null)
@@ -117,6 +163,9 @@ namespace GWxLauncher.UI.Controllers
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
+
+                // Apply registry fix before launching
+                ApplyGw1RegistryFix(profile);
 
                 bool mcEnabled = cfg.Gw1MulticlientEnabled;
                 bool winTitleEnabled = cfg.Gw1WindowTitleEnabled;
