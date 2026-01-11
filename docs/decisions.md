@@ -1,9 +1,5 @@
 # GWxLauncher – Decisions Log
 
-> Note: Superseded by **2025-02 — UI / UX Interaction Model (Profiles, Bulk Launch, Scope)**.
-> “Launch All” is replaced by eligibility-based **Bulk Launch** (checked profiles), not view/visibility-based launching.
-
-
 This document records **intentional design decisions** made during development of GWxLauncher.
 
 Its purpose is to:
@@ -37,17 +33,17 @@ Profiles (not games, accounts, or global configs) are the core unit of configura
 ### GW2 launcher responsibility boundary
 
 **Decision**  
-GWxLauncher’s responsibility for Guild Wars 2 ends once the DX game window is created and rendering.
+GWxLauncher's responsibility for Guild Wars 2 ends once the DX game window is created and rendering.
 
 Entering the world, character selection, and gameplay are explicitly user-controlled and out of scope.
 
 **Rationale**  
-- The launcher’s role is to automate **launch and login**, not gameplay
+- The launcher's role is to automate **launch and login**, not gameplay
 - DX window creation is the first reliable, observable signal that the game client is running
 - Waiting beyond this point introduces ambiguity, instability, and user-specific behavior
 
 **Consequences**  
-- Bulk launch serialization gates on **DX window creation**, not “in-world” state
+- Bulk launch serialization gates on **DX window creation + rendering** (stable signal)
 - Launch reports stop at DX readiness
 - No automation is attempted beyond the launcher → game transition
 
@@ -88,35 +84,42 @@ Toolbox, Py4GW, and gMod are implemented as **distinct injection paths**, not a 
 
 ## 2025‑01 — Multiclient handling
 
-### Multiclient behavior is defined before mechanisms
+### Multiclient behavior is explicit and per-game
 
 **Decision**  
-Multiclient support is specified in terms of **observable behavior**, not low‑level mechanisms.
+Multiclient support is implemented with explicit mechanisms:
+- **GW1**: Memory patching via suspended CreateProcessW
+- **GW2**: Mutex killing + `-shareArchive` argument
 
 **Rationale**  
-- Mutexes, embedded browsers (CEF), and similar internals are implementation details
-- Prematurely committing to techniques risks misinformation and rework
+- Each game requires different multiclient strategies
+- Making the mechanisms explicit improves debuggability and user understanding
 
 **Consequences**  
-- Current behavior allows multiple launches implicitly
-- Specific multiclient mechanics will be researched and documented *when required*
+- Multiclient flags are per-game in settings
+- Launch reports show multiclient step outcomes
+- Future games would need game-specific multiclient strategies
 
 ---
 
-## 2025‑01 — Login automation sequencing
+## 2025‑01 — Login automation (implemented)
 
-### Login automation is a core goal, but intentionally sequenced
+### Login automation is a core goal (now implemented)
 
 **Decision**  
-Per‑account login automation is part of the project’s core vision, but is **not implemented early**.
+Per‑profile login automation is implemented with:
+- **GW1**: Command-line arguments (`-email`, `-password`, `-character`)
+- **GW2**: UI automation via FlaUI (finds launcher window, fills credentials, clicks Login/Play)
 
 **Rationale**  
-- Early implementation would have added security and architectural risk
-- Requires stable profile behavior and well‑defined multiclient semantics
+- Login automation is a common use case for multi-account launchers
+- Credentials are stored per-profile using DPAPI encryption
+- Implementation was sequenced after stable launch behavior was achieved
 
 **Consequences**  
-- Feature is planned, not optional
-- Implementation is deferred until launch behavior is observable and debuggable
+- Credentials are stored in `profiles.json` (encrypted base64)
+- Auto-login is opt-in per profile
+- GW2 auto-play is optional (stops at character select)
 
 ---
 
@@ -139,27 +142,28 @@ GWxLauncher will not run persistent background services and will not attempt ste
 
 ## 2025-01 — Theming
 
-### Theme follows system by default, with a user override
+### Theme follows dark by default, light/system detection deferred
 
 **Decision**  
-The launcher will support a theme mode setting: `System` (default), `Dark`, and `Light`.
+The launcher uses a canonical dark theme by default. A full theme system (system detection, user switching, multiple themes) is optional and deferred.
 
 **Rationale**  
-- Matches user expectations on Windows
-- Allows a stable manual override for edge cases and preference
+- The current default dark theme meets usability and aesthetic goals
+- Introducing a full theming system would add complexity without clear user benefit at this stage
 
 **Consequences**  
-- A single place must resolve effective theme and apply it consistently across all forms
-- Forms should not hand-roll theme logic independently
+- The current theme is treated as the canonical default  
+- ThemeService may evolve incrementally but no dedicated theme UI is planned  
+- Theme switching may be revisited in a later polish phase
 
 ---
 
-## 2025-01 — Profile views and launch-all behavior
+## 2025-01 — Profile views and launch behavior
 
 ### Profiles are filtered by view, not duplicated into separate groups
 
 **Decision**  
-GW1/GW2/All “views” are UI filters over the same underlying profile list. No separate group membership lists.
+GW1/GW2/All "views" are UI filters over the same underlying profile list. No separate group membership lists.
 
 **Rationale**  
 - Avoids redundant state and desync
@@ -168,22 +172,6 @@ GW1/GW2/All “views” are UI filters over the same underlying profile list. No
 **Consequences**  
 - Filtering/sorting is UI state only
 - Persistence does not change when the view changes
-
----
-
-### (Superseded) Launch-all via view filtering
-
-**Decision**  
-“Launch All” operates on the current view (GW1-only or GW2-only). It skips profiles missing valid executable paths and continues launching the rest.
-
-**Rationale**  
-- Prevents accidental mixed-game mass launches
-- Skipping invalid profiles avoids user-blocking modal loops
-- Continuing allows partial success (and supports future diagnostics)
-
-**Consequences**  
-- UI should clearly indicate which view is active
-- Later: surface per-profile results (LaunchReport) instead of relying only on message boxes
 
 ---
 
@@ -207,7 +195,7 @@ Keeps behavior explicit, predictable, and scalable as multiclient, auto-login, a
 
 **Decision**  
 A single profile may be launched via:
-- Double-clicking the profile row
+- Double-clicking the profile card
 - Context menu → Launch
 
 **Rationale**  
@@ -222,7 +210,7 @@ Explicit, intentional, and predictable.
 ### Bulk launch is opt-in and eligibility-based
 
 **Decision**  
-Bulk launch is performed via a single Launch action and launches only profiles explicitly enabled for Bulk Launch.
+Bulk launch is performed via a single Launch action and launches only profiles explicitly enabled for Bulk Launch (checked).
 
 **Rationale**  
 Bulk actions are risky; explicit eligibility prevents accidental launches.
@@ -253,9 +241,9 @@ Prevents accidental launches due to scrolling, filtering, or transient UI focus.
 ### Bulk launch arming requires focused confirmation
 
 **Decision**  
-Bulk launch is considered “armed” only when:
+Bulk launch is considered "armed" only when:
 - One or more profiles are checked, and
-- “Show Checked Accounts Only” is enabled
+- "Show Checked Accounts Only" is enabled
 
 **Rationale**  
 Two-step safety model: mark eligibility, then enter focused launch view.
@@ -265,6 +253,7 @@ Two-step safety model: mark eligibility, then enter focused launch view.
 - Users cannot forget what will launch before clicking Launch
 
 ---
+
 ## 2025-02 — Terminology: Profile vs Account
 
 ### Decision
@@ -277,19 +266,19 @@ The internal domain model is named **Profile** (`GameProfile`), while the UI may
 
 ### Consequences
 - Code, persistence, and architecture use `Profile`
-- UI labels may say “Account”, “Launch Profile”, or similar
+- UI labels may say "Account", "Launch Profile", or similar
 - Documentation clarifies this distinction explicitly
 
 ---
 
-## 2025-02 — gMod per-account plugin selection
+## 2025-02 — gMod per-profile plugin selection (implemented)
 
-### Per-account gMod plugin selection via hardlinked DLL folder
+### Per-profile gMod plugin selection via hardlinked DLL folder
 
 **Decision**  
-GWxLauncher will support **per-account gMod plugin configuration** by injecting gMod from a **per-account folder** containing:
+GWxLauncher supports **per-profile gMod plugin configuration** by injecting gMod from a **per-profile folder** containing:
 - a **hardlink** to the canonical `gMod.dll`
-- a **per-account `modlist.txt`** generated by the launcher
+- a **per-profile `modlist.txt`** generated by the launcher
 
 The injected DLL path determines which `modlist.txt` gMod uses.
 
@@ -299,25 +288,27 @@ Testing confirmed that:
 - gMod behaves correctly when the injected DLL is a **hardlink**
 - Removing `modlist.txt` from the GW install folder does not affect behavior when the DLL is injected from another folder
 
-This enables granular, per-account plugin selection **without**:
+This enables granular, per-profile plugin selection **without**:
 - copying DLLs
 - moving plugin files
 - requiring admin privileges
 - depending on GW multiclient folder separation
 
 **Implementation model**  
-For each profile/account, GWxLauncher creates:
+For each profile, GWxLauncher creates:
 
-%AppData%\GWxLauncher\accounts\<ProfileId>
-gMod.dll (hardlink → canonical gMod.dll)
-modlist.txt (generated per profile)
-Canonical gMod.dll path is per-profile (each profile can point to a different canonical source; its hardlink folder follows that).
-Example: cmd /c mklink /H "C:\Users\Chris\AppData\Roaming\GWxLauncher\accounts\<ProfileId>\gMod.dll" "C:\Games\GW plugins\gMod.dll" 
+```
+%AppData%\GWxLauncher\accounts\<ProfileId>\
+  ├── gMod.dll (hardlink → canonical gMod.dll)
+  └── modlist.txt (generated per profile)
+```
+
+Canonical gMod.dll path is per-profile (each profile can point to a different canonical source).
 
 - `modlist.txt` contains absolute paths to plugin files
 - plugin files remain in their original locations
 - no plugin or DLL files are duplicated or relocated
-- supported plugin files use extension .tpf
+- supported plugin files use extension `.tpf`
 
 **UI behavior**  
 In the GW1 profile settings panel:
@@ -329,14 +320,14 @@ In the GW1 profile settings panel:
 
 **Launch behavior**  
 When launching GW1 with gMod enabled:
-- gMod is injected from the per-account folder
-- gMod loads plugins listed in that account’s `modlist.txt`
-- No report entries (silent, only affects behavior)
+- gMod is injected from the per-profile folder
+- gMod loads plugins listed in that profile's `modlist.txt`
+- No additional report entries (silent, only affects behavior)
 
 **Canonical gMod.dll handling**  
 GWxLauncher treats the user-selected gMod.dll path as the canonical source.
 If the canonical path changes:
-- per-account hardlinks are recreated or repaired automatically
+- per-profile hardlinks are recreated or repaired automatically
 
 **Constraints**  
 - No admin elevation required (hardlinks on same volume)
@@ -345,53 +336,33 @@ If the canonical path changes:
 - Fully compatible with future GW1 multiclient strategies
 
 **Consequences**  
-- Enables true per-account mod control
+- Enables true per-profile mod control
 - Keeps disk usage minimal
 - Keeps launch behavior explicit and predictable
 - Adds a small amount of filesystem management responsibility to the launcher
 
 ---
 
-## 2025-02 — Experimental integrations and public distribution
-## Exclusion of high-risk experimental integrations from public builds
+## 2025-02 — Window Management (implemented)
 
-**Decision**
-Experimental integrations created during early learning phases will not be included in the public distribution of GWxLauncher.
-
-Such integrations may exist only in:
-- private builds
-- local forks
-- non-distributed experimental branches
-- They are not considered part of the supported public feature set.
-
-**Rationale**
-Over the lifetime of the project, the risk profile and external ecosystem of third-party tools may change. Some integrations that were acceptable or ambiguous at the time of development may later become unsuitable for public distribution due to:
-- Terms of Service concerns
-- misuse potential
-- risk of harm to uninformed users
-- misalignment with the project’s transparency and safety goals
-- Recording this decision preserves learning work without implicitly endorsing or promoting unsafe usage.
-
-**Consequences**
-- The public GWxLauncher project will document and support only explicitly approved integrations.
-- Experimental or high-risk integrations will not be referenced in public documentation or UI.
-- Removal or exclusion of such integrations may occur later, when the project is ready for public release, without violating prior design decisions.
-- Private use remains the responsibility of the user.
-
----
-
-## Theme system scope
+### Window positioning enforcement + lifecycle management
 
 **Decision**  
-A full theme system (system detection, user switching, multiple themes) is optional and deferred.
+Window management uses a two-phase approach:
+1. **Enforcement (0-7 seconds)**: Continuously re-apply profile settings to fix "bounce" during game startup
+2. **Watching (7+ seconds)**: Monitor for user changes and optionally auto-save if "Remember Changes" is enabled
 
 **Rationale**  
-The current default dark theme meets usability and aesthetic goals. Introducing a full theming system would add complexity without clear user benefit at this stage.
+- GW1 window positioning is fragile during startup (splash screens, UI initialization)
+- Without enforcement, windows "bounce" to unintended positions
+- Enforcement must be time-limited to avoid fighting user adjustments after startup
+- "Remember Changes" allows users to adjust windows and have the launcher persist their preferences
 
 **Consequences**  
-- The current theme is treated as the canonical default  
-- ThemeService may evolve incrementally but no dedicated theme UI is planned  
-- Theme switching may be revisited in a later polish phase
+- Window positioning is reliable during game startup
+- Users can optionally adjust windows after launch and have changes auto-saved
+- Window lock and input blocking are applied during enforcement phase
+- "Remember Changes" and "Window Lock" are mutually exclusive in behavior (lock prevents changes)
 
 ---
 

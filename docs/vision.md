@@ -6,8 +6,8 @@ GWxLauncher is a **profile-driven Windows launcher** that can launch both:
 
 from a single, consistent application.
 
-“Unified” in this context means **one launcher and one profile model**, not identical feature sets between games.
-In the UI, profiles may be referred to as “accounts” or “launch profiles” for clarity. Internally, they are represented by the GameProfile model.
+"Unified" in this context means **one launcher and one profile model**, not identical feature sets between games.
+In the UI, profiles may be referred to as "accounts" or "launch profiles" for clarity. Internally, they are represented by the GameProfile model.
 
 ---
 
@@ -21,37 +21,53 @@ In the UI, profiles may be referred to as “accounts” or “launch profiles�
   - Per-profile executable paths (with global fallbacks)
   - Clear, visible per-profile state
 
-- **Theme support (system + override)**
-  - Follow Windows light/dark mode by default
-  - Allow a user override (System / Dark / Light)
-  - Apply consistently across all forms
+- **Theme support (dark theme)**
+  - Default dark theme applied consistently across all forms
+  - System light/dark detection deferred (dark theme is canonical)
 
 - **Bulk launch (explicit, opt-in)**
   - Profiles can be explicitly marked as eligible for Bulk Launch
-  - Bulk Launch uses a deliberate “armed” mode (e.g., Show Checked Only)
+  - Bulk Launch uses a deliberate "armed" mode (Show Checked Accounts Only)
   - Selection and filtering never imply launch intent
 
 - **Multiclient support**
   - Allow multiple concurrent game instances
-  - Initially implicit (no forced single-instance behavior)
-  - Later phases may add explicit multiclient controls
+  - Mutex handling (GW2) and memory patching (GW1)
+  - Explicit per-game multiclient toggles in settings
 
 - **GW1 mod injection (implemented)**
   - GWToolbox++
-  - gMod / uMod-style early injection
-  - Deferred/background injection (e.g. Py4GW)
+  - gMod with per-profile plugin selection via hardlinked DLL folders
+  - Py4GW (deferred/background injection)
   - Injection logic is isolated from UI and profile management
 
-- **GW2 companion process launching**
+- **GW2 companion process launching (implemented)**
   - Support launching external helper applications (e.g. Blish HUD)
-  - Simple QoL automation (start-if-not-running, optional)
-  - No DLL injection or client modification for GW2
+  - Mumble link integration for multi-instance companion apps
+  - Run-after programs configured per profile
+
+- **GW2 auto-login / auto-play (implemented)**
+  - DPAPI-encrypted credentials stored per profile
+  - Optional auto-play (clicks "Play" after login)
+  - Launch gating waits for DX window creation
+
+- **GW1 window management (implemented)**
+  - Per-profile window positioning (x/y/width/height)
+  - Window state enforcement during startup (7-second anti-bounce)
+  - Optional "Remember Changes" to auto-save user adjustments
+  - Optional window locking (prevent resize/move)
+  - Optional input blocking (remove minimize/close buttons)
+
+- **GW2 window management (implemented)**
+  - Per-profile window positioning
+  - Custom window titles per profile
+  - Windowed mode argument injection
 
 - **Clean separation of concerns**
-  - UI
+  - UI Controllers
+  - Services (launch orchestration, injection, automation, tracking)
   - Profiles / persistence
-  - Launch orchestration
-  - Injection logic (GW1 only)
+  - Domain model
 
 ---
 
@@ -61,24 +77,59 @@ In the UI, profiles may be referred to as “accounts” or “launch profiles�
 2. Small, understandable steps
 3. Rules-based behavior (state changes cause controlled side effects)
 4. Safe failure modes with meaningful error messages
-5. Project files are the authoritative source of truth
+5. JSON files are the authoritative source of truth
 
 This project is intentionally built for learning and maintainability, not rapid feature parity with existing launchers.
 
 ---
 
-## Planned core features (sequenced)
+## Implemented core features
 
-- **Bulk launch (explicit, opt-in)**
+- **✅ Bulk launch (explicit, opt-in)**
   - Bulk launch operates only on explicitly eligible profiles (checked)
   - Filters and selection do not imply launch intent
-  - Bulk launch is “armed” via a deliberate focused view (e.g., Show Checked Only)
+  - Bulk launch is "armed" via a deliberate focused view (Show Checked Accounts Only)
 
-- **Per-profile Login Automation**
+- **✅ Per-profile Login Automation**
   - Store usernames/emails per profile
-  - Optional encrypted password storage (DPAPI)
-  - Optional auto-login flows (GW1 arguments, GW2 input automation)
-  - Option to stop at character select (GW2 Auto-Play toggle)
+  - Encrypted password storage (DPAPI)
+  - Auto-login flows (GW1 command-line arguments, GW2 UI automation)
+  - Optional auto-play for GW2 (stops at character select)
+
+- **✅ GW1 Mod Injection**
+  - GWToolbox++ (early injection)
+  - gMod (per-profile plugin selection via hardlinked DLL folders)
+  - Py4GW (deferred background injection after window ready)
+  - Multiclient memory patching
+
+- **✅ GW2 Companion Apps**
+  - Run-after programs configured per profile
+  - Mumble link slot assignment
+  - Automatic launching after GW2 DX window is ready
+
+- **✅ Window Management**
+  - Per-profile positioning for GW1 and GW2
+  - Window state enforcement (anti-bounce during startup)
+  - Optional auto-save of user adjustments
+  - Optional window locking and input blocking (GW1)
+  - Custom window titles
+
+- **✅ Launch Reporting**
+  - Per-step launch diagnostics
+  - Success/Failed/Pending/Skipped outcomes
+  - LaunchReport viewer in context menu
+
+- **✅ Instance Tracking**
+  - Tracks running GW1/GW2 processes
+  - Maps processes to profiles
+  - Rehydrates on launcher startup
+  - Visual "running" indicator in profile cards
+
+- **✅ View System**
+  - Multiple views (All/GW1/GW2/custom)
+  - Per-view eligibility (checked profiles)
+  - Per-view "Show Checked Only" state
+  - Rename/create views
 
 All login automation features are:
 - Opt-in
@@ -94,3 +145,4 @@ All login automation features are:
 - Background services or always-running processes
 - Stealth, anti-cheat evasion, or adversarial behavior
 - Premature optimization
+- Full theme system (system light/dark detection deferred)
