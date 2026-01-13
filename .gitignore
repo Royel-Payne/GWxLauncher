@@ -10,6 +10,8 @@
 *.userosscache
 *.sln.docstates
 *.env
+# Experimental / PoC code (local only)
+Experiments/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
