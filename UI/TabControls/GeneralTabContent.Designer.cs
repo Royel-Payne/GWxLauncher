@@ -31,7 +31,6 @@ namespace GWxLauncher.UI.TabControls
             txtArgs = new TextBox();
             lblWindowTitle = new Label();
             txtWindowTitle = new TextBox();
-            chkMulticlient = new CheckBox();
             tlpMain.SuspendLayout();
             pnlExeInput.SuspendLayout();
             SuspendLayout();
@@ -50,17 +49,15 @@ namespace GWxLauncher.UI.TabControls
             tlpMain.Controls.Add(txtArgs, 1, 2);
             tlpMain.Controls.Add(lblWindowTitle, 0, 3);
             tlpMain.Controls.Add(txtWindowTitle, 1, 3);
-            tlpMain.Controls.Add(chkMulticlient, 0, 4);
             tlpMain.Dock = DockStyle.Top;
             tlpMain.Location = new Point(15, 15);
             tlpMain.Name = "tlpMain";
-            tlpMain.RowCount = 5;
+            tlpMain.RowCount = 4;
             tlpMain.RowStyles.Add(new RowStyle());
             tlpMain.RowStyles.Add(new RowStyle());
             tlpMain.RowStyles.Add(new RowStyle());
             tlpMain.RowStyles.Add(new RowStyle());
-            tlpMain.RowStyles.Add(new RowStyle());
-            tlpMain.Size = new Size(520, 143);
+            tlpMain.Size = new Size(520, 116);
             tlpMain.TabIndex = 0;
             // 
             // lblProfileName
@@ -169,18 +166,6 @@ namespace GWxLauncher.UI.TabControls
             txtWindowTitle.Size = new Size(372, 23);
             txtWindowTitle.TabIndex = 7;
             // 
-            // chkMulticlient
-            // 
-            chkMulticlient.AutoSize = true;
-            tlpMain.SetColumnSpan(chkMulticlient, 2);
-            chkMulticlient.Location = new Point(4, 120);
-            chkMulticlient.Margin = new Padding(4);
-            chkMulticlient.Name = "chkMulticlient";
-            chkMulticlient.Size = new Size(270, 19);
-            chkMulticlient.TabIndex = 8;
-            chkMulticlient.Text = "Enable Multiclient (Launch multiple instances)";
-            chkMulticlient.UseVisualStyleBackColor = true;
-            // 
             // GeneralTabContent
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -211,6 +196,5 @@ namespace GWxLauncher.UI.TabControls
         private System.Windows.Forms.TextBox txtArgs;
         private System.Windows.Forms.Label lblWindowTitle;
         private System.Windows.Forms.TextBox txtWindowTitle;
-        private System.Windows.Forms.CheckBox chkMulticlient;
     }
 }

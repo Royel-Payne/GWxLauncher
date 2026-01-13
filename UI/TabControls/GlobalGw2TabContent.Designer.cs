@@ -17,6 +17,7 @@ namespace GWxLauncher.UI.TabControls
             lblGw2TitleHelp = new Label();
             grpWindow = new GroupBox();
             grpBulkLaunch = new GroupBox();
+            chkGw2Multiclient = new CheckBox();
             lblGw2BulkDelay = new Label();
             numGw2BulkDelay = new NumericUpDown();
             lblGw2BulkDelayHelp = new Label();
@@ -66,15 +67,26 @@ namespace GWxLauncher.UI.TabControls
             // 
             // grpBulkLaunch
             // 
+            grpBulkLaunch.Controls.Add(chkGw2Multiclient);
             grpBulkLaunch.Controls.Add(lblGw2BulkDelay);
             grpBulkLaunch.Controls.Add(numGw2BulkDelay);
             grpBulkLaunch.Controls.Add(lblGw2BulkDelayHelp);
             grpBulkLaunch.Location = new Point(10, 120);
             grpBulkLaunch.Name = "grpBulkLaunch";
-            grpBulkLaunch.Size = new Size(460, 110);
+            grpBulkLaunch.Size = new Size(460, 135);
             grpBulkLaunch.TabIndex = 1;
             grpBulkLaunch.TabStop = false;
             grpBulkLaunch.Text = "Bulk Launch";
+            // 
+            // chkGw2Multiclient
+            // 
+            chkGw2Multiclient.AutoSize = true;
+            chkGw2Multiclient.Location = new Point(20, 105);
+            chkGw2Multiclient.Name = "chkGw2Multiclient";
+            chkGw2Multiclient.Size = new Size(250, 19);
+            chkGw2Multiclient.TabIndex = 3;
+            chkGw2Multiclient.Text = "Enable Multiclient (allow multiple GW2 instances)";
+            chkGw2Multiclient.UseVisualStyleBackColor = true;
             // 
             // lblGw2BulkDelay
             // 
@@ -112,7 +124,7 @@ namespace GWxLauncher.UI.TabControls
             Controls.Add(grpBulkLaunch);
             Controls.Add(grpWindow);
             Name = "GlobalGw2TabContent";
-            Size = new Size(500, 250);
+            Size = new Size(500, 275);
             grpWindow.ResumeLayout(false);
             grpWindow.PerformLayout();
             grpBulkLaunch.ResumeLayout(false);
@@ -127,6 +139,7 @@ namespace GWxLauncher.UI.TabControls
         private System.Windows.Forms.GroupBox grpWindow;
         
         private System.Windows.Forms.GroupBox grpBulkLaunch;
+        private System.Windows.Forms.CheckBox chkGw2Multiclient;
         private System.Windows.Forms.Label lblGw2BulkDelay;
         private System.Windows.Forms.NumericUpDown numGw2BulkDelay;
         private System.Windows.Forms.Label lblGw2BulkDelayHelp;

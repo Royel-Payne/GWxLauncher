@@ -6,7 +6,7 @@ namespace GWxLauncher.UI.TabControls
 {
     /// <summary>
     /// UserControl for the General tab in ProfileSettingsForm.
-    /// Contains profile name, executable path, launch arguments, and multiclient settings.
+    /// Contains profile name, executable path, launch arguments, and window title label.
     /// </summary>
     public partial class GeneralTabContent : UserControl
     {
@@ -61,24 +61,17 @@ namespace GWxLauncher.UI.TabControls
                 txtWindowTitle.Text = profile.Gw1WindowTitleLabel;
                 lblWindowTitle.Visible = true;
                 txtWindowTitle.Visible = true;
-
-                chkMulticlient.Visible = true;
-                chkMulticlient.Checked = _cfg.Gw1MulticlientEnabled;
             }
             else if (isGw2)
             {
                 txtWindowTitle.Text = profile.Gw2WindowTitleLabel;
                 lblWindowTitle.Visible = true;
                 txtWindowTitle.Visible = true;
-
-                chkMulticlient.Visible = true;
-                chkMulticlient.Checked = _cfg.Gw2MulticlientEnabled;
             }
             else
             {
                 lblWindowTitle.Visible = false;
                 txtWindowTitle.Visible = false;
-                chkMulticlient.Visible = false;
             }
         }
 
@@ -92,19 +85,12 @@ namespace GWxLauncher.UI.TabControls
             {
                 string label = txtWindowTitle.Text.Trim();
                 profile.Gw1WindowTitleLabel = string.IsNullOrWhiteSpace(label) ? null : label;
-
-                // Save config multiclient
-                _cfg.Gw1MulticlientEnabled = chkMulticlient.Checked;
             }
             else if (profile.GameType == GameType.GuildWars2)
             {
                 string label = txtWindowTitle.Text.Trim();
                 profile.Gw2WindowTitleLabel = string.IsNullOrWhiteSpace(label) ? null : label;
-
-                _cfg.Gw2MulticlientEnabled = chkMulticlient.Checked;
             }
-
-            _cfg.Save();
         }
 
         private void btnBrowseExe_Click(object sender, EventArgs e)

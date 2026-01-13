@@ -38,6 +38,9 @@ namespace GWxLauncher.UI.TabControls
             _cfg = cfg;
             _profileManager = profileManager;
 
+            // Multiclient
+            chkGw1Multiclient.Checked = _cfg.Gw1MulticlientEnabled;
+
             // Window Title
             cbGw1RenameWindowTitle.Checked = _cfg.Gw1WindowTitleEnabled;
             txtGw1TitleTemplate.Text = string.IsNullOrWhiteSpace(_cfg.Gw1WindowTitleTemplate)
@@ -81,6 +84,9 @@ namespace GWxLauncher.UI.TabControls
 
         internal void SaveConfig(LauncherConfig cfg)
         {
+            // Multiclient
+            cfg.Gw1MulticlientEnabled = chkGw1Multiclient.Checked;
+
             cfg.Gw1WindowTitleEnabled = cbGw1RenameWindowTitle.Checked;
 
             var tpl = (txtGw1TitleTemplate.Text ?? "").Trim();

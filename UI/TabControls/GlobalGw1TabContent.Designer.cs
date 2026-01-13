@@ -17,6 +17,7 @@ namespace GWxLauncher.UI.TabControls
             lblGw1TitleHelp = new Label();
             grpWindow = new GroupBox();
             grpBulkLaunch = new GroupBox();
+            chkGw1Multiclient = new CheckBox();
             lblGw1BulkDelay = new Label();
             numGw1BulkDelay = new NumericUpDown();
             lblGw1BulkDelayHelp = new Label();
@@ -80,15 +81,26 @@ namespace GWxLauncher.UI.TabControls
             // 
             // grpBulkLaunch
             // 
+            grpBulkLaunch.Controls.Add(chkGw1Multiclient);
             grpBulkLaunch.Controls.Add(lblGw1BulkDelay);
             grpBulkLaunch.Controls.Add(numGw1BulkDelay);
             grpBulkLaunch.Controls.Add(lblGw1BulkDelayHelp);
             grpBulkLaunch.Location = new Point(10, 120);
             grpBulkLaunch.Name = "grpBulkLaunch";
-            grpBulkLaunch.Size = new Size(460, 110);
+            grpBulkLaunch.Size = new Size(460, 135);
             grpBulkLaunch.TabIndex = 1;
             grpBulkLaunch.TabStop = false;
             grpBulkLaunch.Text = "Bulk Launch";
+            // 
+            // chkGw1Multiclient
+            // 
+            chkGw1Multiclient.AutoSize = true;
+            chkGw1Multiclient.Location = new Point(20, 105);
+            chkGw1Multiclient.Name = "chkGw1Multiclient";
+            chkGw1Multiclient.Size = new Size(250, 19);
+            chkGw1Multiclient.TabIndex = 3;
+            chkGw1Multiclient.Text = "Enable Multiclient (allow multiple GW1 instances)";
+            chkGw1Multiclient.UseVisualStyleBackColor = true;
             // 
             // lblGw1BulkDelay
             // 
@@ -230,7 +242,7 @@ namespace GWxLauncher.UI.TabControls
             grpDll.Controls.Add(lblDllHelp);
             grpDll.Controls.Add(btnApplyGlobalFlags);
             grpDll.Controls.Add(btnApplyGlobalPaths);
-            grpDll.Location = new Point(10, 240);
+            grpDll.Location = new Point(10, 265);
             grpDll.Name = "grpDll";
             grpDll.Size = new Size(460, 330);
             grpDll.TabIndex = 2;
@@ -245,7 +257,7 @@ namespace GWxLauncher.UI.TabControls
             Controls.Add(grpBulkLaunch);
             Controls.Add(grpWindow);
             Name = "GlobalGw1TabContent";
-            Size = new Size(500, 600);
+            Size = new Size(500, 625);
             grpWindow.ResumeLayout(false);
             grpWindow.PerformLayout();
             grpBulkLaunch.ResumeLayout(false);
@@ -262,6 +274,7 @@ namespace GWxLauncher.UI.TabControls
         private System.Windows.Forms.GroupBox grpWindow;
         
         private System.Windows.Forms.GroupBox grpBulkLaunch;
+        private System.Windows.Forms.CheckBox chkGw1Multiclient;
         private System.Windows.Forms.Label lblGw1BulkDelay;
         private System.Windows.Forms.NumericUpDown numGw1BulkDelay;
         private System.Windows.Forms.Label lblGw1BulkDelayHelp;
