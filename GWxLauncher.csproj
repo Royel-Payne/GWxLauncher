@@ -13,6 +13,10 @@
     <FileVersion>1.5.0</FileVersion>
     <InformationalVersion>1.5.0</InformationalVersion>
     <Platforms>x86</Platforms>
+
+    <!-- Framework-Dependent Build (requires .NET 8 installed on target) -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
