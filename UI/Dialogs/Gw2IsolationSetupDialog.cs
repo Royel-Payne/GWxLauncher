@@ -70,7 +70,11 @@ namespace GWxLauncher.UI.Dialogs
         private void checkedListBoxProfiles_ItemCheck(object sender, ItemCheckEventArgs e)
         {
             // Update message after the check state changes
-            BeginInvoke(new Action(UpdateMessage));
+            // Only invoke if handle is created to avoid InvalidOperationException
+            if (IsHandleCreated)
+            {
+                BeginInvoke(new Action(UpdateMessage));
+            }
         }
 
         private void btnCopy_Click(object sender, EventArgs e)
