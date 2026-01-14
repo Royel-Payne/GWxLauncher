@@ -13,9 +13,14 @@ namespace GWxLauncher.UI.TabControls
 
         private void LoadVersionInfo()
         {
-            var fullVersion = Assembly.GetExecutingAssembly()
+            var assembly = Assembly.GetExecutingAssembly();
+            
+            // Try InformationalVersion first (includes git hash if present)
+            var infoVersion = assembly
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                .InformationalVersion ?? "1.5.0";
+                .InformationalVersion;
+            
+            string fullVersion = infoVersion ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
             // Split version and build hash (format: "1.5.0+githash")
             var parts = fullVersion.Split('+');

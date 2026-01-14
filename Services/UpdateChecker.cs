@@ -73,11 +73,20 @@ namespace GWxLauncher.Services
         /// </summary>
         private string GetCurrentVersion()
         {
-            var version = Assembly.GetExecutingAssembly()
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                .InformationalVersion ?? "1.5.0";
+            var assembly = Assembly.GetExecutingAssembly();
             
-            return version.Split('+')[0]; // Remove git hash if present
+            // Try InformationalVersion first (includes git hash if present)
+            var infoVersion = assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion;
+            
+            if (!string.IsNullOrEmpty(infoVersion))
+            {
+                return infoVersion.Split('+')[0]; // Remove git hash
+            }
+            
+            // Fallback to AssemblyVersion
+            return assembly.GetName().Version?.ToString(3) ?? "0.0.0";
         }
 
         /// <summary>
