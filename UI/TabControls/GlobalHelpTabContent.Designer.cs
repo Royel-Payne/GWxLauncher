@@ -116,7 +116,7 @@ namespace GWxLauncher.UI.TabControls
             lblUpdateStatus.Name = "lblUpdateStatus";
             lblUpdateStatus.Size = new Size(259, 15);
             lblUpdateStatus.TabIndex = 1;
-            lblUpdateStatus.Text = "Click the button below to check for updates.";
+            lblUpdateStatus.Text = "Click the button above to check for updates.";
             // 
             // btnCheckForUpdates
             // 
