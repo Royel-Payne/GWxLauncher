@@ -98,6 +98,10 @@
         public string Gw2Email { get; set; } = "";
         public string Gw2PasswordProtected { get; set; } = ""; // base64; DPAPI-encrypted
         public bool Gw2AutoPlayEnabled { get; set; } = false;
+        
+        // When enabled, skips filling email/password and just presses Enter/clicks LOG IN
+        // Use this when GW2's built-in "Remember Password" has saved your credentials
+        public bool Gw2AutoSubmitLoginOnly { get; set; } = false;
 
         // Optional custom label used for GW2 window title renaming
         // If empty, Profile.Name is used.

@@ -161,6 +161,9 @@ namespace GWxLauncher.Services
 
             lock (_gate) _instancesByProfileId.Clear();
 
+            // Track which processes we've already matched to prevent duplicates
+            var matchedProcessIds = new HashSet<int>();
+
             foreach (var kvp in profilesByExe)
             {
                 var exePath = kvp.Key;
@@ -169,27 +172,40 @@ namespace GWxLauncher.Services
                 if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
                     continue;
 
-                var procs = FindProcessesByExactPath(exePath);
+                var procs = FindProcessesByExactPath(exePath, out bool hasVerifiedMatches);
                 if (procs.Count == 0)
                     continue;
 
-                // If only one profile per exe, simple 1:1 mapping
-                if (groupProfiles.Count == 1)
+                // Filter out already-matched processes
+                procs = procs.Where(p => {
+                    try { return !p.HasExited && !matchedProcessIds.Contains(p.Id); }
+                    catch { return false; }
+                }).ToList();
+
+                if (procs.Count == 0)
+                    continue;
+
+                // ONLY use 1:1 mapping if we have verified matches
+                // If all matches are unverified, use heuristics to avoid incorrect matches
+                if (groupProfiles.Count == 1 && hasVerifiedMatches)
                 {
                     var p = procs.FirstOrDefault(pr => !pr.HasExited);
                     if (p != null)
+                    {
                         TrackLaunched(groupProfiles[0].Id, p);
+                        matchedProcessIds.Add(p.Id);
+                    }
 
                     continue;
                 }
 
-                // Multiple profiles share the same exe - try to match by command line args (mumble link name)
+                // Try to match by heuristics (multiple profiles per exe OR unverified single profile)
                 var unusedProfiles = new List<GameProfile>(groupProfiles);
                 foreach (var proc in procs.Where(pr => !pr.HasExited))
                 {
                     GameProfile? match = null;
 
-                    // Try to match by mumble link in command line
+                    // Try to match by mumble link in command line (often fails due to access restrictions)
                     foreach (var candidate in unusedProfiles)
                     {
                         var mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(candidate);
@@ -208,12 +224,40 @@ namespace GWxLauncher.Services
                         }
                     }
 
-                    // Fallback: just assign to first unused profile
-                    match ??= unusedProfiles.FirstOrDefault();
+                    // Try to match by window title (e.g., "GW2 · Royel")
                     if (match == null)
-                        break;
+                    {
+                        try
+                        {
+                            var windowTitle = WindowTitleService.TryGetMainWindowTitle(proc);
+                            if (!string.IsNullOrWhiteSpace(windowTitle))
+                            {
+                                foreach (var candidate in unusedProfiles)
+                                {
+                                    var expectedLabel = !string.IsNullOrWhiteSpace(candidate.Gw2WindowTitleLabel)
+                                        ? candidate.Gw2WindowTitleLabel
+                                        : candidate.Name;
+
+                                    // Check if window title contains the profile name/label
+                                    if (!string.IsNullOrWhiteSpace(expectedLabel) &&
+                                        windowTitle.IndexOf(expectedLabel, StringComparison.OrdinalIgnoreCase) >= 0)
+                                    {
+                                        match = candidate;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        catch { /* ignore */ }
+                    }
+
+                    // NO FALLBACK - only match if we positively identified via heuristics
+                    // This prevents incorrectly matching processes when paths can't be verified
+                    if (match == null)
+                        continue; // Skip this process, don't blindly assign it
 
                     TrackLaunched(match.Id, proc);
+                    matchedProcessIds.Add(proc.Id);
                     unusedProfiles.Remove(match);
                     if (unusedProfiles.Count == 0)
                         break;
@@ -227,10 +271,12 @@ namespace GWxLauncher.Services
             catch { return (path ?? "").Trim(); }
         }
 
-        internal static List<Process> FindProcessesByExactPath(string exePath)
+        internal static List<Process> FindProcessesByExactPath(string exePath, out bool hasVerified)
         {
             var fileName = Path.GetFileNameWithoutExtension(exePath);
             var matches = new List<Process>();
+            var verifiedMatches = new List<Process>();
+            var unverifiedMatches = new List<Process>();
 
             foreach (var p in Process.GetProcessesByName(fileName))
             {
@@ -240,35 +286,39 @@ namespace GWxLauncher.Services
 
                     // Try to get the exe path via MainModule (can fail with Access Denied)
                     var modulePath = p.MainModule?.FileName;
-                    if (!string.IsNullOrWhiteSpace(modulePath) &&
-                        string.Equals(NormalizePath(modulePath), exePath, StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrWhiteSpace(modulePath))
                     {
-                        matches.Add(p);
-                        continue;
+                        if (string.Equals(NormalizePath(modulePath), exePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Verified match - exact path confirmed
+                            verifiedMatches.Add(p);
+                        }
+                        // else: different path, skip
                     }
-
-                    // Fallback: if MainModule failed but process name matches, assume it's a match
-                    // This is less precise but necessary for processes we can't query fully
-                    if (string.IsNullOrWhiteSpace(modulePath))
+                    else
                     {
-                        // Just finding a process named "Gw2-64" is a strong indicator
-                        // Since this is a rehydration best-effort, we'll include it
-                        matches.Add(p);
+                        // Can't verify path - add to unverified list as potential match
+                        unverifiedMatches.Add(p);
                     }
                 }
                 catch
                 {
-                    // If we can't access the process at all, still try to include it
-                    // as a last resort since the process name matched
+                    // Access denied or process exited - add to unverified list as potential match
                     try
                     {
                         if (!p.HasExited)
-                            matches.Add(p);
+                            unverifiedMatches.Add(p);
                     }
                     catch { /* ignore */ }
                 }
             }
 
+            // Return verified matches first, then unverified as fallback
+            // The caller will use mumble link or other heuristics to disambiguate
+            matches.AddRange(verifiedMatches);
+            matches.AddRange(unverifiedMatches);
+
+            hasVerified = verifiedMatches.Count > 0;
             return matches;
         }
 

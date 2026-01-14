@@ -28,6 +28,7 @@ namespace GWxLauncher.UI.TabControls
             this.lblPassword = new System.Windows.Forms.Label();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.lblPasswordSaved = new System.Windows.Forms.Label();
+            this.chkAutoSubmitOnly = new System.Windows.Forms.CheckBox();
             this.chkAutoSelectChar = new System.Windows.Forms.CheckBox();
             this.lblCharName = new System.Windows.Forms.Label();
             this.txtCharName = new System.Windows.Forms.TextBox();
@@ -50,21 +51,23 @@ namespace GWxLauncher.UI.TabControls
             this.tlpMain.Controls.Add(this.lblPassword, 0, 3);
             this.tlpMain.Controls.Add(this.txtPassword, 1, 3);
             this.tlpMain.Controls.Add(this.lblPasswordSaved, 1, 4);
-            this.tlpMain.Controls.Add(this.chkAutoSelectChar, 0, 5);
-            this.tlpMain.Controls.Add(this.lblCharName, 0, 6);
-            this.tlpMain.Controls.Add(this.txtCharName, 1, 6);
-            this.tlpMain.Controls.Add(this.chkAutoPlay, 0, 7);
-            this.tlpMain.Controls.Add(this.lblWarning, 0, 8);
+            this.tlpMain.Controls.Add(this.chkAutoSubmitOnly, 0, 5);
+            this.tlpMain.Controls.Add(this.chkAutoSelectChar, 0, 6);
+            this.tlpMain.Controls.Add(this.lblCharName, 0, 7);
+            this.tlpMain.Controls.Add(this.txtCharName, 1, 7);
+            this.tlpMain.Controls.Add(this.chkAutoPlay, 0, 8);
+            this.tlpMain.Controls.Add(this.lblWarning, 0, 9);
             this.tlpMain.Dock = System.Windows.Forms.DockStyle.Top;
             this.tlpMain.Location = new System.Drawing.Point(15, 15);
             this.tlpMain.AutoSize = true;
             this.tlpMain.Name = "tlpMain";
-            this.tlpMain.RowCount = 9;
+            this.tlpMain.RowCount = 10;
             this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // AutoLogin
             this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // Info
             this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // Email
             this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // Password
             this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // PasswordSaved
+            this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // AutoSubmitOnly (NEW)
             this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // AutoSelectChar
             this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // CharName
             this.tlpMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize)); // AutoPlay
@@ -139,6 +142,17 @@ namespace GWxLauncher.UI.TabControls
             this.lblPasswordSaved.Visible = false;
 
             // 
+            // chkAutoSubmitOnly
+            // 
+            this.tlpMain.SetColumnSpan(this.chkAutoSubmitOnly, 2);
+            this.chkAutoSubmitOnly.AutoSize = true;
+            this.chkAutoSubmitOnly.Name = "chkAutoSubmitOnly";
+            this.chkAutoSubmitOnly.Text = "Use GW2 saved credentials (only submit login)";
+            this.chkAutoSubmitOnly.UseVisualStyleBackColor = true;
+            this.chkAutoSubmitOnly.Margin = controlMargin;
+            this.chkAutoSubmitOnly.Visible = false; // Only for GW2
+
+            // 
             // chkAutoSelectChar
             // 
             this.tlpMain.SetColumnSpan(this.chkAutoSelectChar, 2);
@@ -211,6 +225,7 @@ namespace GWxLauncher.UI.TabControls
         private System.Windows.Forms.Label lblPassword;
         private System.Windows.Forms.TextBox txtPassword;
         private System.Windows.Forms.Label lblPasswordSaved;
+        private System.Windows.Forms.CheckBox chkAutoSubmitOnly;
         private System.Windows.Forms.CheckBox chkAutoSelectChar;
         private System.Windows.Forms.Label lblCharName;
         private System.Windows.Forms.TextBox txtCharName;

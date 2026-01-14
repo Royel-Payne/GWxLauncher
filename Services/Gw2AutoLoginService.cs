@@ -106,45 +106,52 @@ namespace GWxLauncher.Services
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(profile.Gw2Email) || string.IsNullOrWhiteSpace(profile.Gw2PasswordProtected))
-            {
-                stepLogin.Outcome = StepOutcome.Failed;
-                stepLogin.Detail = "Email or password not configured.";
-                stepPlay.Outcome = StepOutcome.Skipped;
-                stepPlay.Detail = "Skipped (login failed).";
-                error = "GW2 email/password not configured for this profile.";
-                stepLauncherReady.Outcome = StepOutcome.Skipped;
-                stepLauncherReady.Detail = "Skipped (login failed).";
-                return false;
-            }
+            // Check if we're in "submit only" mode (use GW2's saved credentials)
+            bool submitOnlyMode = profile.Gw2AutoSubmitLoginOnly;
+            string password = "";
 
-            string password;
-            try
+            if (!submitOnlyMode)
             {
-                password = DpapiProtector.UnprotectFromBase64(profile.Gw2PasswordProtected);
-            }
-            catch (Exception ex)
-            {
-                stepLogin.Outcome = StepOutcome.Failed;
-                stepLogin.Detail = "Stored password could not be decrypted.";
-                stepPlay.Outcome = StepOutcome.Skipped;
-                stepPlay.Detail = "Skipped (login failed).";
-                error = $"DPAPI decrypt failed: {ex.Message}";
-                stepLauncherReady.Outcome = StepOutcome.Skipped;
-                stepLauncherReady.Detail = "Skipped (login failed).";
-                return false;
-            }
+                // Full auto-login mode: validate and decrypt credentials
+                if (string.IsNullOrWhiteSpace(profile.Gw2Email) || string.IsNullOrWhiteSpace(profile.Gw2PasswordProtected))
+                {
+                    stepLogin.Outcome = StepOutcome.Failed;
+                    stepLogin.Detail = "Email or password not configured.";
+                    stepPlay.Outcome = StepOutcome.Skipped;
+                    stepPlay.Detail = "Skipped (login failed).";
+                    error = "GW2 email/password not configured for this profile.";
+                    stepLauncherReady.Outcome = StepOutcome.Skipped;
+                    stepLauncherReady.Detail = "Skipped (login failed).";
+                    return false;
+                }
 
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                stepLogin.Outcome = StepOutcome.Failed;
-                stepLogin.Detail = "Decrypted password was empty.";
-                stepPlay.Outcome = StepOutcome.Skipped;
-                stepPlay.Detail = "Skipped (login failed).";
-                error = "GW2 decrypted password was empty.";
-                stepLauncherReady.Outcome = StepOutcome.Skipped;
-                stepLauncherReady.Detail = "Skipped (login failed).";
-                return false;
+                try
+                {
+                    password = DpapiProtector.UnprotectFromBase64(profile.Gw2PasswordProtected);
+                }
+                catch (Exception ex)
+                {
+                    stepLogin.Outcome = StepOutcome.Failed;
+                    stepLogin.Detail = "Stored password could not be decrypted.";
+                    stepPlay.Outcome = StepOutcome.Skipped;
+                    stepPlay.Detail = "Skipped (login failed).";
+                    error = $"DPAPI decrypt failed: {ex.Message}";
+                    stepLauncherReady.Outcome = StepOutcome.Skipped;
+                    stepLauncherReady.Detail = "Skipped (login failed).";
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(password))
+                {
+                    stepLogin.Outcome = StepOutcome.Failed;
+                    stepLogin.Detail = "Decrypted password was empty.";
+                    stepPlay.Outcome = StepOutcome.Skipped;
+                    stepPlay.Detail = "Skipped (login failed).";
+                    error = "GW2 decrypted password was empty.";
+                    stepLauncherReady.Outcome = StepOutcome.Skipped;
+                    stepLauncherReady.Detail = "Skipped (login failed).";
+                    return false;
+                }
             }
 
             if (!TryWaitForMainWindow(gw2Process.Id, out IntPtr gw2Hwnd, out int waitedMs))
@@ -260,7 +267,8 @@ namespace GWxLauncher.Services
                 SendMessage(gw2Hwnd, 0, IntPtr.Zero, IntPtr.Zero);
                 Thread.Sleep(50);
 
-                // 2. Tab to email field (14 tabs for CEF launcher, based on Gw2Launcher)
+                // 2. Tab to email field to activate the CEF form
+                // Tab navigation (14 tabs for CEF launcher)
                 // CEF (Chromium) requires SendInput, not SendMessage!
                 // CRITICAL: Ensure window has focus before SendInput!
                 if (GetForegroundWindow() != gw2Hwnd)
@@ -283,44 +291,57 @@ namespace GWxLauncher.Services
 
                 _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "after tab to email");
 
-                // Wait for modifiers before text entry
-                if (!WaitForModifierKeysUp(timeoutMs: 5000))
-                    throw new Exception("Modifier keys held during email entry");
-
-                // 3. Enter email (try clipboard first, fallback to Unicode SendInput)
-                if (!TryTypeViaClipboard(gw2Process.Id, gw2Hwnd, profile.Gw2Email, stepLogin))
+                if (submitOnlyMode)
                 {
-                    // Fallback: Unicode input via SendInput (hardware simulation for CEF)
-                    TypeUnicodeText(profile.Gw2Email, CharDelayMs);
+                    // Submit-only mode: GW2 has already filled credentials via local.dat
+                    // We've tabbed to the email field to activate the form, now just submit
+                    Thread.Sleep(100);
+                    stepLogin.Detail = "Using GW2 saved credentials (submit only mode).";
                 }
-                
-                Thread.Sleep(100);
-
-                // Wait for modifiers before tab
-                if (!WaitForModifierKeysUp(timeoutMs: 5000))
-                    throw new Exception("Modifier keys held before password tab");
-
-                // 4. Tab to password field (use SendInput for CEF)
-                SendKey(VK_TAB, keyUp: false);
-                Thread.Sleep(10);
-                SendKey(VK_TAB, keyUp: true);
-                
-                Thread.Sleep(100);
-
-                _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "after tab to password");
-
-                // Wait for modifiers before password entry
-                if (!WaitForModifierKeysUp(timeoutMs: 5000))
-                    throw new Exception("Modifier keys held during password entry");
-
-                // 5. Enter password (try clipboard first, fallback to Unicode SendInput)
-                if (!TryTypeViaClipboard(gw2Process.Id, gw2Hwnd, password, stepLogin))
+                else
                 {
-                    // Fallback: Unicode input via SendInput (hardware simulation for CEF)
-                    TypeUnicodeText(password, CharDelayMs);
+                    // Full auto-login mode: Enter credentials
+                    // Wait for modifiers before text entry
+                    if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                        throw new Exception("Modifier keys held during email entry");
+
+                    // 3. Enter email (try clipboard first, fallback to Unicode SendInput)
+                    if (!TryTypeViaClipboard(gw2Process.Id, gw2Hwnd, profile.Gw2Email, stepLogin))
+                    {
+                        // Fallback: Unicode input via SendInput (hardware simulation for CEF)
+                        TypeUnicodeText(profile.Gw2Email, CharDelayMs);
+                    }
+                    
+                    Thread.Sleep(100);
+
+                    // Wait for modifiers before tab
+                    if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                        throw new Exception("Modifier keys held before password tab");
+
+                    // 4. Tab to password field (use SendInput for CEF)
+                    SendKey(VK_TAB, keyUp: false);
+                    Thread.Sleep(10);
+                    SendKey(VK_TAB, keyUp: true);
+                    
+                    Thread.Sleep(100);
+
+                    _ = EnsureForegroundOrWarn(gw2Hwnd, holdStableMs: 200, timeoutMs: 4000, stepLogin, "after tab to password");
+
+                    // Wait for modifiers before password entry
+                    if (!WaitForModifierKeysUp(timeoutMs: 5000))
+                        throw new Exception("Modifier keys held during password entry");
+
+                    // 5. Enter password (try clipboard first, fallback to Unicode SendInput)
+                    if (!TryTypeViaClipboard(gw2Process.Id, gw2Hwnd, password, stepLogin))
+                    {
+                        // Fallback: Unicode input via SendInput (hardware simulation for CEF)
+                        TypeUnicodeText(password, CharDelayMs);
+                    }
+                    
+                    Thread.Sleep(250);
+
+                    stepLogin.Detail = "Email and password entered via Tab navigation (clipboard paste with Unicode fallback).";
                 }
-                
-                Thread.Sleep(250);
 
                 // Wait for modifiers before Enter
                 if (!WaitForModifierKeysUp(timeoutMs: 5000))

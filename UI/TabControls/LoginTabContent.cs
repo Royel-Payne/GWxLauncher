@@ -6,6 +6,7 @@ namespace GWxLauncher.UI.TabControls
     public partial class LoginTabContent : UserControl
     {
         private GameProfile _profile;
+        private bool _gw2IsolationEnabled;
 
         public LoginTabContent()
         {
@@ -15,11 +16,25 @@ namespace GWxLauncher.UI.TabControls
             // Event wiring
             chkAutoLogin.CheckedChanged += (s, e) => UpdateUiState();
             chkAutoSelectChar.CheckedChanged += (s, e) => UpdateUiState();
+            chkAutoSubmitOnly.CheckedChanged += chkAutoSubmitOnly_CheckedChanged;
         }
 
-        public void BindProfile(GameProfile profile)
+        private void chkAutoSubmitOnly_CheckedChanged(object? sender, EventArgs e)
+        {
+            // Prevent checking if isolation is disabled
+            if (!_gw2IsolationEnabled && chkAutoSubmitOnly.Checked)
+            {
+                chkAutoSubmitOnly.Checked = false;
+                return;
+            }
+            
+            UpdateUiState();
+        }
+
+        public void BindProfile(GameProfile profile, bool gw2IsolationEnabled = false)
         {
             _profile = profile;
+            _gw2IsolationEnabled = gw2IsolationEnabled;
 
             bool isGw1 = profile.GameType == GameType.GuildWars1;
             bool isGw2 = profile.GameType == GameType.GuildWars2;
@@ -66,6 +81,20 @@ namespace GWxLauncher.UI.TabControls
 
                 lblPasswordSaved.Visible = !string.IsNullOrWhiteSpace(profile.Gw2PasswordProtected);
 
+                chkAutoSubmitOnly.Checked = profile.Gw2AutoSubmitLoginOnly;
+                chkAutoSubmitOnly.Visible = true;
+                
+                // Only allow "submit only" mode when isolation is enabled
+                // Without isolation, all profiles share the same local.dat, so saved credentials don't work per-profile
+                if (!_gw2IsolationEnabled)
+                {
+                    chkAutoSubmitOnly.Enabled = false;
+                    chkAutoSubmitOnly.Checked = false;
+                    // Add tooltip or hint text
+                    var tip = new ToolTip();
+                    tip.SetToolTip(chkAutoSubmitOnly, "Requires Profile Isolation to be enabled (see Global Settings ? GW2)");
+                }
+
                 chkAutoPlay.Text = "Auto Play (press Enter on character selection)";
                 chkAutoPlay.Checked = profile.Gw2AutoPlayEnabled;
 
@@ -108,6 +137,7 @@ namespace GWxLauncher.UI.TabControls
                 profile.Gw2AutoLoginEnabled = chkAutoLogin.Checked;
                 profile.Gw2Email = txtEmail.Text.Trim();
                 profile.Gw2AutoPlayEnabled = chkAutoPlay.Checked;
+                profile.Gw2AutoSubmitLoginOnly = chkAutoSubmitOnly.Checked;
 
                 var pw = txtPassword.Text;
                 if (!string.IsNullOrWhiteSpace(pw))
@@ -121,11 +151,20 @@ namespace GWxLauncher.UI.TabControls
         {
             bool enabled = chkAutoLogin.Checked;
 
-            lblEmail.Enabled = enabled;
-            txtEmail.Enabled = enabled;
-            lblPassword.Enabled = enabled;
-            txtPassword.Enabled = enabled;
+            // When "submit only" is checked, disable email/password fields (GW2 will use saved credentials)
+            bool submitOnly = chkAutoSubmitOnly.Visible && chkAutoSubmitOnly.Checked;
+
+            lblEmail.Enabled = enabled && !submitOnly;
+            txtEmail.Enabled = enabled && !submitOnly;
+            lblPassword.Enabled = enabled && !submitOnly;
+            txtPassword.Enabled = enabled && !submitOnly;
             lblPasswordSaved.Enabled = enabled;
+
+            if (chkAutoSubmitOnly.Visible)
+            {
+                // Only enable if auto-login is enabled AND isolation is enabled
+                chkAutoSubmitOnly.Enabled = enabled && _gw2IsolationEnabled;
+            }
 
             if (chkAutoSelectChar.Visible)
             {

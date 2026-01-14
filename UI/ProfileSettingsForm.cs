@@ -245,7 +245,7 @@ namespace GWxLauncher.UI
                 case 1: // Login
                     _loginTab.Visible = true;
                     _loginTab.Focus();
-                    _loginTab.BindProfile(_profile); // Re-bind on switch
+                    _loginTab.BindProfile(_profile, _cfg.Gw2IsolationEnabled); // Pass global isolation setting
                     break;
 
                 case 2: // Mods/Plugins
@@ -385,7 +385,7 @@ namespace GWxLauncher.UI
 
             // Bind independent tabs
             _generalTab?.BindProfile(_profile);
-            _loginTab?.BindProfile(_profile);
+            _loginTab?.BindProfile(_profile, _cfg.Gw2IsolationEnabled); // Pass global isolation setting
             _modsTab?.BindProfile(_profile);
             _windowTab?.BindProfile(_profile);
 
