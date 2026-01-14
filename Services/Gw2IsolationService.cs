@@ -1,6 +1,4 @@
 using GWxLauncher.Domain;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace GWxLauncher.Services
 {
@@ -151,14 +149,6 @@ namespace GWxLauncher.Services
                 CreateNoWindow = true
             };
 
-            // Debug log
-            string debugLog = Path.Combine(Path.GetTempPath(), "GWxLauncher_IsolationDebug.log");
-            File.AppendAllText(debugLog, 
-                $"[{DateTime.Now}] Launching helper:\n" +
-                $"  Injector: {injectorPath}\n" +
-                $"  Exists: {File.Exists(injectorPath)}\n" +
-                $"  Arguments: {helperArguments}\n\n");
-
             using var helperProcess = System.Diagnostics.Process.Start(startInfo);
 
             if (helperProcess == null)
@@ -197,13 +187,6 @@ namespace GWxLauncher.Services
 
             string output = outputBuilder.ToString().Trim();
             string errorOutput = errorBuilder.ToString().Trim();
-
-            // Log results
-            File.AppendAllText(debugLog,
-                $"[{DateTime.Now}] Helper completed:\n" +
-                $"  Exit Code: {helperProcess.ExitCode}\n" +
-                $"  Stdout: {output}\n" +
-                $"  Stderr: {errorOutput}\n\n");
 
             // Check exit code
             if (helperProcess.ExitCode != 0)
