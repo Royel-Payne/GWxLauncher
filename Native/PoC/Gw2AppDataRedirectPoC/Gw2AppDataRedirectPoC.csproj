@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <AssemblyName>Gw2AppDataRedirectPoC</AssemblyName>
+    <RootNamespace>Gw2AppDataRedirectPoC</RootNamespace>
+    <Version>0.1.0</Version>
+    <Description>Proof of Concept: GW2 AppData Redirection via DLL Injection</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Copy output to Build folder for easy testing -->
+    <BuildOutputFolder>$(MSBuildProjectDirectory)\..\Build\</BuildOutputFolder>
+  </PropertyGroup>
+
+  <Target Name="CopyToBuildFolder" AfterTargets="Build">
+    <ItemGroup>
+      <OutputFiles Include="$(TargetDir)**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(OutputFiles)" DestinationFolder="$(BuildOutputFolder)" SkipUnchangedFiles="true" />
+    <Message Text="Copied outputs to $(BuildOutputFolder)" Importance="high" />
+  </Target>
+
+</Project>

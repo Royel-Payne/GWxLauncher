@@ -1,0 +1,32 @@
+# Build outputs
+Build/
+x64/
+x86/
+Debug/
+Release/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vcxproj.filters
+
+# C# build artifacts
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+!Build.bat
+!Test.bat
+
+# Logs from testing
+*.log
+
+# MinHook library (user must download)
+MinHook/lib/
+
+# Test results
+TestResults/
