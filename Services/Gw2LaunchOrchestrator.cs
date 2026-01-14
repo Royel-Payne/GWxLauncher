@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using GWxLauncher.Config;
 using GWxLauncher.Domain;
 
 namespace GWxLauncher.Services
@@ -34,6 +35,7 @@ namespace GWxLauncher.Services
             string exePath,
             bool mcEnabled,
             bool bulkMode,
+            LauncherConfig launcherConfig,
             Gw2AutomationCoordinator automationCoordinator,
             Action<GameProfile> runAfterInvoker)
         {
@@ -143,14 +145,20 @@ namespace GWxLauncher.Services
                 }
             }
 
-            // Launch GW2 (add -shareArchive only when multiclient enabled)
+            // Launch GW2
+            // - If isolation enabled and profile has isolation configured: use Gw2IsolationService
+            // - Otherwise: use normal Process.Start with -shareArchive (if mcEnabled)
             try
             {
                 string mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(profile);
 
+                bool isolationEnabled = launcherConfig.Gw2IsolationEnabled &&
+                                       !string.IsNullOrWhiteSpace(profile.IsolationGameFolderPath);
+
                 var args = new List<string>();
 
-                if (mcEnabled)
+                // Only add -shareArchive if multiclient enabled AND isolation disabled
+                if (mcEnabled && !isolationEnabled)
                     args.Add("-shareArchive");
 
                 if (profile.WindowedModeEnabled)
@@ -163,16 +171,58 @@ namespace GWxLauncher.Services
                 if (!string.IsNullOrWhiteSpace(extraArgs))
                     args.Add(extraArgs);
 
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = exePath,
-                    WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
-                    Arguments = string.Join(" ", args)
-                };
+                string argumentsStr = string.Join(" ", args);
 
-                report.FullCommandLine = string.IsNullOrWhiteSpace(startInfo.Arguments)
-                    ? $"\"{exePath}\""
-                    : $"\"{exePath}\" {startInfo.Arguments}";
+                Process? process = null;
+                
+                if (isolationEnabled)
+                {
+                    // Use isolation service
+                    var isolationService = new Gw2IsolationService();
+                    var isolationResult = isolationService.LaunchWithIsolation(profile, argumentsStr);
+
+                    if (!isolationResult.Success)
+                    {
+                        report.Succeeded = false;
+                        report.FailureMessage = $"Isolation launch failed: {isolationResult.ErrorMessage}";
+                        
+                        return new Gw2LaunchResult
+                        {
+                            Report = report,
+                            MessageBoxText = report.FailureMessage,
+                            MessageBoxTitle = "Guild Wars 2 launch",
+                            MessageBoxIsError = true
+                        };
+                    }
+
+                    // Get process by ID
+                    try
+                    {
+                        process = Process.GetProcessById((int)isolationResult.ProcessId);
+                    }
+                    catch
+                    {
+                        // Process may have exited already, continue anyway
+                    }
+
+                    report.FullCommandLine = $"\"{profile.IsolationGameFolderPath}\\Gw2-64.exe\" {argumentsStr} (isolated)";
+                }
+                else
+                {
+                    // Normal launch
+                    var startInfo = new ProcessStartInfo
+                    {
+                        FileName = exePath,
+                        WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
+                        Arguments = argumentsStr
+                    };
+
+                    report.FullCommandLine = string.IsNullOrWhiteSpace(startInfo.Arguments)
+                        ? $"\"{exePath}\""
+                        : $"\"{exePath}\" {startInfo.Arguments}";
+
+                    process = Process.Start(startInfo);
+                }
 
                 // Safety: if we got this far and mc is enabled, the step must not remain "NotAttempted".
                 if (mcEnabled && mcStep.Outcome == StepOutcome.NotAttempted)
@@ -182,7 +232,19 @@ namespace GWxLauncher.Services
                         mcStep.Detail = "Multiclient enabled.";
                 }
 
-                var process = Process.Start(startInfo);
+                // If multiclient enabled and isolation disabled, note -shareArchive
+                if (mcEnabled && !isolationEnabled)
+                {
+                    mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
+                        ? "Launched with -shareArchive."
+                        : mcStep.Detail + " Launched with -shareArchive.";
+                }
+                else if (isolationEnabled)
+                {
+                    mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
+                        ? "Launched with isolation (no -shareArchive)."
+                        : mcStep.Detail + " Launched with isolation.";
+                }
 
                 // Window sizing coordination:
                 // Don't start window sizing search immediately - DX window doesn't exist until
@@ -201,14 +263,6 @@ namespace GWxLauncher.Services
                     {
                         mcStep.Detail += $" (GW2 mutex observed)";
                     }
-                }
-
-                // If multiclient enabled, keep the step success but add the arg note.
-                if (mcEnabled)
-                {
-                    mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
-                        ? "Launched with -shareArchive."
-                        : mcStep.Detail + " Launched with -shareArchive.";
                 }
 
                 if (profile.Gw2AutoLoginEnabled)
@@ -276,10 +330,11 @@ namespace GWxLauncher.Services
             string exePath,
             bool mcEnabled,
             bool bulkMode,
+            LauncherConfig launcherConfig,
             Gw2AutomationCoordinator automationCoordinator,
             Action<GameProfile> runAfterInvoker)
         {
-            return LaunchAsync(profile, exePath, mcEnabled, bulkMode, automationCoordinator, runAfterInvoker)
+            return LaunchAsync(profile, exePath, mcEnabled, bulkMode, launcherConfig, automationCoordinator, runAfterInvoker)
                 .GetAwaiter().GetResult();
         }
 

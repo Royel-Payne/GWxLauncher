@@ -21,8 +21,12 @@ namespace GWxLauncher.UI.TabControls
             lblGw2BulkDelay = new Label();
             numGw2BulkDelay = new NumericUpDown();
             lblGw2BulkDelayHelp = new Label();
+            grpIsolation = new GroupBox();
+            chkGw2IsolationEnabled = new CheckBox();
+            lblIsolationHelp = new Label();
             grpWindow.SuspendLayout();
             grpBulkLaunch.SuspendLayout();
+            grpIsolation.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numGw2BulkDelay).BeginInit();
             SuspendLayout();
             // 
@@ -117,18 +121,52 @@ namespace GWxLauncher.UI.TabControls
             lblGw2BulkDelayHelp.TabIndex = 2;
             lblGw2BulkDelayHelp.Text = "Wait time between bulk launches. 0 = no wait. Range: 0-90 seconds.";
             // 
+            // grpIsolation
+            // 
+            grpIsolation.Controls.Add(chkGw2IsolationEnabled);
+            grpIsolation.Controls.Add(lblIsolationHelp);
+            grpIsolation.Location = new Point(10, 265);
+            grpIsolation.Name = "grpIsolation";
+            grpIsolation.Size = new Size(460, 100);
+            grpIsolation.TabIndex = 2;
+            grpIsolation.TabStop = false;
+            grpIsolation.Text = "Per-Profile Isolation (Advanced)";
+            // 
+            // chkGw2IsolationEnabled
+            // 
+            chkGw2IsolationEnabled.AutoSize = true;
+            chkGw2IsolationEnabled.Location = new Point(20, 25);
+            chkGw2IsolationEnabled.Name = "chkGw2IsolationEnabled";
+            chkGw2IsolationEnabled.Size = new Size(280, 19);
+            chkGw2IsolationEnabled.TabIndex = 0;
+            chkGw2IsolationEnabled.Text = "Enable Per-Profile GW2 Settings (Isolated Mode)";
+            chkGw2IsolationEnabled.UseVisualStyleBackColor = true;
+            // 
+            // lblIsolationHelp
+            // 
+            lblIsolationHelp.ForeColor = Color.Goldenrod;
+            lblIsolationHelp.Location = new Point(20, 47);
+            lblIsolationHelp.Name = "lblIsolationHelp";
+            lblIsolationHelp.Size = new Size(420, 45);
+            lblIsolationHelp.TabIndex = 1;
+            lblIsolationHelp.Text = "Each profile gets isolated AppData via DLL injection. Requires unique game folder per profile. " +
+                "Disables -shareArchive. Use for complete account/settings isolation.";
+            // 
             // GlobalGw2TabContent
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
+            Controls.Add(grpIsolation);
             Controls.Add(grpBulkLaunch);
             Controls.Add(grpWindow);
             Name = "GlobalGw2TabContent";
-            Size = new Size(500, 275);
+            Size = new Size(500, 385);
             grpWindow.ResumeLayout(false);
             grpWindow.PerformLayout();
             grpBulkLaunch.ResumeLayout(false);
             grpBulkLaunch.PerformLayout();
+            grpIsolation.ResumeLayout(false);
+            grpIsolation.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)numGw2BulkDelay).EndInit();
             ResumeLayout(false);
         }
@@ -143,5 +181,9 @@ namespace GWxLauncher.UI.TabControls
         private System.Windows.Forms.Label lblGw2BulkDelay;
         private System.Windows.Forms.NumericUpDown numGw2BulkDelay;
         private System.Windows.Forms.Label lblGw2BulkDelayHelp;
+        
+        private System.Windows.Forms.GroupBox grpIsolation;
+        private System.Windows.Forms.CheckBox chkGw2IsolationEnabled;
+        private System.Windows.Forms.Label lblIsolationHelp;
     }
 }

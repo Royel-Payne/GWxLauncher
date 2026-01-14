@@ -146,6 +146,7 @@ namespace GWxLauncher.UI
                 Dock = DockStyle.Top,
                 Visible = false
             };
+            _gw2Tab.SetProfileManager(_profileManager);
             // _gw2Tab.MouseEnter += (s, e) => _gw2Tab?.Focus();
             _pnlContentViewport.Controls.Add(_gw2Tab);
         }

@@ -104,6 +104,37 @@
         public string Gw2WindowTitleLabel { get; set; } = "";
 
         // -----------------------------
+        // GW2 – Per-Profile Isolation
+        // -----------------------------
+
+        // When Gw2IsolationEnabled (global), each profile needs:
+        // 1. IsolationGameFolderPath: dedicated folder containing Gw2-64.exe and Gw2.dat
+        // 2. IsolationProfileRoot: root folder for redirected AppData (Roaming & Local)
+
+        /// <summary>
+        /// Path to this profile's dedicated GW2 game folder (must contain Gw2-64.exe and Gw2.dat).
+        /// Required when GW2 isolation is enabled. Must be unique per profile.
+        /// </summary>
+        public string IsolationGameFolderPath { get; set; } = "";
+
+        /// <summary>
+        /// Root folder for this profile's isolated AppData.
+        /// Default: %AppData%\Roaming\GWxLauncher\Profiles\{ProfileId}
+        /// Will contain: Roaming\ and Local\ subdirectories.
+        /// </summary>
+        public string IsolationProfileRoot { get; set; } = "";
+
+        // Helper to get default profile root path
+        public string GetDefaultIsolationProfileRoot()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "GWxLauncher",
+                "Profiles",
+                Id);
+        }
+
+        // -----------------------------
         // Display helpers
         // -----------------------------
 

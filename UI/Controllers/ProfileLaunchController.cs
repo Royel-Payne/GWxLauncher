@@ -297,6 +297,7 @@ namespace GWxLauncher.UI.Controllers
                     exePath: exePath,
                     mcEnabled: mcEnabled,
                     bulkMode: bulkMode,
+                    launcherConfig: cfg,
                     automationCoordinator: _gw2Automation,
                     runAfterInvoker: _gw2RunAfterLauncher.Start).ConfigureAwait(false);
 

@@ -265,7 +265,7 @@ namespace GWxLauncher.Services
             IntPtr lpStartAddress,
             IntPtr lpParameter,
             uint dwCreationFlags,
-            out IntPtr lpThreadId);
+            out uint lpThreadId);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern IntPtr GetModuleHandle(string lpModuleName);
@@ -300,6 +300,23 @@ namespace GWxLauncher.Services
 
         [DllImport("kernel32.dll")]
         internal static extern uint GetCurrentThreadId();
+
+        // Additional declarations for GW2 isolation service
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern bool CreateProcess(
+            string? lpApplicationName,
+            string? lpCommandLine,
+            IntPtr lpProcessAttributes,
+            IntPtr lpThreadAttributes,
+            bool bInheritHandles,
+            uint dwCreationFlags,
+            IntPtr lpEnvironment,
+            string? lpCurrentDirectory,
+            ref STARTUPINFO lpStartupInfo,
+            out PROCESS_INFORMATION lpProcessInformation);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern bool GetExitCodeThread(IntPtr hThread, out uint lpExitCode);
 
         #endregion
 

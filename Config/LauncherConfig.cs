@@ -17,6 +17,14 @@ namespace GWxLauncher.Config
 
         public bool Gw1MulticlientEnabled { get; set; } = true;
         public bool Gw2MulticlientEnabled { get; set; } = true;
+
+        // -----------------------------
+        // GW2 Per-Profile Isolation
+        // -----------------------------
+        // When enabled, each GW2 profile gets isolated AppData via DLL injection
+        // Requires unique game folder per profile (no -shareArchive)
+        public bool Gw2IsolationEnabled { get; set; } = false;
+
         // -----------------------------
         // GW1 window title renaming
         // -----------------------------
