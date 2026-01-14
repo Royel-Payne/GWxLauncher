@@ -9,6 +9,7 @@
     <ApplicationIcon>Resources\GWx.ico</ApplicationIcon>
     <PlatformTarget>x86</PlatformTarget>
     <Version>1.4.0</Version>
+    <Platforms>x86</Platforms>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
@@ -18,6 +19,7 @@
 	<ItemGroup>
 		<Compile Remove="tmp\**" />
 		<Compile Remove="Experiments\**" />
+		<Compile Remove="Helpers\**" />
 
 		<EmbeddedResource Remove="tmp\**" />
 		<None Remove="tmp\**" />
@@ -61,22 +63,30 @@
   <ItemGroup>
     <None Include="Experiments\Gw2AppDataRedirectPoC\Gw2AppDataRedirectPoC\Gw2AppDataRedirectPoC.csproj" />
     <None Include="Experiments\Gw2AppDataRedirectPoC\Gw2FolderHook\Gw2FolderHook.vcxproj" />
+    <None Include="Helpers\GWxInjector\GWxInjector.csproj" />
   </ItemGroup>
 
   <!-- Copy Gw2FolderHook.dll to output directory for isolation support -->
   <Target Name="CopyGw2IsolationHookDll" AfterTargets="Build">
-    <Copy
-      SourceFiles="$(ProjectDir)Experiments\Gw2AppDataRedirectPoC\Build\Gw2FolderHook.dll"
-      DestinationFolder="$(TargetDir)"
-      SkipUnchangedFiles="true"
-      Condition="Exists('$(ProjectDir)Experiments\Gw2AppDataRedirectPoC\Build\Gw2FolderHook.dll')" />
-    <Message
-      Text="Copied Gw2FolderHook.dll to output directory for GW2 isolation support"
-      Importance="high"
-      Condition="Exists('$(ProjectDir)Experiments\Gw2AppDataRedirectPoC\Build\Gw2FolderHook.dll')" />
-    <Warning
-      Text="Gw2FolderHook.dll not found. GW2 isolation will not work. Build the PoC first: Experiments\Gw2AppDataRedirectPoC\Build.ps1"
-      Condition="!Exists('$(ProjectDir)Experiments\Gw2AppDataRedirectPoC\Build\Gw2FolderHook.dll')" />
+    <Copy SourceFiles="$(ProjectDir)Experiments\Gw2AppDataRedirectPoC\Build\Gw2FolderHook.dll" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)Experiments\Gw2AppDataRedirectPoC\Build\Gw2FolderHook.dll')" />
+    <Message Text="Copied Gw2FolderHook.dll to output directory for GW2 isolation support" Importance="high" Condition="Exists('$(ProjectDir)Experiments\Gw2AppDataRedirectPoC\Build\Gw2FolderHook.dll')" />
+    <Warning Text="Gw2FolderHook.dll not found. GW2 isolation will not work. Build the PoC first: Experiments\Gw2AppDataRedirectPoC\Build.ps1" Condition="!Exists('$(ProjectDir)Experiments\Gw2AppDataRedirectPoC\Build\Gw2FolderHook.dll')" />
+  </Target>
+
+  <!-- Build and copy x64 injector helper for GW2 isolation -->
+  <Target Name="BuildAndCopyGw2Injector" AfterTargets="Build">
+    <Message Text="Building x64 injector helper for GW2 isolation..." Importance="high" />
+    <Exec Command="dotnet build &quot;$(ProjectDir)Helpers\GWxInjector\GWxInjector.csproj&quot; -c $(Configuration) --nologo -v quiet" ContinueOnError="true" />
+    
+    <!-- Copy ALL helper files (exe, dll, and dependencies) -->
+    <ItemGroup>
+      <HelperFiles Include="$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\*.*" />
+    </ItemGroup>
+    
+    <Copy SourceFiles="@(HelperFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    
+    <Message Text="Copied GWxInjector helper files (x64) to output directory" Importance="high" Condition="Exists('$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\GWxInjector.exe')" />
+    <Warning Text="GWxInjector.exe not found after build. GW2 isolation will not work." Condition="!Exists('$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\GWxInjector.exe')" />
   </Target>
 
 </Project>

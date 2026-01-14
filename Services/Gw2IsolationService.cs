@@ -16,11 +16,12 @@ namespace GWxLauncher.Services
 
     /// <summary>
     /// Service for launching GW2 with per-profile AppData isolation via DLL injection.
-    /// Based on the proven PoC implementation.
+    /// Uses a x64 helper process (GWxInjector.exe) for injection since the launcher is x86.
     /// </summary>
     internal class Gw2IsolationService
     {
         private const string HOOK_DLL_NAME = "Gw2FolderHook.dll";
+        private const string INJECTOR_EXE_NAME = "GWxInjector.exe";
 
         /// <summary>
         /// Launch GW2 with isolation enabled for the given profile.
@@ -41,7 +42,7 @@ namespace GWxLauncher.Services
                     };
                 }
 
-                // Determine exe path (use isolation folder if set, otherwise ExecutablePath)
+                // Determine exe path (use isolation folder)
                 string exePath = Path.Combine(profile.IsolationGameFolderPath, "Gw2-64.exe");
                 if (!File.Exists(exePath))
                 {
@@ -77,23 +78,21 @@ namespace GWxLauncher.Services
                     };
                 }
 
-                // Set environment variables for the hook DLL
-                var environment = new Dictionary<string, string>
-                {
-                    ["GW2_REDIRECT_ROAMING"] = roamingPath,
-                    ["GW2_REDIRECT_LOCAL"] = localPath,
-                    ["GW2_HOOK_LOG"] = Path.Combine(Path.GetTempPath(), "Gw2FolderHook.log")
-                };
+                // Find injector helper (x64)
+                string injectorPath = Path.Combine(launcherDir, INJECTOR_EXE_NAME);
 
-                // Get working directory from exe path
-                string? workingDir = Path.GetDirectoryName(exePath);
-                if (string.IsNullOrEmpty(workingDir))
+                if (!File.Exists(injectorPath))
                 {
-                    workingDir = Environment.CurrentDirectory;
+                    return new Gw2IsolationLaunchResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Injector helper not found: {injectorPath}. " +
+                                      "The x64 helper executable is required for GW2 isolation."
+                    };
                 }
 
-                // Launch with injection
-                uint processId = LaunchAndInject(exePath, hookDllPath, workingDir, arguments, environment);
+                // Launch via helper process
+                uint processId = LaunchViaHelper(injectorPath, exePath, hookDllPath, roamingPath, localPath, arguments);
 
                 return new Gw2IsolationLaunchResult
                 {
@@ -112,241 +111,119 @@ namespace GWxLauncher.Services
         }
 
         /// <summary>
-        /// Core injection logic: Launch suspended, inject DLL, resume.
-        /// Adapted from PoC ProcessInjector.
+        /// Launch GW2 via the x64 helper process which performs the injection.
         /// </summary>
-        private uint LaunchAndInject(
+        private uint LaunchViaHelper(
+            string injectorPath,
             string exePath,
-            string dllPath,
-            string workingDir,
-            string? arguments,
-            Dictionary<string, string> environment)
+            string hookDllPath,
+            string roamingPath,
+            string localPath,
+            string? arguments)
         {
-            // Create suspended process
-            var processInfo = CreateSuspendedProcess(exePath, workingDir, arguments, environment);
-
-            try
+            // Build command line for helper
+            // Format: GWxInjector.exe <exePath> <dllPath> <roamingPath> <localPath> [gameArguments]
+            var helperArgs = new List<string>
             {
-                // Inject DLL
-                InjectDll(processInfo.hProcess, dllPath);
-
-                // Resume main thread
-                NativeMethods.ResumeThread(processInfo.hThread);
-
-                // Close handles
-                NativeMethods.CloseHandle(processInfo.hThread);
-                NativeMethods.CloseHandle(processInfo.hProcess);
-
-                return (uint)processInfo.dwProcessId;
-            }
-            catch
-            {
-                // If injection fails, terminate the process
-                NativeMethods.TerminateProcess(processInfo.hProcess, 1);
-                NativeMethods.CloseHandle(processInfo.hThread);
-                NativeMethods.CloseHandle(processInfo.hProcess);
-                throw;
-            }
-        }
-
-        private NativeMethods.PROCESS_INFORMATION CreateSuspendedProcess(
-            string exePath,
-            string workingDir,
-            string? arguments,
-            Dictionary<string, string> environment)
-        {
-            var startupInfo = new NativeMethods.STARTUPINFO
-            {
-                cb = (uint)Marshal.SizeOf<NativeMethods.STARTUPINFO>()
+                $"\"{exePath}\"",
+                $"\"{hookDllPath}\"",
+                $"\"{roamingPath}\"",
+                $"\"{localPath}\""
             };
 
-            // Build command line
-            string? commandLine = null;
             if (!string.IsNullOrWhiteSpace(arguments))
             {
-                commandLine = arguments;
+                helperArgs.Add(arguments);
             }
 
-            // Build environment block
-            IntPtr environmentPtr = IntPtr.Zero;
-            if (environment != null && environment.Count > 0)
+            string helperArguments = string.Join(" ", helperArgs);
+
+            var startInfo = new System.Diagnostics.ProcessStartInfo
             {
-                environmentPtr = BuildEnvironmentBlock(environment);
-            }
+                FileName = injectorPath,
+                Arguments = helperArguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
 
-            try
+            // Debug log
+            string debugLog = Path.Combine(Path.GetTempPath(), "GWxLauncher_IsolationDebug.log");
+            File.AppendAllText(debugLog, 
+                $"[{DateTime.Now}] Launching helper:\n" +
+                $"  Injector: {injectorPath}\n" +
+                $"  Exists: {File.Exists(injectorPath)}\n" +
+                $"  Arguments: {helperArguments}\n\n");
+
+            using var helperProcess = System.Diagnostics.Process.Start(startInfo);
+
+            if (helperProcess == null)
             {
-                uint creationFlags = NativeMethods.CREATE_SUSPENDED;
-                if (environmentPtr != IntPtr.Zero)
-                {
-                    creationFlags |= 0x00000400; // CREATE_UNICODE_ENVIRONMENT
-                }
-
-                bool success = NativeMethods.CreateProcess(
-                    lpApplicationName: exePath,
-                    lpCommandLine: commandLine,
-                    lpProcessAttributes: IntPtr.Zero,
-                    lpThreadAttributes: IntPtr.Zero,
-                    bInheritHandles: false,
-                    dwCreationFlags: creationFlags,
-                    lpEnvironment: environmentPtr,
-                    lpCurrentDirectory: workingDir,
-                    ref startupInfo,
-                    out NativeMethods.PROCESS_INFORMATION processInfo);
-
-                if (!success)
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    throw new InvalidOperationException($"Failed to create process. Error code: {error}");
-                }
-
-                return processInfo;
+                throw new InvalidOperationException("Failed to start injector helper process");
             }
-            finally
+
+            // Read output asynchronously to prevent deadlock
+            var outputBuilder = new System.Text.StringBuilder();
+            var errorBuilder = new System.Text.StringBuilder();
+
+            helperProcess.OutputDataReceived += (s, e) =>
             {
-                if (environmentPtr != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(environmentPtr);
-                }
-            }
-        }
+                if (e.Data != null)
+                    outputBuilder.AppendLine(e.Data);
+            };
 
-        private void InjectDll(IntPtr processHandle, string dllPath)
-        {
-            // Get LoadLibraryW address
-            IntPtr kernel32 = NativeMethods.GetModuleHandle("kernel32.dll");
-            if (kernel32 == IntPtr.Zero)
+            helperProcess.ErrorDataReceived += (s, e) =>
             {
-                throw new InvalidOperationException("Failed to get kernel32.dll module handle");
-            }
+                if (e.Data != null)
+                    errorBuilder.AppendLine(e.Data);
+            };
 
-            IntPtr loadLibraryAddr = NativeMethods.GetProcAddress(kernel32, "LoadLibraryW");
-            if (loadLibraryAddr == IntPtr.Zero)
+            helperProcess.BeginOutputReadLine();
+            helperProcess.BeginErrorReadLine();
+
+            // Wait for helper to complete (should be quick - just does injection and exits)
+            if (!helperProcess.WaitForExit(15000)) // 15 second timeout
             {
-                throw new InvalidOperationException("Failed to get LoadLibraryW address");
+                helperProcess.Kill();
+                throw new InvalidOperationException("Injector helper timed out");
             }
 
-            // Allocate memory in target process for DLL path
-            byte[] dllPathBytes = Encoding.Unicode.GetBytes(dllPath + '\0');
-            uint dllPathSize = (uint)dllPathBytes.Length;
+            // Ensure async reads complete
+            helperProcess.WaitForExit();
 
-            IntPtr remoteMemory = NativeMethods.VirtualAllocEx(
-                processHandle,
-                IntPtr.Zero,
-                dllPathSize,
-                NativeMethods.MEM_COMMIT | NativeMethods.MEM_RESERVE,
-                NativeMethods.PAGE_READWRITE);
+            string output = outputBuilder.ToString().Trim();
+            string errorOutput = errorBuilder.ToString().Trim();
 
-            if (remoteMemory == IntPtr.Zero)
+            // Log results
+            File.AppendAllText(debugLog,
+                $"[{DateTime.Now}] Helper completed:\n" +
+                $"  Exit Code: {helperProcess.ExitCode}\n" +
+                $"  Stdout: {output}\n" +
+                $"  Stderr: {errorOutput}\n\n");
+
+            // Check exit code
+            if (helperProcess.ExitCode != 0)
             {
-                int error = Marshal.GetLastWin32Error();
-                throw new InvalidOperationException($"Failed to allocate memory in target process. Error: {error}");
+                string errorMsg = errorOutput.StartsWith("ERROR:")
+                    ? errorOutput.Substring(6).Trim()
+                    : $"Injector failed with exit code {helperProcess.ExitCode}\nStderr: {errorOutput}\nStdout: {output}";
+
+                throw new InvalidOperationException(errorMsg);
             }
 
-            try
+            if (!output.StartsWith("SUCCESS:"))
             {
-                // Write DLL path to target process
-                bool writeSuccess = NativeMethods.WriteProcessMemory(
-                    processHandle,
-                    remoteMemory,
-                    dllPathBytes,
-                    dllPathSize,
-                    out IntPtr bytesWritten);
-
-                if (!writeSuccess || bytesWritten.ToInt64() != dllPathSize)
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    throw new InvalidOperationException($"Failed to write DLL path to target process. Error: {error}");
-                }
-
-                // Create remote thread to call LoadLibraryW
-                IntPtr remoteThread = NativeMethods.CreateRemoteThread(
-                    processHandle,
-                    IntPtr.Zero,
-                    0,
-                    loadLibraryAddr,
-                    remoteMemory,
-                    0,
-                    out uint threadId);
-
-                if (remoteThread == IntPtr.Zero)
-                {
-                    int error = Marshal.GetLastWin32Error();
-                    throw new InvalidOperationException($"Failed to create remote thread. Error: {error}");
-                }
-
-                try
-                {
-                    // Wait for LoadLibrary to complete
-                    uint waitResult = NativeMethods.WaitForSingleObject(remoteThread, 10000); // 10 second timeout
-                    if (waitResult != 0) // WAIT_OBJECT_0
-                    {
-                        throw new InvalidOperationException("LoadLibrary call timed out or failed");
-                    }
-
-                    // Get exit code (HMODULE of loaded DLL)
-                    if (!NativeMethods.GetExitCodeThread(remoteThread, out uint exitCode))
-                    {
-                        throw new InvalidOperationException("Failed to get LoadLibrary result");
-                    }
-
-                    if (exitCode == 0)
-                    {
-                        throw new InvalidOperationException("LoadLibrary returned NULL - DLL failed to load");
-                    }
-                }
-                finally
-                {
-                    NativeMethods.CloseHandle(remoteThread);
-                }
+                throw new InvalidOperationException($"Unexpected helper output: {output}");
             }
-            finally
+
+            string pidString = output.Substring(8); // "SUCCESS:".Length
+            if (!uint.TryParse(pidString, out uint processId))
             {
-                // Free allocated memory
-                NativeMethods.VirtualFreeEx(processHandle, remoteMemory, 0, NativeMethods.MEM_RELEASE);
-            }
-        }
-
-        private IntPtr BuildEnvironmentBlock(Dictionary<string, string> environment)
-        {
-            // Build Unicode environment block: "KEY1=VALUE1\0KEY2=VALUE2\0\0"
-            var sb = new StringBuilder();
-
-            // Copy current environment
-            foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
-            {
-                string key = entry.Key?.ToString() ?? "";
-                string value = entry.Value?.ToString() ?? "";
-
-                // Override with custom values if specified
-                if (environment.ContainsKey(key))
-                {
-                    value = environment[key];
-                }
-
-                sb.Append($"{key}={value}\0");
+                throw new InvalidOperationException($"Failed to parse process ID from helper output: {pidString}");
             }
 
-            // Add new variables not in current environment
-            foreach (var kvp in environment)
-            {
-                if (!Environment.GetEnvironmentVariables().Contains(kvp.Key))
-                {
-                    sb.Append($"{kvp.Key}={kvp.Value}\0");
-                }
-            }
-
-            // Double null terminator
-            sb.Append('\0');
-
-            // Convert to Unicode byte array
-            byte[] envBytes = Encoding.Unicode.GetBytes(sb.ToString());
-
-            // Allocate unmanaged memory
-            IntPtr ptr = Marshal.AllocHGlobal(envBytes.Length);
-            Marshal.Copy(envBytes, 0, ptr, envBytes.Length);
-
-            return ptr;
+            return processId;
         }
     }
 }
