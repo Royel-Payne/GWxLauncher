@@ -30,6 +30,11 @@
         public override Color SubtleFore => Color.FromArgb(90, 95, 115);
         public override Color DisabledFore => Color.FromArgb(160, 160, 175);
 
+        // Standard hyperlink blue (like default browser links)
+        public override Color LinkColor => Color.FromArgb(0, 102, 204);
+        public override Color LinkVisited => Color.FromArgb(85, 26, 139);
+        public override Color LinkActive => Color.FromArgb(255, 0, 0);
+
         // White cards on soft gray window = High Contrast
         public override Color CardBack => Color.White;
         public override Color CardSelectedBack => Color.FromArgb(235, 242, 255);

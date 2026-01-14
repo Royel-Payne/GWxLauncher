@@ -31,6 +31,11 @@
         public override Color SubtleFore => Color.FromArgb(150, 150, 165);
         public override Color DisabledFore => Color.FromArgb(90, 90, 100);
 
+        // Brighter link colors for better contrast on dark background
+        public override Color LinkColor => Color.FromArgb(100, 181, 246);  // Light blue
+        public override Color LinkVisited => Color.FromArgb(186, 104, 200); // Light purple
+        public override Color LinkActive => Color.FromArgb(255, 100, 100);  // Light red
+
         // Lighter cards on darker window = High Definition
         public override Color CardBack => Color.FromArgb(32, 32, 38);
         public override Color CardSelectedBack => Color.FromArgb(40, 40, 50);

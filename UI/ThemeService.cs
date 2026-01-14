@@ -110,6 +110,10 @@ namespace GWxLauncher.UI
 
             public static Color SubtleFore => CurrentPalette.SubtleFore;
             public static Color DisabledFore => CurrentPalette.DisabledFore;
+
+            public static Color LinkColor => CurrentPalette.LinkColor;
+            public static Color LinkVisited => CurrentPalette.LinkVisited;
+            public static Color LinkActive => CurrentPalette.LinkActive;
         }
 
         internal static class CardPalette
@@ -220,7 +224,13 @@ namespace GWxLauncher.UI
                     p.BackColor = Palette.SurfaceBack;
                     p.ForeColor = Palette.WindowFore;
                     break;
-
+                case LinkLabel link:
+                    // LinkLabel must come BEFORE Label (inheritance)
+                    link.LinkColor = Palette.LinkColor;
+                    link.VisitedLinkColor = Palette.LinkVisited;
+                    link.ActiveLinkColor = Palette.LinkActive;
+                    link.BackColor = Color.Transparent;
+                    break;
                 case Label l:
                     l.ForeColor = Palette.WindowFore;
                     break;

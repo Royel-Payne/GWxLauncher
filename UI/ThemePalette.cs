@@ -30,6 +30,11 @@
         public abstract Color SubtleFore { get; }
         public abstract Color DisabledFore { get; }
 
+        // Link colors for LinkLabel controls
+        public abstract Color LinkColor { get; }
+        public abstract Color LinkVisited { get; }
+        public abstract Color LinkActive { get; }
+
         // Card palette equivalents
         public abstract Color CardBack { get; }
         public abstract Color CardSelectedBack { get; }
