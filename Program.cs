@@ -27,6 +27,9 @@ namespace GWxLauncher
             // Standard WinForms startup plumbing
             ApplicationConfiguration.Initialize();
 
+            // Extract embedded native dependencies for GW2 isolation (single-file distribution)
+            EmbeddedResourceExtractor.EnsureNativeDependencies();
+
             var cfg = LauncherConfig.Load();
             ThemeService.SetTheme(ParseTheme(cfg.Theme));
 

@@ -69,27 +69,33 @@
     <None Include="Helpers\GWxInjector\GWxInjector.csproj" />
   </ItemGroup>
 
-  <!-- Copy Gw2FolderHook.dll to output directory for isolation support -->
-  <Target Name="CopyGw2IsolationHookDll" AfterTargets="Build">
-    <Copy SourceFiles="$(ProjectDir)Native\Build\Gw2FolderHook.dll" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)Native\Build\Gw2FolderHook.dll')" />
-    <Message Text="Copied Gw2FolderHook.dll to output directory for GW2 isolation support" Importance="high" Condition="Exists('$(ProjectDir)Native\Build\Gw2FolderHook.dll')" />
-    <Warning Text="Gw2FolderHook.dll not found. GW2 isolation will not work. Build the native DLL first: Native\Build.ps1" Condition="!Exists('$(ProjectDir)Native\Build\Gw2FolderHook.dll')" />
-  </Target>
+  <!-- Embed native dependencies as resources for single-file distribution -->
+  <ItemGroup>
+    <EmbeddedResource Include="Native\Build\Gw2FolderHook.dll">
+      <LogicalName>Gw2FolderHook.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\GWxInjector.exe">
+      <LogicalName>GWxInjector.exe</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 
-  <!-- Build and copy x64 injector helper for GW2 isolation -->
-  <Target Name="BuildAndCopyGw2Injector" AfterTargets="Build">
-    <Message Text="Building x64 injector helper for GW2 isolation..." Importance="high" />
-    <Exec Command="dotnet build &quot;$(ProjectDir)Helpers\GWxInjector\GWxInjector.csproj&quot; -c $(Configuration) --nologo -v quiet" ContinueOnError="true" />
+  <!-- Build native DLL and x64 injector before embedding -->
+  <Target Name="BuildNativeDependencies" BeforeTargets="BeforeBuild">
+    <Message Text="Building native dependencies for GW2 isolation..." Importance="high" />
     
-    <!-- Copy ALL helper files (exe, dll, and dependencies) -->
-    <ItemGroup>
-      <HelperFiles Include="$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\*.*" />
-    </ItemGroup>
+    <!-- Build C++ DLL -->
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(ProjectDir)Native\Build.ps1&quot;" 
+          ContinueOnError="true" 
+          Condition="!Exists('$(ProjectDir)Native\Build\Gw2FolderHook.dll')" />
     
-    <Copy SourceFiles="@(HelperFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    <!-- Build x64 injector -->
+    <Exec Command="dotnet build &quot;$(ProjectDir)Helpers\GWxInjector\GWxInjector.csproj&quot; -c $(Configuration) --nologo -v quiet" 
+          ContinueOnError="true" />
     
-    <Message Text="Copied GWxInjector helper files (x64) to output directory" Importance="high" Condition="Exists('$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\GWxInjector.exe')" />
-    <Warning Text="GWxInjector.exe not found after build. GW2 isolation will not work." Condition="!Exists('$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\GWxInjector.exe')" />
+    <Warning Text="Gw2FolderHook.dll not found. Run Native\Build.ps1 to build it." 
+             Condition="!Exists('$(ProjectDir)Native\Build\Gw2FolderHook.dll')" />
+    <Warning Text="GWxInjector.exe not found after build." 
+             Condition="!Exists('$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\GWxInjector.exe')" />
   </Target>
 
 </Project>

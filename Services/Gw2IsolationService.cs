@@ -66,28 +66,26 @@ namespace GWxLauncher.Services
                 Directory.CreateDirectory(roamingPath);
                 Directory.CreateDirectory(localPath);
 
-                // Find hook DLL (in launcher directory)
-                string launcherDir = AppDomain.CurrentDomain.BaseDirectory;
-                string hookDllPath = Path.Combine(launcherDir, HOOK_DLL_NAME);
+                // Get paths to extracted native dependencies (from embedded resources)
+                string hookDllPath = EmbeddedResourceExtractor.GetNativeDllPath();
+                string injectorPath = EmbeddedResourceExtractor.GetInjectorPath();
 
                 if (!File.Exists(hookDllPath))
                 {
                     return new Gw2IsolationLaunchResult
                     {
                         Success = false,
-                        ErrorMessage = $"Hook DLL not found: {hookDllPath}"
+                        ErrorMessage = $"Hook DLL not found: {hookDllPath}\n\n" +
+                                      "The native DLL may not have been built. Run Native\\Build.ps1 and rebuild the application."
                     };
                 }
-
-                // Find injector helper (x64)
-                string injectorPath = Path.Combine(launcherDir, INJECTOR_EXE_NAME);
 
                 if (!File.Exists(injectorPath))
                 {
                     return new Gw2IsolationLaunchResult
                     {
                         Success = false,
-                        ErrorMessage = $"Injector helper not found: {injectorPath}. " +
+                        ErrorMessage = $"Injector helper not found: {injectorPath}\n\n" +
                                       "The x64 helper executable is required for GW2 isolation."
                     };
                 }
