@@ -105,33 +105,50 @@ namespace GWxLauncher.UI.TabControls
 
             if (!result.CanEnable)
             {
-                // Show setup dialog
-                using var setupDialog = new Gw2IsolationSetupDialog(result);
-                if (setupDialog.ShowDialog(this) != DialogResult.OK)
+                // Auto-generate copy plan and proceed immediately
+                var copyPlan = GenerateCopyPlan(result);
+
+                if (copyPlan.Count == 0)
                 {
-                    // User cancelled - revert checkbox
+                    // No copies needed, just enable
+                    _cfg.Gw2IsolationEnabled = newValue;
+                    _cfg.Save();
+                    return;
+                }
+
+                // Calculate total disk space needed
+                long totalSpaceGB = 0;
+                foreach (var (profile, _) in copyPlan)
+                {
+                    string? currentFolder = Path.GetDirectoryName(profile.ExecutablePath);
+                    if (!string.IsNullOrWhiteSpace(currentFolder) && Directory.Exists(currentFolder))
+                    {
+                        long folderSizeBytes = GetFolderSize(currentFolder);
+                        totalSpaceGB += folderSizeBytes / (1024 * 1024 * 1024);
+                    }
+                }
+
+                // Show confirmation dialog
+                using var confirmDialog = new Gw2IsolationConfirmDialog(
+                    result.ProfilesWithDuplicateExePath,
+                    copyPlan.Count,
+                    totalSpaceGB);
+
+                if (confirmDialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    // User clicked No
                     _isUpdatingFromConfig = true;
                     chkGw2IsolationEnabled.Checked = false;
                     _isUpdatingFromConfig = false;
                     return;
                 }
 
-                // User selected profiles to copy
-                foreach (var profile in setupDialog.SelectedProfiles)
+                // Process copies with auto-generated destinations
+                foreach (var (profile, destFolder) in copyPlan)
                 {
-                    // Get current game folder
-                    string currentExePath = profile.ExecutablePath;
-                    if (string.IsNullOrWhiteSpace(currentExePath))
-                    {
-                        MessageBox.Show(
-                            $"Profile '{profile.Name}' does not have an executable path configured.",
-                            "Invalid Profile",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        continue;
-                    }
 
-                    string? currentFolder = Path.GetDirectoryName(currentExePath);
+                    // Get source folder from profile's ExecutablePath
+                    string? currentFolder = Path.GetDirectoryName(profile.ExecutablePath);
                     if (string.IsNullOrWhiteSpace(currentFolder) || !Directory.Exists(currentFolder))
                     {
                         MessageBox.Show(
@@ -142,35 +159,13 @@ namespace GWxLauncher.UI.TabControls
                         continue;
                     }
 
-                    // Show folder browser for destination
-                    using var folderBrowser = new FolderBrowserDialog();
-                    folderBrowser.Description = $"Select destination folder for copying profile: {profile.Name}";
-
-                    // Suggest parent of current game folder
-                    string parentFolder = Path.GetDirectoryName(currentFolder) ?? "";
-                    string suggestedFolder = Path.Combine(
-                        parentFolder,
-                        $"{Path.GetFileName(currentFolder)}_Profile_{profile.Name.Replace(" ", "_")}");
-
-                    folderBrowser.SelectedPath = suggestedFolder;
-
-                    if (folderBrowser.ShowDialog(this) != DialogResult.OK)
-                    {
-                        _isUpdatingFromConfig = true;
-                        chkGw2IsolationEnabled.Checked = false;
-                        _isUpdatingFromConfig = false;
-                        return;
-                    }
-
-                    string destFolder = folderBrowser.SelectedPath;
-
                     // Check disk space
                     if (!validator.CheckDiskSpace(currentFolder, destFolder))
                     {
                         var (sourceGB, freeGB, requiredGB) = validator.GetDiskSpaceInfo(currentFolder, destFolder);
 
                         MessageBox.Show(
-                            $"Insufficient disk space!\n\n" +
+                            $"Insufficient disk space for {profile.Name}!\n\n" +
                             $"Source size: {sourceGB:F1} GB\n" +
                             $"Free space: {freeGB:F1} GB\n" +
                             $"Required: {requiredGB:F1} GB (including 5GB safety margin)",
@@ -199,10 +194,26 @@ namespace GWxLauncher.UI.TabControls
                     // Update profile with new game folder
                     profile.IsolationGameFolderPath = destFolder;
                     profile.ExecutablePath = Path.Combine(destFolder, "Gw2-64.exe");
-
-                    // Save profile
-                    _profileManager.Save();
                 }
+
+                // For profiles keeping the original folder, clear IsolationGameFolderPath
+                // This tells the isolation service to use ExecutablePath instead
+                var profilesWithCopies = copyPlan.Select(cp => cp.profile).ToList();
+                
+                foreach (var group in result.ExePathToProfiles.Values)
+                {
+                    if (group.Count > 0)
+                    {
+                        var keepOriginal = group[0]; // First profile in each group keeps original
+                        if (!profilesWithCopies.Contains(keepOriginal))
+                        {
+                            keepOriginal.IsolationGameFolderPath = ""; // Empty = use original ExecutablePath
+                        }
+                    }
+                }
+
+                // Save all profile changes
+                _profileManager.Save();
             }
 
             // Save setting
@@ -216,6 +227,76 @@ namespace GWxLauncher.UI.TabControls
                 "Isolation Enabled",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
+        }
+
+        /// <summary>
+        /// Generate copy plan: which profiles get copies and where.
+        /// Returns list of (profile, destinationFolder) tuples.
+        /// First profile in each group keeps original (not included in list).
+        /// </summary>
+        private List<(GameProfile profile, string destFolder)> GenerateCopyPlan(Gw2IsolationValidationResult validationResult)
+        {
+            var copyPlan = new List<(GameProfile, string)>();
+
+            foreach (var group in validationResult.ExePathToProfiles)
+            {
+                string originalExePath = group.Key;
+                var profiles = group.Value;
+
+                // Get original folder info
+                string? originalFolder = Path.GetDirectoryName(originalExePath);
+                if (string.IsNullOrEmpty(originalFolder))
+                    continue;
+
+                string originalFolderName = Path.GetFileName(originalFolder);
+                string? parentFolder = Path.GetDirectoryName(originalFolder);
+                if (string.IsNullOrEmpty(parentFolder))
+                    parentFolder = originalFolder;
+
+                // First profile keeps original (skip it)
+                // profiles[0] will have IsolationGameFolderPath = "" (empty = use original)
+
+                // Rest get copies with auto-generated names
+                for (int i = 1; i < profiles.Count; i++)
+                {
+                    var profile = profiles[i];
+
+                    // Generate destination: sibling folder with profile name appended
+                    string cleanProfileName = SanitizeForFolderName(profile.Name);
+                    string suggestedFolder = Path.Combine(parentFolder, $"{originalFolderName}_{cleanProfileName}");
+
+                    copyPlan.Add((profile, suggestedFolder));
+                }
+            }
+
+            return copyPlan;
+        }
+
+        private string SanitizeForFolderName(string input)
+        {
+            // Remove invalid filename characters and limit length
+            var invalid = Path.GetInvalidFileNameChars();
+            string clean = string.Concat(input.Split(invalid, StringSplitOptions.RemoveEmptyEntries));
+            clean = clean.Replace(" ", "_").Trim();
+
+            // Limit to 50 chars
+            if (clean.Length > 50)
+                clean = clean.Substring(0, 50);
+
+            return clean;
+        }
+
+        private long GetFolderSize(string folderPath)
+        {
+            try
+            {
+                var dirInfo = new DirectoryInfo(folderPath);
+                return dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(file => file.Length);
+            }
+            catch
+            {
+                return 80L * 1024 * 1024 * 1024; // Default to 80GB if can't calculate
+            }
         }
 
         private void ApplyTheme()

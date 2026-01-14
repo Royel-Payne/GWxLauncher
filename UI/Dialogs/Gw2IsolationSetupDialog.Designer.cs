@@ -34,10 +34,11 @@ namespace GWxLauncher.UI.Dialogs
             // 
             // checkedListBoxProfiles
             // 
-            this.checkedListBoxProfiles.CheckOnClick = true;
+            this.checkedListBoxProfiles.CheckOnClick = false;
             this.checkedListBoxProfiles.FormattingEnabled = true;
             this.checkedListBoxProfiles.Location = new System.Drawing.Point(12, 72);
             this.checkedListBoxProfiles.Name = "checkedListBoxProfiles";
+            this.checkedListBoxProfiles.SelectionMode = System.Windows.Forms.SelectionMode.None;
             this.checkedListBoxProfiles.Size = new System.Drawing.Size(560, 244);
             this.checkedListBoxProfiles.TabIndex = 1;
             this.checkedListBoxProfiles.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.checkedListBoxProfiles_ItemCheck);
@@ -48,7 +49,7 @@ namespace GWxLauncher.UI.Dialogs
             this.btnCopy.Name = "btnCopy";
             this.btnCopy.Size = new System.Drawing.Size(156, 30);
             this.btnCopy.TabIndex = 2;
-            this.btnCopy.Text = "Copy Selected Folders...";
+            this.btnCopy.Text = "Start Copying";
             this.btnCopy.UseVisualStyleBackColor = true;
             this.btnCopy.Click += new System.EventHandler(this.btnCopy_Click);
             // 

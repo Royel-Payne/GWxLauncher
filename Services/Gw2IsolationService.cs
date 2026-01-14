@@ -32,24 +32,27 @@ namespace GWxLauncher.Services
         {
             try
             {
-                // Validate profile has isolation configured
-                if (string.IsNullOrWhiteSpace(profile.IsolationGameFolderPath))
+                // Determine exe path
+                // If IsolationGameFolderPath is set, use it. Otherwise, fall back to ExecutablePath (original folder)
+                string exePath;
+                
+                if (!string.IsNullOrWhiteSpace(profile.IsolationGameFolderPath))
                 {
-                    return new Gw2IsolationLaunchResult
-                    {
-                        Success = false,
-                        ErrorMessage = "Profile does not have IsolationGameFolderPath configured"
-                    };
+                    // Profile has a dedicated isolation folder
+                    exePath = Path.Combine(profile.IsolationGameFolderPath, "Gw2-64.exe");
+                }
+                else
+                {
+                    // Profile uses original game folder (no copy needed)
+                    exePath = profile.ExecutablePath ?? "";
                 }
 
-                // Determine exe path (use isolation folder)
-                string exePath = Path.Combine(profile.IsolationGameFolderPath, "Gw2-64.exe");
                 if (!File.Exists(exePath))
                 {
                     return new Gw2IsolationLaunchResult
                     {
                         Success = false,
-                        ErrorMessage = $"Gw2-64.exe not found in isolation folder: {exePath}"
+                        ErrorMessage = $"Gw2-64.exe not found at: {exePath}"
                     };
                 }
 
