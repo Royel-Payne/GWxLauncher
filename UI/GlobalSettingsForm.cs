@@ -23,6 +23,7 @@ namespace GWxLauncher.UI
         private GlobalGeneralTabContent? _generalTab;
         private GlobalGw1TabContent? _gw1Tab;
         private GlobalGw2TabContent? _gw2Tab;
+        private GlobalHelpTabContent? _helpTab;
 
         public GlobalSettingsForm(Services.ProfileManager? profileManager = null)
         {
@@ -115,7 +116,7 @@ namespace GWxLauncher.UI
                 BackColor = ThemeService.Palette.SurfaceBack,
                 ForeColor = ThemeService.Palette.WindowFore
             };
-            _lstTabs.Items.AddRange(new object[] { "General", "Guild Wars 1", "Guild Wars 2" });
+            _lstTabs.Items.AddRange(new object[] { "General", "Guild Wars 1", "Guild Wars 2", "Help" });
             _pnlSidebar.Controls.Add(_lstTabs);
         }
 
@@ -149,6 +150,13 @@ namespace GWxLauncher.UI
             _gw2Tab.SetProfileManager(_profileManager);
             // _gw2Tab.MouseEnter += (s, e) => _gw2Tab?.Focus();
             _pnlContentViewport.Controls.Add(_gw2Tab);
+
+            _helpTab = new GlobalHelpTabContent
+            {
+                Dock = DockStyle.Top,
+                Visible = false
+            };
+            _pnlContentViewport.Controls.Add(_helpTab);
         }
 
         private void ReparentControlsToTabs()
@@ -177,11 +185,12 @@ namespace GWxLauncher.UI
         private void lstTabs_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (_lstTabs == null || _lstTabs.SelectedIndex < 0) return;
-            if (_generalTab == null || _gw1Tab == null || _gw2Tab == null) return;
+            if (_generalTab == null || _gw1Tab == null || _gw2Tab == null || _helpTab == null) return;
 
             _generalTab.Visible = false;
             _gw1Tab.Visible = false;
             _gw2Tab.Visible = false;
+            _helpTab.Visible = false;
 
             switch (_lstTabs.SelectedIndex)
             {
@@ -199,6 +208,10 @@ namespace GWxLauncher.UI
                     _gw2Tab.Visible = true;
                     _gw2Tab.Focus();
                     _gw2Tab.RefreshTheme();
+                    break;
+                case 3: // Help
+                    _helpTab.Visible = true;
+                    _helpTab.Focus();
                     break;
             }
 
