@@ -30,6 +30,7 @@ namespace GWxLauncher.Services
                 ExtractIfNeeded("Gw2FolderHook.dll");
 
                 // Extract x64 injector helper (required because main app is x86)
+                // Built as single-file executable, so no separate .dll needed
                 ExtractIfNeeded("GWxInjector.exe");
             }
             catch (Exception ex)

@@ -115,8 +115,9 @@ namespace GWxLauncher.Services
         /// <summary>
         /// Best-effort rehydrate on launcher startup: attempts to map currently-running GW2 processes
         /// back to profiles. Conservative but will "best-guess" if multiple profiles share the same exe path.
+        /// Supports profile isolation by checking both ExecutablePath and IsolationGameFolderPath.
         /// </summary>
-        public void RehydrateFromRunningProcesses(IEnumerable<GameProfile> profiles)
+        public void RehydrateFromRunningProcesses(IEnumerable<GameProfile> profiles, bool globalIsolationEnabled = false)
         {
             if (profiles == null)
                 return;
@@ -129,9 +130,34 @@ namespace GWxLauncher.Services
             if (gw2Profiles.Count == 0)
                 return;
 
-            var profilesByExe = gw2Profiles
-                .GroupBy(p => NormalizePath(p.ExecutablePath))
-                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+            // Build mapping: for each profile, determine effective exe path (isolation-aware)
+            var profilesByExe = new Dictionary<string, List<GameProfile>>(StringComparer.OrdinalIgnoreCase);
+            
+            foreach (var profile in gw2Profiles)
+            {
+                // Determine which exe path the profile would actually launch from
+                // Match the same logic as Gw2LaunchOrchestrator
+                string exePath;
+                if (globalIsolationEnabled && !string.IsNullOrWhiteSpace(profile.IsolationGameFolderPath))
+                {
+                    // Profile has dedicated isolation folder AND global isolation is enabled
+                    exePath = Path.Combine(profile.IsolationGameFolderPath, "Gw2-64.exe");
+                }
+                else
+                {
+                    // Profile uses standard exe path (either isolation disabled or no custom folder)
+                    exePath = profile.ExecutablePath ?? "";
+                }
+
+                exePath = NormalizePath(exePath);
+                if (string.IsNullOrWhiteSpace(exePath))
+                    continue;
+
+                if (!profilesByExe.ContainsKey(exePath))
+                    profilesByExe[exePath] = new List<GameProfile>();
+                
+                profilesByExe[exePath].Add(profile);
+            }
 
             lock (_gate) _instancesByProfileId.Clear();
 
@@ -212,16 +238,34 @@ namespace GWxLauncher.Services
                 {
                     if (p.HasExited) continue;
 
+                    // Try to get the exe path via MainModule (can fail with Access Denied)
                     var modulePath = p.MainModule?.FileName;
                     if (!string.IsNullOrWhiteSpace(modulePath) &&
                         string.Equals(NormalizePath(modulePath), exePath, StringComparison.OrdinalIgnoreCase))
                     {
                         matches.Add(p);
+                        continue;
+                    }
+
+                    // Fallback: if MainModule failed but process name matches, assume it's a match
+                    // This is less precise but necessary for processes we can't query fully
+                    if (string.IsNullOrWhiteSpace(modulePath))
+                    {
+                        // Just finding a process named "Gw2-64" is a strong indicator
+                        // Since this is a rehydration best-effort, we'll include it
+                        matches.Add(p);
                     }
                 }
                 catch
                 {
-                    // ignore - access denied or process exited
+                    // If we can't access the process at all, still try to include it
+                    // as a last resort since the process name matched
+                    try
+                    {
+                        if (!p.HasExited)
+                            matches.Add(p);
+                    }
+                    catch { /* ignore */ }
                 }
             }
 

@@ -74,7 +74,7 @@
     <EmbeddedResource Include="Native\Build\Gw2FolderHook.dll">
       <LogicalName>Gw2FolderHook.dll</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\GWxInjector.exe">
+    <EmbeddedResource Include="Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\win-x64\publish\GWxInjector.exe">
       <LogicalName>GWxInjector.exe</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
@@ -88,14 +88,14 @@
           ContinueOnError="true" 
           Condition="!Exists('$(ProjectDir)Native\Build\Gw2FolderHook.dll')" />
     
-    <!-- Build x64 injector -->
-    <Exec Command="dotnet build &quot;$(ProjectDir)Helpers\GWxInjector\GWxInjector.csproj&quot; -c $(Configuration) --nologo -v quiet" 
+    <!-- Build x64 injector as self-contained single-file (no runtime dependencies) -->
+    <Exec Command="dotnet publish &quot;$(ProjectDir)Helpers\GWxInjector\GWxInjector.csproj&quot; -c $(Configuration) -r win-x64 /p:PublishSingleFile=true /p:SelfContained=true --nologo -v quiet" 
           ContinueOnError="true" />
     
     <Warning Text="Gw2FolderHook.dll not found. Run Native\Build.ps1 to build it." 
              Condition="!Exists('$(ProjectDir)Native\Build\Gw2FolderHook.dll')" />
     <Warning Text="GWxInjector.exe not found after build." 
-             Condition="!Exists('$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\GWxInjector.exe')" />
+             Condition="!Exists('$(ProjectDir)Helpers\GWxInjector\bin\$(Configuration)\net8.0-windows\win-x64\publish\GWxInjector.exe')" />
   </Target>
 
 </Project>

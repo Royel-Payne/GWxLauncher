@@ -152,8 +152,8 @@ namespace GWxLauncher.Services
             {
                 string mumbleName = Gw2MumbleLinkService.GetMumbleLinkName(profile);
 
-                bool isolationEnabled = launcherConfig.Gw2IsolationEnabled &&
-                                       !string.IsNullOrWhiteSpace(profile.IsolationGameFolderPath);
+                // Isolation applies to ALL profiles when globally enabled (redirects AppData even without separate game folders)
+                bool isolationEnabled = launcherConfig.Gw2IsolationEnabled;
 
                 var args = new List<string>();
 
@@ -232,18 +232,27 @@ namespace GWxLauncher.Services
                         mcStep.Detail = "Multiclient enabled.";
                 }
 
-                // If multiclient enabled and isolation disabled, note -shareArchive
-                if (mcEnabled && !isolationEnabled)
+                // Update detail based on launch mode
+                if (isolationEnabled)
                 {
+                    // Profile isolation overrides multiclient
+                    mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
+                        ? "Launched with profile isolation (no -shareArchive)."
+                        : mcStep.Detail + " Launched with profile isolation.";
+                    
+                    // Override outcome to show isolation was used
+                    if (mcStep.Outcome == StepOutcome.Skipped)
+                    {
+                        mcStep.Outcome = StepOutcome.Success;
+                        mcStep.Detail = "Launched with profile isolation (multiclient not required).";
+                    }
+                }
+                else if (mcEnabled)
+                {
+                    // Multiclient enabled without isolation
                     mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
                         ? "Launched with -shareArchive."
                         : mcStep.Detail + " Launched with -shareArchive.";
-                }
-                else if (isolationEnabled)
-                {
-                    mcStep.Detail = string.IsNullOrWhiteSpace(mcStep.Detail)
-                        ? "Launched with isolation (no -shareArchive)."
-                        : mcStep.Detail + " Launched with isolation.";
                 }
 
                 // Window sizing coordination:
