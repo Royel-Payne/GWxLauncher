@@ -22,9 +22,9 @@ namespace GWxLauncher.UI.TabControls
             
             string fullVersion = infoVersion ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
-            // Split version and build hash (format: "1.5.1+githash")
+            // Split version and build hash (format: "1.5.3+githash")
             var parts = fullVersion.Split('+');
-            var versionNumber = parts[0]; // e.g., "1.5.1"
+            var versionNumber = parts[0]; // e.g., "1.5.3"
             var buildHash = parts.Length > 1 ? parts[1] : null;
 
             lblVersion.Text = $"Version: {versionNumber}";

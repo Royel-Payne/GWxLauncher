@@ -61,7 +61,7 @@ namespace GWxLauncher.UI.TabControls
             lblVersion.Name = "lblVersion";
             lblVersion.Size = new Size(88, 19);
             lblVersion.TabIndex = 1;
-            lblVersion.Text = "Version: 1.5.1";
+            lblVersion.Text = "Version: 1.5.3";
             // 
             // lblBuildInfo
             // 
