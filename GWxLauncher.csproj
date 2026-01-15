@@ -92,8 +92,8 @@
           ContinueOnError="true" 
           Condition="!Exists('$(ProjectDir)Native\Build\Gw2FolderHook.dll')" />
     
-    <!-- Build x64 injector as self-contained single-file (no runtime dependencies) -->
-    <Exec Command="dotnet publish &quot;$(ProjectDir)Helpers\GWxInjector\GWxInjector.csproj&quot; -c $(Configuration) -r win-x64 /p:PublishSingleFile=true /p:SelfContained=true --nologo -v quiet" 
+    <!-- Build x64 injector as framework-dependent single-file (requires .NET 8 runtime, which users already have) -->
+    <Exec Command="dotnet publish &quot;$(ProjectDir)Helpers\GWxInjector\GWxInjector.csproj&quot; -c $(Configuration) -r win-x64 /p:PublishSingleFile=true /p:SelfContained=false --nologo -v quiet" 
           ContinueOnError="true" />
     
     <Warning Text="Gw2FolderHook.dll not found. Run Native\Build.ps1 to build it." 
