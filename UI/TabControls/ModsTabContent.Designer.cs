@@ -375,7 +375,9 @@ namespace GWxLauncher.UI.TabControls
             lvGw2RunAfter.CheckBoxes = true;
             lvGw2RunAfter.Columns.AddRange(new ColumnHeader[] { colGw2RunAfterMumble, colGw2RunAfterName });
             lvGw2RunAfter.Dock = DockStyle.Left;
+            lvGw2RunAfter.FullRowSelect = true;
             lvGw2RunAfter.HeaderStyle = ColumnHeaderStyle.None;
+            lvGw2RunAfter.HideSelection = false;
             lvGw2RunAfter.Location = new Point(0, 0);
             lvGw2RunAfter.Name = "lvGw2RunAfter";
             lvGw2RunAfter.OwnerDraw = true;

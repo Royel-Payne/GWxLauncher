@@ -37,7 +37,7 @@ namespace GWxLauncher.Services
             bool bulkMode,
             LauncherConfig launcherConfig,
             Gw2AutomationCoordinator automationCoordinator,
-            Action<GameProfile> runAfterInvoker)
+            Func<GameProfile, LaunchStep> runAfterInvoker)
         {
             if (profile == null)
                 return new Gw2LaunchResult();
@@ -306,7 +306,12 @@ namespace GWxLauncher.Services
                     Gw2WindowManagementService.ApplyWindowSettings(process, profile, report);
                 }
 
-                runAfterInvoker(profile);
+                // Run After Programs - execute AFTER all launch automation is complete
+                var runAfterStep = runAfterInvoker(profile);
+                if (runAfterStep != null)
+                {
+                    report.Steps.Add(runAfterStep);
+                }
 
                 report.Succeeded = true;
 
@@ -341,7 +346,7 @@ namespace GWxLauncher.Services
             bool bulkMode,
             LauncherConfig launcherConfig,
             Gw2AutomationCoordinator automationCoordinator,
-            Action<GameProfile> runAfterInvoker)
+            Func<GameProfile, LaunchStep> runAfterInvoker)
         {
             return LaunchAsync(profile, exePath, mcEnabled, bulkMode, launcherConfig, automationCoordinator, runAfterInvoker)
                 .GetAwaiter().GetResult();
