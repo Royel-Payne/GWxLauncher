@@ -1,7 +1,15 @@
 <Solution>
+  <Configurations>
+    <Configuration Name="Debug|x86" />
+    <Configuration Name="Release|x86" />
+    <Platform Name="Any CPU" />
+    <Platform Name="x86" />
+  </Configurations>
   <Folder Name="/Solution Items/">
     <File Path="LauncherConfig.cs" />
     <File Path="TextFile1.txt" />
   </Folder>
-  <Project Path="GWxLauncher.csproj" />
+  <Project Path="GWxLauncher.csproj">
+    <Platform Solution="*|x86" Project="x86" />
+  </Project>
 </Solution>
