@@ -106,19 +106,15 @@ namespace GWxLauncher.Services
                 readyDetected,
                 timedOut,
                 readinessWaitMs,
-                delayMs,
                 totalMs);
 
             // 3) LaunchReport step (locked label)
-            if (report != null)
-            {
-                report.Steps.Add(new LaunchStep
+            report?.Steps.Add(new LaunchStep
                 {
                     Label = "Throttling",
                     Outcome = StepOutcome.Success,
                     Detail = result.ReasonText
                 });
-            }
 
             statusCallback?.Invoke(string.Empty);
             return result;
@@ -139,7 +135,6 @@ namespace GWxLauncher.Services
            bool readyDetected,
            bool timedOut,
            int readinessWaitMs,
-           int delayMs,
            int totalMs)
         {
             string reason;
