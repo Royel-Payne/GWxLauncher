@@ -10,8 +10,8 @@ namespace GWxLauncher.UI.TabControls
     /// </summary>
     public partial class GeneralTabContent : UserControl
     {
-        private GameProfile _profile;
-        private LauncherConfig _cfg;
+        private GameProfile _profile = null!;  // Initialized in BindProfile()
+        private LauncherConfig _cfg = null!;   // Initialized in BindProfile()
 
         // Added to support ProfileSettingsForm initialization
         public GameType GameType
@@ -93,7 +93,7 @@ namespace GWxLauncher.UI.TabControls
             }
         }
 
-        private void btnBrowseExe_Click(object sender, EventArgs e)
+        private void btnBrowseExe_Click(object? sender, EventArgs e)
         {
             using var dlg = new OpenFileDialog
             {
@@ -139,7 +139,7 @@ namespace GWxLauncher.UI.TabControls
                 // Protected path check
                 if (ProtectedInstallPathPolicy.IsProtectedPath(dlg.FileName))
                 {
-                    if (!ProtectedInstallPathWarningDialog.ConfirmContinue(this.FindForm(), dlg.FileName))
+                    if (!ProtectedInstallPathWarningDialog.ConfirmContinue(this.FindForm()!, dlg.FileName))
                         return;
                 }
 

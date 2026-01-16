@@ -62,8 +62,8 @@
         public string Gw1CharacterName { get; set; } = "";
 
         // Optional custom label used for GW1 window title renaming
-        // If empty, Profile.Name is used.
-        public string Gw1WindowTitleLabel { get; set; } = "";
+        // If null or empty, Profile.Name is used. Null = use game's default titlebar.
+        public string? Gw1WindowTitleLabel { get; set; }
 
         // -----------------------------
         // GW1 – Window Positioning
@@ -104,8 +104,8 @@
         public bool Gw2AutoSubmitLoginOnly { get; set; } = false;
 
         // Optional custom label used for GW2 window title renaming
-        // If empty, Profile.Name is used.
-        public string Gw2WindowTitleLabel { get; set; } = "";
+        // If null or empty, Profile.Name is used. Null = use game's default titlebar.
+        public string? Gw2WindowTitleLabel { get; set; }
 
         // -----------------------------
         // GW2 – Per-Profile Isolation

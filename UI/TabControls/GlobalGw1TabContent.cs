@@ -7,10 +7,10 @@ namespace GWxLauncher.UI.TabControls
 {
     public partial class GlobalGw1TabContent : UserControl
     {
-        private LauncherConfig _cfg;
-        private ProfileManager _profileManager;
+        private LauncherConfig _cfg = null!;  // Initialized in BindConfig()
+        private ProfileManager _profileManager = null!;  // Initialized in SetProfileManager()
 
-        public event EventHandler ProfilesBulkUpdated;
+        public event EventHandler ProfilesBulkUpdated = null!;  // Required event
 
         public GlobalGw1TabContent()
         {
@@ -118,7 +118,7 @@ namespace GWxLauncher.UI.TabControls
 
         private void BrowseDllInto(TextBox target, string title)
         {
-            _ = FilePickerHelper.TryPickDll(this.FindForm(), target, title);
+            _ = FilePickerHelper.TryPickDll(this.FindForm()!, target, title);
         }
 
         private bool ConfirmBulkApply(string action, int count)

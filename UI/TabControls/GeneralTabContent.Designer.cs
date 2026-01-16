@@ -185,16 +185,16 @@ namespace GWxLauncher.UI.TabControls
 
         #endregion
 
-        private System.Windows.Forms.TableLayoutPanel tlpMain;
-        private System.Windows.Forms.Label lblProfileName;
-        private System.Windows.Forms.TextBox txtProfileName;
-        private System.Windows.Forms.Label lblExecutable;
-        private System.Windows.Forms.Panel pnlExeInput;
-        private System.Windows.Forms.TextBox txtExecutable;
-        private System.Windows.Forms.Button btnBrowseExe;
-        private System.Windows.Forms.Label lblArgs;
-        private System.Windows.Forms.TextBox txtArgs;
-        private System.Windows.Forms.Label lblWindowTitle;
-        private System.Windows.Forms.TextBox txtWindowTitle;
+        private System.Windows.Forms.TableLayoutPanel tlpMain = null!;
+        private System.Windows.Forms.Label lblProfileName = null!;
+        private System.Windows.Forms.TextBox txtProfileName = null!;
+        private System.Windows.Forms.Label lblExecutable = null!;
+        private System.Windows.Forms.Panel pnlExeInput = null!;
+        private System.Windows.Forms.TextBox txtExecutable = null!;
+        private System.Windows.Forms.Button btnBrowseExe = null!;
+        private System.Windows.Forms.Label lblArgs = null!;
+        private System.Windows.Forms.TextBox txtArgs = null!;
+        private System.Windows.Forms.Label lblWindowTitle = null!;
+        private System.Windows.Forms.TextBox txtWindowTitle = null!;
     }
 }

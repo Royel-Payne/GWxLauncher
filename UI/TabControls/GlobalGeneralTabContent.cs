@@ -5,7 +5,7 @@ namespace GWxLauncher.UI.TabControls
 {
     public partial class GlobalGeneralTabContent : UserControl
     {
-        private LauncherConfig _cfg;
+        private LauncherConfig _cfg = null!;  // Initialized in BindConfig()
         public event EventHandler? ImportCompleted;
 
         public GlobalGeneralTabContent()

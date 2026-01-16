@@ -5,7 +5,7 @@ namespace GWxLauncher.UI.TabControls
 {
     public partial class LoginTabContent : UserControl
     {
-        private GameProfile _profile;
+        private GameProfile _profile = null!;  // Initialized in BindProfile()
         private bool _gw2IsolationEnabled;
 
         public LoginTabContent()

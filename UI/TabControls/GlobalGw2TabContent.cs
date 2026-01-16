@@ -7,7 +7,7 @@ namespace GWxLauncher.UI.TabControls
 {
     public partial class GlobalGw2TabContent : UserControl
     {
-        private LauncherConfig _cfg;
+        private LauncherConfig _cfg = null!;  // Initialized in BindConfig()
         private ProfileManager? _profileManager;
         private bool _isUpdatingFromConfig;
 

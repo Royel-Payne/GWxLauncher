@@ -7,7 +7,7 @@ namespace GWxLauncher.UI.TabControls
 {
     public partial class ModsTabContent : UserControl
     {
-        private GameProfile _profile;
+        private GameProfile _profile = null!;  // Initialized in BindProfile()
         private LauncherConfig _cfg;
         private bool _loadingProfile;
 
@@ -324,7 +324,7 @@ namespace GWxLauncher.UI.TabControls
             btnGw2RemoveProgram.Enabled = enabled && (lvGw2RunAfter.SelectedItems.Count > 0);
         }
 
-        private void btnGw2AddProgram_Click(object sender, EventArgs e)
+        private void btnGw2AddProgram_Click(object? sender, EventArgs e)
         {
             using var dlg = new OpenFileDialog
             {
@@ -354,7 +354,7 @@ namespace GWxLauncher.UI.TabControls
             RefreshGw2RunAfterList();
         }
 
-        private void btnGw2RemoveProgram_Click(object sender, EventArgs e)
+        private void btnGw2RemoveProgram_Click(object? sender, EventArgs e)
         {
             if (lvGw2RunAfter.SelectedItems.Count == 0) return;
             var item = lvGw2RunAfter.SelectedItems[0];
@@ -374,13 +374,13 @@ namespace GWxLauncher.UI.TabControls
             _gw2RunAfterMenu.Show(lvGw2RunAfter, e.Location);
         }
 
-        private void lvGw2RunAfter_ItemChecked(object sender, ItemCheckedEventArgs e)
+        private void lvGw2RunAfter_ItemChecked(object? sender, ItemCheckedEventArgs e)
         {
             if (e.Item.Tag is RunAfterProgram p)
                 p.Enabled = e.Item.Checked;
         }
 
-        private void lvGw2RunAfter_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
+        private void lvGw2RunAfter_DrawSubItem(object? sender, DrawListViewSubItemEventArgs e)
         {
             if (e.ColumnIndex == 0) { e.DrawDefault = true; return; }
             if (e.ColumnIndex != 1) { e.DrawDefault = true; return; }
@@ -462,7 +462,7 @@ namespace GWxLauncher.UI.TabControls
             }
             catch { fallbackDir = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles); }
 
-            _ = FilePickerHelper.TryPickDll(this.FindForm(), textBox, "Select DLL", fallbackDir);
+            _ = FilePickerHelper.TryPickDll(this.FindForm()!, textBox, "Select DLL", fallbackDir);
         }
 
         private void EnsureDllSelectedOrRevert(CheckBox toggle, TextBox pathBox, string displayName)
