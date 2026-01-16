@@ -13,6 +13,9 @@
 # Experimental / PoC code (local only)
 Experiments/
 
+# Third-party libraries (vendored)
+Native/minhook/
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
