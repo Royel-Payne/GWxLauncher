@@ -85,7 +85,10 @@ namespace GWxLauncher.Services
                 for (int remaining = effectiveDelaySeconds; remaining > 0; remaining--)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    statusCallback?.Invoke($"Throttling: launching next account in {remaining}s…");
+                    string message = remaining == 1 
+                        ? "Throttling: launching next account now…" 
+                        : $"Throttling: launching next account in {remaining}s…";
+                    statusCallback?.Invoke(message);
                     await Task.Delay(1000, cancellationToken);
                 }
 
