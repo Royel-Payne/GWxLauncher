@@ -24,7 +24,7 @@ namespace GWxLauncher.UI.Controllers
         private readonly Func<LauncherConfig> _getConfig;
         private readonly Action<LauncherConfig> _setConfig;
         private readonly Action<string> _setStatus;
-        private readonly Action _saveProfiles; // NEW
+        private readonly Action? _saveProfiles; // NEW - nullable since it's optional
 
         public ProfileLaunchController(
             IWin32Window owner,
@@ -39,7 +39,7 @@ namespace GWxLauncher.UI.Controllers
             Func<LauncherConfig> getConfig,
             Action<LauncherConfig> setConfig,
             Action<string> setStatus,
-            Action saveProfiles = null) // NEW
+            Action? saveProfiles = null) // NEW - nullable since it's optional
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));
             _launchSession = launchSession ?? throw new ArgumentNullException(nameof(launchSession));

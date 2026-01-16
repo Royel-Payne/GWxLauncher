@@ -14,9 +14,11 @@ namespace GWxLauncher.UI
 
         private readonly GameProfile _profile;
         private readonly LauncherConfig _cfg;
+        
+        // Used to prevent event handlers from triggering during LoadFromProfile()
+        #pragma warning disable CS0414 // Field is assigned but never read - used for control flow
         private bool _loadingProfile;
-
-
+        #pragma warning restore CS0414
 
         // Tab infrastructure (created at runtime, not in Designer)
         private Panel? _pnlButtonBar;
